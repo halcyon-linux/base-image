@@ -34,7 +34,6 @@ modules:
       - install-kernel.sh
 
   - from-file: modules/programming.yml
-  - from-file: modules/apps.yml
   - from-file: modules/core.yml
   - from-file: modules/desktop.yml
   - from-file: modules/gaming.yml
@@ -44,6 +43,7 @@ modules:
   - from-file: modules/devtools.yml
   - from-file: modules/nix.yml
   - from-file: modules/texlive.yml
+  - from-file: modules/apps.yml
   - from-file: modules/ujust.yml
   - from-file: modules/finish.yml
   - from-file: modules/final-verify.yml

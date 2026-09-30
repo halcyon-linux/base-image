@@ -24,9 +24,9 @@ overlay rule, not winter's sidecar dirs.
 recipes/halcyon.yml       # THE build definition. Module order is load-bearing:
                           #   signing → files (system → /) → files (dnf-libdnf5 →
                           #   /etc/dnf) → removals → install-kernel.sh →
-                          #   programming → apps → core → desktop → gaming →
+                          #   programming → core → desktop → gaming →
                           #   hardware → ublue-pkgs → terra → devtools → nix →
-                          #   texlive → ujust → finish → final-verify →
+                          #   texlive → apps → ujust → finish → final-verify →
                           #   bootc-lint (bootc-lint must stay last)
 recipes/modules/*.yml     # present: apps, core, desktop, devtools, gaming,
                           #   hardware, nix, programming, removals, terra,
