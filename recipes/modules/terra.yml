@@ -8,5 +8,24 @@ modules:
         - https://raw.githubusercontent.com/terrapkg/subatomic-repos/main/terra.repo
     install:
       install-weak-deps: false
+      no-gpgchecks: true
       packages:
         - terra-release-extras
+        - terra-release-mesa
+        - terra-release-multimedia
+
+  - type: dnf
+    repos:
+      cleanup: true
+      files:
+        - https://raw.githubusercontent.com/terrapkg/subatomic-repos/main/terra.repo
+    install:
+      install-weak-deps: false
+      no-gpgchecks: true
+      packages:
+        - bazzite-portal
+        - scx-scheds
+        - scx-tools
+        - umu-launcher
+        - umu-wrapper
+        - bibata-cursor-theme

@@ -1,0 +1,41 @@
+---
+# yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
+modules:
+  - type: dnf
+    repos:
+      cleanup: true
+      copr:
+        - aahsnr-work/cli-tools
+    install:
+      install-weak-deps: false
+      packages:
+        - asdf
+        - atuin
+        - bat
+        - bat-extras
+        - btop
+        - bun
+        - cava
+        - chafa
+        - chezmoi
+        - cliphist
+        - direnv
+        - dust
+        - eza
+        - fd-find
+        - fpaste
+        - fzf
+        - fzy
+        - gnuplot
+        - kilo
+        - lazygit
+        - marksman
+        - opencode
+        - pandoc
+        - pixi
+        - ripgrep
+        - starship
+        - tealdeer
+        - texlab
+        - topgrade
+        - uv
