@@ -1,9 +1,10 @@
-# halcyon CLI tools Copr repo — priority 1 (consumed by the dnf module via
-# files/dnf/halcyon-cli-tools.repo; the copr plugin sets no priority, so the repo
-# file carries it).
-#
-# priority=1 (dnf: lower number wins; Fedora/Terra default to 99) makes every
-# package this repo builds shadow Fedora, Terra and any unprioritized Copr.
+# halcyon CLI tools Copr repo (aahsnr-work/cli-tools) — scoped with
+# includepkgs. priority=1 makes those packages win over Fedora/Terra, while
+# includepkgs confines the repo to exactly the names devtools.yml installs
+# (the monorepo also builds xwiimote-ng, yazi, zellij and zoxide, which the
+# recipe does not use — the allowlist keeps them unpullable). Keep the list
+# in sync with devtools.yml (a missing entry fails loudly with "No match" if
+# Fedora lacks the name; a stale entry silently serves Fedora's build).
 
 [copr:copr.fedorainfracloud.org:aahsnr-work:cli-tools]
 name=Copr repo for cli-tools (aahsnr-work) — priority 1
@@ -16,3 +17,4 @@ repo_gpgcheck=0
 enabled=1
 enabled_metadata=1
 priority=1
+includepkgs=asdf,atuin,bat,bat-extras,bun,cava,chafa,cliphist,dust,eza,fd-find,fzf,fzy,gnuplot,kilo,lazygit,marksman,opencode,pandoc,pixi,starship,tealdeer,texlab,topgrade,uv

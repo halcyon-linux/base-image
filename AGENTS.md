@@ -212,8 +212,13 @@ the workflows (no Justfile).
   nothing after `bootc-lint` once it exists).
 - `dnf install` always sets `install-weak-deps: false`; every dep that used to
   arrive weakly must be listed explicitly. Third-party `repos` always set
-  `cleanup: true`. Local `.repo` files live in `files/dnf/` and are referenced
-  by filename.
+  `cleanup: true`, which removes the repo files at the END of the same module
+  RUN — so a repos block and the install that consumes it must live in ONE
+  dnf module. Local `.repo` files live in `files/dnf/` and are referenced by
+  filename; the COPR ones pair `priority=1` with `includepkgs=<curated set>`
+  (sources of truth: `~/Git/halcyon/copr`): priority alone would make dnf5
+  prefer the COPR for every dependency name it builds, and the allowlist
+  confines it to exactly the packages the consuming module installs.
 - Declarative first: do with bluebuild modules (`files`, `dnf`, `systemd`)
   whatever a module can express; the `script` module is only for what no
   module covers (verify gates, foreign-file patching like steam.desktop).

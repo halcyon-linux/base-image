@@ -1,6 +1,10 @@
 ---
 # yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
 modules:
+  # repos + install in ONE dnf module: the module removes the repo files at
+  # the end of its own RUN (cleanup: true), so a split repos/install pair
+  # leaves the install transaction with Fedora only (observed: "No match" for
+  # every non-Fedora package).
   - type: dnf
     repos:
       cleanup: true
@@ -11,7 +15,6 @@ modules:
       keys:
         - https://packages.microsoft.com/keys/microsoft.asc
         - https://brave-browser-rpm-release.s3.brave.com/brave-core.asc
-  - type: dnf
     install:
       install-weak-deps: false
       packages:

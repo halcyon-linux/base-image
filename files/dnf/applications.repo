@@ -1,3 +1,11 @@
+# applications Copr repo (aahsnr-work) — the recipe's curated app set, scoped
+# with includepkgs. priority=1 makes those packages win over Fedora/Terra,
+# while includepkgs confines the repo to exactly the names apps.yml installs —
+# without the allowlist, dnf5 prefers this repo for every dependency name it
+# carries. Keep the list in sync with apps.yml (a missing entry fails loudly
+# with "No match" if Fedora lacks the name; a stale entry silently serves
+# Fedora's build).
+
 [copr:copr.fedorainfracloud.org:aahsnr-work:applications]
 name=Copr repo for applications (aahsnr-work) — priority 1
 baseurl=https://download.copr.fedorainfracloud.org/results/aahsnr-work/applications/fedora-$releasever-$basearch/
@@ -9,3 +17,4 @@ repo_gpgcheck=0
 enabled=1
 enabled_metadata=1
 priority=1
+includepkgs=antigravity-cli,antigravity-ide,bitwarden,distroshelf,emacs-pgtk,ferdium,kitty,mullvad-vpn,obsidian,onlyoffice-desktopeditors,opencode-desktop,private-internet-access,proton-vpn-daemon,proton-vpn-gtk-app,python3-proton-core,python3-proton-keyring-linux,python3-proton-vpn-api-core,ticktick,zed,zen-browser,zotero
