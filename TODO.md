@@ -1,0 +1,2 @@
+- [ ] Add separae build time verification scripts for all everything in the whole project
+- [ ] Disable zram and tmpfs
