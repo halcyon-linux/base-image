@@ -36,6 +36,10 @@ DNF=(dnf5 -y --setopt=install_weak_deps=False --disable-repo='rpmfusion-*')
 nvidia_repo() { dnf5 -y config-manager "$1" "${NV_REPO}"; }
 
 echo "::group::install-kernel — preflight"
+# config-manager + copr are dnf5 PLUGIN commands — the bootc base does not
+# ship dnf5-plugins, and the repo windowing below (and finalize.sh's setopt
+# calls) depend on them. Installed once here; it persists for later modules.
+dnf5 -y --setopt=install_weak_deps=False install dnf5-plugins
 # Fail fast if the negativo17 repo id ever changes, then close its window.
 # (Captured, not piped: `dnf5 | grep -q` can SIGPIPE-fail under pipefail.)
 REPOS="$(dnf5 -q repolist --all)"
