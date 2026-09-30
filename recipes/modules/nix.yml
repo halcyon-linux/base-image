@@ -1,12 +1,5 @@
 ---
-# yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
-# halcyon build step — nix: winter pattern
-# (https://github.com/fu5ha/winter recipes/modules/nix.yaml). Logic follows
-# winter (package set, enable order, verify checks), but file placement follows
-# this repo's overlay rule: the tmpfiles rule, profile.d hook and mount units
-# ship via files/system/, copied to / by the recipe's first files module, so
-# this module only enables the units, installs the packages and runs the inline
-# verify snippet — nothing sources an external script.
+# $schema=https://schema.blue-build.org/module-list-v1.json
 modules:
   - type: systemd
     system:
@@ -25,18 +18,3 @@ modules:
     system:
       enabled:
         - nix-daemon
-
-  - type: script
-    snippets:
-      - |
-        echo "████ STAGE 06/13 · nix · winter pattern ████"
-        echo "::group::nix-verify — winter pattern wiring"
-        rpm -q nix nix-daemon || { echo "  FAIL  nix packages missing" >&2; exit 1; }
-        test -f /usr/lib/systemd/system/var-nix.service || { echo "  FAIL  var-nix.service missing" >&2; exit 1; }
-        test -f /usr/lib/systemd/system/nix.mount || { echo "  FAIL  nix.mount missing" >&2; exit 1; }
-        grep -q "1775 root nixbld" /usr/lib/tmpfiles.d/zz-halcyon-nix.conf || { echo "  FAIL  nix tmpfiles rule missing" >&2; exit 1; }
-        test -f /etc/profile.d/01-nix-resolve-home-env.sh || { echo "  FAIL  nix profile.d hook missing" >&2; exit 1; }
-        systemctl is-enabled nix-daemon >/dev/null 2>&1 || { echo "  FAIL  nix-daemon not enabled" >&2; exit 1; }
-        echo "  OK    nix wiring verified"
-        echo "::endgroup::"
-        echo "--- nix complete ---"
