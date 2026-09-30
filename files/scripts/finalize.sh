@@ -26,7 +26,9 @@ echo "::endgroup::"
 echo "::group::finalize — end-of-build hygiene (bazzite finalize pattern)"
 dnf5 config-manager setopt keepcache=0
 dnf5 config-manager setopt skip_if_unavailable=1
-find /tmp -mindepth 1 -delete 2>/dev/null || true
+# No /tmp wipe here: bluebuild binds the module runtime into /tmp during this
+# very RUN — wiping it fails the module after the scripts succeed, and
+# post_build wipes /tmp/* + /var/* after the last module regardless.
 rm -f /var/log/dnf5.log /var/log/dnf5.log.* || true
 # find(1) instead of `rm -rf /boot/*` globs: identical end state (empty /boot),
 # no dotted-glob edge cases, and shellcheck-clean
