@@ -15,10 +15,12 @@ labels:
   halcyon.desktop: "hyprland-noctalia"
 
 modules:
+  - type: signing
+
   - type: files
     files:
       - source: system
-        destination: / # files/system/** → /** (template+winter verified)
+        destination: /
 
   - type: files
     files:
