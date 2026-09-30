@@ -1,0 +1,4 @@
+# Stage 02 — kernel-nvidia: p03 kernel + prebuilt nvidia-open modules (Stage K1).
+type: script
+scripts:
+  - install-kernel.sh

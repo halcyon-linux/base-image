@@ -1,0 +1,4 @@
+# Stage 07 — built-apps: halcyon-apps + halcyon-texlive + the python helpers.
+type: script
+scripts:
+  - install-built-apps.sh

@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Define directories to be cleaned
+dirs=(
+    "$HOME/.config/nvim"
+    "$HOME/.local/share/nvim"
+    "$HOME/.local/state/nvim"
+    "$HOME/.cache/nvim"
+)
+
+echo "⚠️  WARNING: Will delete:"
+# Correctly expand the array elements for printing
+printf "  - %s\n" "${dirs[@]}"
+
+read -r -p "Continue? [y/N]: " REPLY
+if [[ ! "$REPLY" =~ ^[Yy]$ ]]; then
+    echo "Cancelled"
+    exit 0
+fi
+
+# Correctly expand the array elements for the loop
+for dir in "${dirs[@]}"; do
+    if [[ -d "$dir" ]]; then
+        rm -rf "$dir"
+        echo "Removed: $dir"
+    fi
+done
+
+echo "✅ Complete"

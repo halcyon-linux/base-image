@@ -1,0 +1,5 @@
+# Stage 04 — terra: Terra-only resolution for the leftovers no halcyon
+# project builds.
+type: script
+scripts:
+  - terra.sh

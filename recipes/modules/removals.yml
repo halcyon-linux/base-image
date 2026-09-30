@@ -1,0 +1,54 @@
+---
+# yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
+modules:
+  - type: dnf
+    remove:
+      auto-remove: true # sweep orphaned deps
+      packages:
+        - nautilus-gsconnect
+        - gnome-shell-extension-gsconnect
+        - gnome-shell-extension-user-theme
+        - gnome-search-yafti
+        - gnome-rounded-blur
+        - firewall-config
+        - ibus-mozc
+        - ibus-pinyin
+        - ibus-table-chinese-cangjie
+        - ibus-table-chinese-quick
+        - inputplumber
+        - steamos-manager-powerstation
+        - jupiter-fan-control
+        - jupiter-hw-support-btrfs
+        - galileo-mura
+        - steamdeck-dsp
+        - powerbuttond
+        - vpower
+        - sdgyrodsu
+        - hid-replay
+        - steamdeck-backgrounds
+        - steamdeck-gnome-presets
+        - waydroid
+        - fastfetch
+        - firefox
+        - firefox-langpacks
+        - gnome-shell
+        - mutter
+        - gdm
+        - gnome-session
+        - gnome-session-wayland-session
+        - nautilus
+        - ptyxis
+        - gnome-control-center
+        - gnome-settings-daemon
+        - gjs
+        - xdg-desktop-portal-gnome
+        - nano
+        - nano-default-editor
+
+  - type: script
+    scripts:
+      - guarded-removals.sh
+
+  - type: script
+    scripts:
+      - fonts-cleanup.sh

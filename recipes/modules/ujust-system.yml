@@ -1,0 +1,5 @@
+# Stage 08 — ujust-system: ujust registration + steam/lutris wiring + units
+# + services.
+type: script
+scripts:
+  - ujust-system.sh

@@ -1,0 +1,6 @@
+SHELL=/bin/zsh
+HOME=/home
+INACTIVE=-1
+EXPIRE=
+SKEL=/etc/skel
+# halcyon: zsh is the default login shell for newly created users

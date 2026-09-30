@@ -1,0 +1,15 @@
+[Unit]
+Description=Initializes Chezmoi if directory is missing
+After=network-online.target
+Wants=network-online.target
+# blue-build chezmoi module condition: run only for users with NO existing
+# chezmoi source directory (checks the .git dir the module clone creates).
+ConditionPathExists=!%h/.local/share/chezmoi/.git/
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/chezmoi init --apply aahsnr-configs/dotfiles
+TimeoutStartSec=600
+
+[Install]
+WantedBy=default.target

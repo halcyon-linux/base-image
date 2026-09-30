@@ -1,0 +1,13 @@
+#%PAM-1.0
+# PAM stack for greetd with gnome-keyring auto-unlock support.
+# The includes point at system-auth, NOT Arch's system-login — nothing on
+# Fedora ships /etc/pam.d/system-login, so an Arch-style stack here would
+# degrade to the two pam_gnome_keyring optionals and never authenticate.
+# system-auth is the authselect-managed stack that exists on every Fedora
+# image (verified on a stock quay.io/fedora/fedora-bootc:44).
+auth       include      system-auth
+account    include      system-auth
+password   include      system-auth
+session    include      system-auth
+session    optional     pam_gnome_keyring.so auto_start
+auth       optional     pam_gnome_keyring.so

@@ -1,0 +1,8 @@
+halcyon — Hyprland gaming desktop (fedora-bootc + p03 kernel)
+
+  ujust              list everything this image can do (update, fixes, tools)
+  ujust update       update system, flatpaks and containers via uupd
+  fastfetch          system overview
+
+Package census of this exact build: /usr/share/halcyon/package-count
+Report issues: https://github.com/aahsnr-work/halcyon
