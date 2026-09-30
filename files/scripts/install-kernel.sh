@@ -2,7 +2,8 @@
 # halcyon build step — install-kernel (Stage 02): p03 kernel + nvidia-open.
 #
 # Kernel + prebuilt nvidia-open modules: COPR catpieleaf/kernel-p03 (ABI-matched
-# by the COPR). NVIDIA userland:
+# by the COPR). The default kernel-p03 requires x86_64-v3 on the TARGET machine
+# (the COPR's kernel-p03-gcc is the v2 fallback). NVIDIA userland:
 # negativo17 — the only repo on the driver line the COPR modules were built
 # for (RPM Fusion's userland mismatches and its xorg-x11-drv-nvidia hard-requires
 # nvidia-kmod/akmod-nvidia).
@@ -10,7 +11,9 @@
 # Repo windows (each repo resolves packages only inside its own window):
 #   kernel COPR  : enabled only for the kernel transaction
 #   negativo17   : enabled only for the userland install + RPM download
-#   RPM Fusion   : disabled for every transaction here (not needed by Stage 02)
+#   RPM Fusion   : excluded from every transaction here — but only when a
+#                  repo definition exists, because dnf5 hard-errors on a
+#                  --disable-repo glob that matches zero repos.
 #
 # Three negativo17 subpackages are dependency-entangled with a kmod package and
 # can NOT be installed next to the COPR's prebuilt modules:
@@ -19,18 +22,27 @@
 #   nvidia-settings -> nvidia-driver (meta) -> nvidia-kmod-common.
 # They are payload-extracted file-only via rpm2cpio (GSP firmware, modprobe/
 # udev/dracut confs, nvidia-smi, OpenCL ICD, nvidia-settings): no rpmdb entry,
-# no dependency chain. Fallback if module/userland versions ever drift: DKMS
-# (rakuos-base pattern) — the verify section fails the build on a mismatch.
+# no dependency chain. Fallback if module/userland versions ever drift: DKMS —
+# the verify section fails the build on a mismatch.
 #
 # Kernel/NVIDIA RPMs install with tsflags=noscripts (scriptlets fail in
-# containers); depmod runs here, dracut runs in build-initramfs.sh (finish).
+# containers) — this also skips p03's secure-boot key generation, so Secure
+# Boot users enroll a MOK at runtime. depmod runs here; the initramfs is
+# built by the initramfs module in finish.
 set -euo pipefail
 
 echo "████ STAGE 02/13 · kernel-nvidia · p03 + nvidia-open ████"
 
 NV_REPO=fedora-nvidia
 KERNEL_COPR=catpieleaf/kernel-p03
-DNF=(dnf5 -y --setopt=install_weak_deps=False --disable-repo='rpmfusion-*')
+DNF=(dnf5 -y --setopt=install_weak_deps=False)
+# dnf5 aborts on a --disable-repo glob that matches zero repos ("No matching
+# repositories"), so exclude rpmfusion only when a repo definition actually
+# exists — the gaming module enables it transiently AFTER this stage, and the
+# base ships none.
+if dnf5 -q repolist --all 2>/dev/null | grep -Eq '(^|[[:space:]])rpmfusion'; then
+  DNF+=(--disable-repo='rpmfusion-*')
+fi
 # enable|disable — dnf5 records this in repos.override.d/99-config_manager.repo;
 # the .repo file itself is untouched (finalize.sh deletes it later).
 nvidia_repo() { dnf5 -y config-manager "$1" "${NV_REPO}"; }
