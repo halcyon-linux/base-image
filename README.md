@@ -1,43 +1,51 @@
-# BlueBuild Template &nbsp; [![bluebuild build badge](https://github.com/blue-build/template/actions/workflows/build.yml/badge.svg)](https://github.com/blue-build/template/actions/workflows/build.yml)
+# halcyon
 
-See the [BlueBuild docs](https://blue-build.org/how-to/setup/) for quick setup instructions for setting up your own repository based on this template.
+A lean Hyprland gaming-desktop OCI image built with [BlueBuild](https://blue-build.org)
+on `quay.io/fedora/fedora-bootc`.
 
-After setup, it is recommended you update this README to describe your custom image.
+- Hyprland + Noctalia, greetd with the noctalia greeter, zsh as the default shell
+- `catpieleaf/kernel-p03` kernel with prebuilt `nvidia-open` modules and negativo17
+  NVIDIA userland (RPM Fusion's NVIDIA chain is excluded)
+- Steam/Lutris gaming stack with the vendored `bazzite-steam` wrappers,
+  gamescope, mangohud, umu, scx schedulers
+- `ujust` tooling (`ujust --list`), `uupd` system updates, Nix + home-manager ready
+- Curated dev tooling; every module is gated by build-time verify scripts
 
-## Installation
+## Install / rebase
 
-> [!WARNING]  
-> [This is an experimental feature](https://www.fedoraproject.org/wiki/Changes/OstreeNativeContainerStable), try at your own discretion.
+> [!WARNING]
+> [bootc images are an experimental feature](https://www.fedoraproject.org/wiki/Changes/OstreeNativeContainerStable) — try at your own discretion.
 
-To rebase an existing atomic Fedora installation to the latest build:
+Rebase an existing Fedora atomic system (bootc or rpm-ostree):
 
-- First rebase to the unsigned image, to get the proper signing keys and policies installed:
-  ```
-  rpm-ostree rebase ostree-unverified-registry:ghcr.io/blue-build/template:latest
-  ```
-- Reboot to complete the rebase:
-  ```
-  systemctl reboot
-  ```
-- Then rebase to the signed image, like so:
-  ```
-  rpm-ostree rebase ostree-image-signed:docker://ghcr.io/blue-build/template:latest
-  ```
-- Reboot again to complete the installation
-  ```
-  systemctl reboot
-  ```
+```bash
+sudo bootc switch ghcr.io/halcyon-linux/halcyon:latest
+```
 
-The `latest` tag will automatically point to the latest build. That build will still always use the Fedora version specified in `recipe.yml`, so you won't get accidentally updated to the next major version.
+or, on an rpm-ostree system:
 
-## ISO
+```bash
+sudo rpm-ostree rebase ostree-unverified-registry:ghcr.io/halcyon-linux/halcyon:latest
+```
 
-If build on Fedora Atomic, you can generate an offline ISO with the instructions available [here](https://blue-build.org/how-to/generate-iso/#_top). These ISOs cannot unfortunately be distributed on GitHub for free due to large sizes, so for public projects something else has to be used for hosting.
+Reboot to apply. The image ships its own sigstore policy and public key, so
+`bootc switch --enforce-container-sigpolicy` verifies the signature baked into
+the image (`cosign.pub` at the repo root) from the first update on. A
+`rebase-to-custom` ujust recipe wraps the same flow.
 
 ## Verification
 
-These images are signed with [Sigstore](https://www.sigstore.dev/)'s [cosign](https://github.com/sigstore/cosign). You can verify the signature by downloading the `cosign.pub` file from this repo and running the following command:
+Images are signed with [cosign](https://github.com/sigstore/cosign) in the
+legacy attachment format that bootc's client-side policy can verify:
 
 ```bash
-cosign verify --key cosign.pub ghcr.io/blue-build/template
+cosign verify --key cosign.pub ghcr.io/halcyon-linux/halcyon
 ```
+
+## Build
+
+Builds run in CI via [BlueBuild](https://blue-build.org) (see
+`.github/workflows/build.yml`): the recipe is validated, built with the pinned
+BlueBuild CLI, verified end-state (`final-verify`) and with
+`bootc container lint`, then pushed and signed. Architecture rules and the
+per-module verification gates are documented in [AGENTS.md](AGENTS.md).

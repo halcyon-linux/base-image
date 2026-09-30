@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
-# halcyon build step — image-info: write /usr/share/ublue-os/image-info.json.
-# The vendored bazzite-steam{,-firstrun} wrappers and 83-halcyon-audio read
-# this file; without it they degrade (jq on a missing path). The sigstore
-# policy work of the backup layout's image-info.sh is NOT ported here — the
-# bluebuild `signing` module (first module in the recipe) already writes
-# policy.json + registries.d from the staged cosign.pub.
+# halcyon build step — image-info: write /usr/share/ublue-os/image-info.json,
+# which the vendored bazzite-steam{,-firstrun} wrappers and 83-halcyon-audio
+# read (without it they degrade). The `signing` module — first in the recipe —
+# already owns policy.json + registries.d from the staged cosign.pub.
 set -euo pipefail
 
 IMAGE_NAME=halcyon

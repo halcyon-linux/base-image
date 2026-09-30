@@ -1,18 +1,10 @@
 #!/usr/bin/env bash
 # halcyon build step — ujust-system (Stage 08): ujust presence gates,
-# steam/lutris desktop-entry wiring (bazzite parity), and the ujust-verify +
-# system-verify tail.
-#
-# Declarative work is owned by bluebuild modules, not this script:
-#   - the 10 ujust modules are registered by the static overlay file
-#     60-custom.just (files module; the ublue-os-just RPM ships the
-#     justfile's `import?` hook for it);
-#   - unit enables/masks (uupd.timer, greetd, getty@tty2, the sddm/gdm/
-#     autologin/nvidia masks, the pyprland + chezmoi global user units)
-#     belong to the systemd module in modules/ujust.yml;
-#   - /nix unit enablement lives in modules/nix.yml.
-# The ujust-fedora companions (glow, grubby, stress-ng) install via the
-# module's dnf block — this repo has no packages.json catalog.
+# steam/lutris desktop-entry patching, and the ujust+system verify tail.
+# Everything declarative is owned by bluebuild modules: the ujust modules
+# register via the static 60-custom.just overlay file, unit enable/mask
+# state lives in the systemd block of modules/ujust.yml, /nix units in
+# modules/nix.yml, and the ujust-fedora companions in the module's dnf block.
 set -euo pipefail
 
 echo "████ STAGE 08/13 · ujust-system · gates + desktop wiring ████"

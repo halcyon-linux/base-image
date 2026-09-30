@@ -2,7 +2,7 @@
 # halcyon build step — install-kernel (Stage 02): p03 kernel + nvidia-open.
 #
 # Kernel + prebuilt nvidia-open modules: COPR catpieleaf/kernel-p03 (ABI-matched
-# by the COPR; Stage K2 moves it to halcyon-packages). NVIDIA userland:
+# by the COPR). NVIDIA userland:
 # negativo17 — the only repo on the driver line the COPR modules were built
 # for (RPM Fusion's userland mismatches and its xorg-x11-drv-nvidia hard-requires
 # nvidia-kmod/akmod-nvidia).
@@ -26,7 +26,7 @@
 # containers); depmod runs here, dracut runs in build-initramfs.sh (finish).
 set -euo pipefail
 
-echo "████ STAGE 02/13 · kernel-nvidia · p03 + nvidia-open (Stage K1) ████"
+echo "████ STAGE 02/13 · kernel-nvidia · p03 + nvidia-open ████"
 
 NV_REPO=fedora-nvidia
 KERNEL_COPR=catpieleaf/kernel-p03
@@ -41,7 +41,7 @@ echo "::group::install-kernel — preflight"
 REPOS="$(dnf5 -q repolist --all)"
 grep -Eq "(^|[[:space:]])${NV_REPO}([[:space:]]|$)" <<<"${REPOS}" ||
   {
-    echo "  FAIL  repo '${NV_REPO}' not found (repos module ran?)" >&2
+    echo "  FAIL  repo '${NV_REPO}' not found (overlay repo file missing?)" >&2
     exit 1
   }
 nvidia_repo disable

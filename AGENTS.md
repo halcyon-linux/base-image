@@ -2,8 +2,6 @@
 
 Guidance for AI coding agents (and humans) working in this repository. This is a
 from-scratch BlueBuild project: every claim below was checked against the tree.
-A file or directory named here as MISSING is referenced but not yet written —
-do not assume its contents.
 
 ## 1. What this repo is
 
@@ -107,11 +105,10 @@ cosign.pub                 # repo-root public key — the bluebuild CLI stages i
 AGENTS.md / README.md (template text) / TODO.md / LICENSE / .gitignore
 ```
 
-NOT in this repo: `Justfile`, `files/packages.json`, `cosign.pub`,
-`.containerignore`, `.github/`, `verify/`, `halcyon.env`,
-`files/python-packages/`. Do not cite them in plans. (The backup-image repo
-kept a `packages.json` catalog + Justfile; this repo deliberately installs via
-the `dnf` module instead — do not reintroduce them.)
+NOT in this repo: `Justfile`, `files/packages.json`, `verify/`, `halcyon.env`,
+`files/python-packages/`. Package installs go through the `dnf` module
+(never a package catalog — do not reintroduce one); CI steps are inlined in
+the workflows (no Justfile).
 
 ## 3. Module inventory (what each file actually does)
 
@@ -136,7 +133,7 @@ the `dnf` module instead — do not reintroduce them.)
   negativo17 subpackages (`nvidia-driver-cuda`, `nvidia-kmod-common`,
   `nvidia-settings`) are payload-extracted file-only via `rpm2cpio` — never add
   them to a `dnf install` line. Installs use `tsflags=noscripts`; depmod runs
-  here, dracut is deferred to the MISSING finish module.
+  here, dracut is deferred to the finish module.
 - `programming.yml`: toolchains (`python3`, `nodejs22`, `gcc-c++`, `cargo`,
   `cmake`, `golang`, `perl`) — single-module schema.
 - `apps.yml`: `repos` (local `vscode.repo`, brave `.repo` URL, both GPG keys,
@@ -180,18 +177,14 @@ the `dnf` module instead — do not reintroduce them.)
   configs), ending with `lib/cleanup.sh`. The 10 modules are registered by
   the static overlay file `60-custom.just` (the `ublue-os-just` RPM ships
   the justfile's `import?` hook for it); `var-nix.service`/`nix.mount`
-  remain in nix.yml. Ported from backup-image's Stage 08; the
-  bazzite-Containerfile finalize echoes (justfile imports, steam.desktop
-  seds, `uupd.timer`) are covered by the systemd module + script pair.
+  remain in nix.yml.
 - `finish.yml`: `os-release` module (NAME/`PRETTY_NAME`/HOME_URL →
   /etc/os-release) → `script` `[image-info.sh, finalize.sh]` → `initramfs`
   module LAST. `image-info.sh` writes `/usr/share/ublue-os/image-info.json`
   (bazzite-steam reads it); `finalize.sh` sweeps every third-party repo file
   (incl. the overlay-staged `fedora-nvidia.repo`) and runs the end-of-build
   hygiene. The `initramfs` module regenerates the initrd for every kernel in
-  `/usr/lib/modules` (`--no-hostonly --reproducible --add ostree`, 0600) —
-  the bluebuild-native replacement for the backup layout's
-  `build-initramfs.sh`.
+  `/usr/lib/modules` (`--no-hostonly --reproducible --add ostree`, 0600).
 - `final-verify.yml`: `type: script`, **`no-cache: true`**, `final-verify.sh`
   — the end-state backstop: 12 kernel/NVIDIA gates (incl. the initramfs.img
   the finish module just built and the modinfo-vs-rpm version match), gaming
@@ -243,17 +236,14 @@ the `dnf` module instead — do not reintroduce them.)
 
 ## 5. Known gaps (not work — status)
 
-- Every module referenced by the recipe now exists — `bluebuild validate -a`
-  is expected to be CLEAN (tails landed 2026-10-01; `built-apps.yml`/
-  `ujust-system.yml` of the backup layout are superseded by the apps module
-  + `ujust.yml`).
+- Every module referenced by the recipe exists — `bluebuild validate -a` is
+  expected to be CLEAN.
 - CI prerequisites (repo side done): the `SIGNING_SECRET` GitHub secret must
   hold the cosign private key matching the repo-root `cosign.pub`, and the
   Renovate GitHub App must be installed on the repo — without the secret the
   publish-gated sign/verify steps fail on the publish branch.
 - `files/system/` still misses the wider-overlay extras: wallpaper/plymouth
-  theme assets (image-info's plymouth section of the backup layout was not
-  ported) and `etc/issue`/`motd`. `README.md` is still template text.
+  theme assets and `etc/issue`/`motd`. `README.md` is still template text.
 - Runner is pinned `ubuntu-24.04` with `remove-unwanted-software@v9`;
   `ubuntu-latest` migrates to 26.04 between 2026-10-19 and 2026-11-19 —
   when migrating, switch to `ubuntu-26.04` + `jlumbroso/free-disk-space`

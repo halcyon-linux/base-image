@@ -19,7 +19,7 @@ modules:
       - image-info.sh
       - finalize.sh
 
-  # Replaces build-initramfs.sh of the backup layout: same dracut contract
-  # (--no-hostonly --reproducible --add ostree, 0600) for every kernel found
-  # in /usr/lib/modules; F44's dracut defaults to zstd compression.
+  # Regenerates the initrd for every kernel in /usr/lib/modules (only
+  # kernel-p03 exists here). install-kernel.sh defers dracut to this point on
+  # purpose: its RPMs install with tsflags=noscripts, so no scriptlet ran it.
   - type: initramfs
