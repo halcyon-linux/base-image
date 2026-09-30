@@ -1,0 +1,17 @@
+---
+# yaml-language-server: $schema=https://schema.blue-build.org/module-v1.json
+type: dnf
+repos:
+  cleanup: true
+  copr:
+    - ublue-os/packages
+install:
+  install-weak-deps: false
+  packages:
+    - bazaar
+    - ublue-os-just
+    - ublue-os-luks
+    - ublue-os-selinux-workarounds
+    - ublue-os-signing
+    - ublue-recipes
+    - uupd

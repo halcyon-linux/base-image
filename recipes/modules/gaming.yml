@@ -1,0 +1,26 @@
+---
+# yaml-language-server: $schema=https://schema.blue-build.org/module-v1.json
+type: dnf
+repos:
+  nonfree: rpmfusion
+  cleanup: true
+install:
+  install-weak-deps: false
+  exclude:
+    - xorg-x11-drv-nvidia*
+    - akmod-nvidia*
+    - kmod-nvidia*
+    - nvidia-kmod*
+  packages:
+    - evtest
+    - gamemode
+    - gamescope
+    - input-remapper
+    - lutris
+    - mangohud
+    - mangohud.i686
+    - steam
+    - steam-devices
+    - usbip
+    - ydotool
+    - zenity

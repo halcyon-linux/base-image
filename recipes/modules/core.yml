@@ -1,0 +1,102 @@
+---
+# yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
+modules:
+  - type: dnf
+    group-install:
+      with-optional: false
+      packages:
+        - custom-environment
+
+  - type: dnf
+    install:
+      install-weak-deps: false
+      packages:
+        - accountsservice
+        - bleachbit
+        - bluez
+        - bluez-libs
+        - bluez-tools
+        - brightnessctl
+        - btop
+        - cockpit-files
+        - cockpit-networkmanager
+        - cockpit-podman
+        - cockpit-selinux
+        - cockpit-storaged
+        - cockpit-system
+        - cronie
+        - curl
+        - ddcutil
+        - distrobox
+        - duf
+        - ethtool
+        - fail2ban
+        - fastfetch
+        - file-roller
+        - fontconfig
+        - fonts-filesystem
+        - git
+        - gnupg2
+        - grim
+        - gsettings-desktop-schemas
+        - gtk4-layer-shell
+        - gzip
+        - hostname
+        - hunspell
+        - hunspell-en
+        - hunspell-en-US
+        - i2c-tools
+        - iio-sensor-proxy
+        - ImageMagick
+        - imv
+        - inotify-tools
+        - intel-gpu-tools
+        - just
+        - liberation-fonts
+        - libinput-utils
+        - libnotify
+        - lm_sensors
+        - logrotate
+        - lynis
+        - man-db
+        - mpv
+        - ninja-build
+        - pipx
+        - pkgconf-pkg-config
+        - plymouth
+        - plymouth-theme-spinner
+        - podman
+        - podman-sequoia
+        - policycoreutils-python-utils
+        - pymol
+        - python3-xlib
+        - qt5ct
+        - setools-console
+        - setools-console
+        - setroubleshoot
+        - setroubleshoot-plugins
+        - setroubleshoot-plugins
+        - setroubleshoot-server
+        - setroubleshoot-server
+        - slurp
+        - sqlite
+        - stress-ng
+        - swappy
+        - transmission-gtk
+        - udica
+        - udica
+        - udiskie
+        - util-linux-core
+        - wget2-wget
+        - xdg-desktop-portal
+        - xdg-user-dirs
+        - xdg-user-dirs-gtk
+        - xorg-x11-server-Xorg
+        - xorg-x11-server-Xwayland
+        - xorg-x11-xauth
+        - ydotool
+        - zathura
+        - zathura-pdf-poppler
+        - zathura-plugins-all
+        - zsh
+        - zstd

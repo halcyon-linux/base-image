@@ -1,0 +1,44 @@
+---
+# yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
+modules:
+  - type: dnf
+    repos:
+      cleanup: true
+      files:
+        - vscode.repo
+        - https://brave-browser-rpm-release.s3.brave.com/brave-browser.repo
+      keys:
+        - https://packages.microsoft.com/keys/microsoft.asc
+        - https://brave-browser-rpm-release.s3.brave.com/brave-core.asc
+      copr:
+        - aahsnr-work/applications
+  - type: dnf
+    install:
+      install-weak-deps: false
+      packages:
+        - antigravity-cli
+        - antigravity-ide
+        - brave-browser
+        - brave-origin
+        - bitwarden
+        - code
+        - distroshelf
+        - emacs-pgtk
+        - ferdium
+        - kitty
+        - mullvad-vpn
+        - neovim
+        - obsidian
+        - onlyoffice-desktopeditors
+        - opencode-desktop
+        - private-internet-access
+        - proton-vpn-daemon
+        - proton-vpn-gtk-app
+        - python3-proton-core
+        - python3-proton-keyring-linux
+        - python3-proton-vpn-api-core
+        - ticktick
+        - tree-sitter-cli
+        - zed
+        - zen-browser
+        - zotero
