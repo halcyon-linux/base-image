@@ -64,7 +64,8 @@ files/                    # mounted at /tmp/files in every module RUN; never bak
                           #     the 10 halcyon ujust modules plus the static
                           #     import list registering them (the ublue-os-just
                           #     RPM ships the justfile's `import?` hook)
-  dnf/vscode.repo         # local .repo consumed by the dnf module (apps)
+  dnf/*.repo              # local .repo files consumed by the dnf module (vendor +
+                          #   the scoped COPR repos, see §4)
   dnf-libdnf5/libdnf5.conf.d/99-halcyon-retries.conf  # → /etc/dnf (retries=20)
   scripts/install-kernel.sh    # kernel + NVIDIA userland installer + its gates
   scripts/ujust-system.sh      # Stage 08: ujust gates + steam/lutris wiring +

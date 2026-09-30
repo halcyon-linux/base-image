@@ -5,7 +5,7 @@ modules:
     repos:
       cleanup: true
       files:
-        - halcyon-texlive-packages.repo # priority=1: Copr wins over Fedora/Terra
+        - texlive-packages.repo # priority=1: Copr wins over Fedora/Terra
     install:
       install-weak-deps: false
       packages:

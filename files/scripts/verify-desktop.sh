@@ -27,7 +27,7 @@ gate "greeter session wrapper" test -x /usr/bin/noctalia-greeter-session
 gate "overlay greetd config survived" grep -q noctalia-greeter-session /etc/greetd/config.toml
 gate "overlay PAM keyring survived" grep -q pam_gnome_keyring.so /etc/pam.d/greetd
 gate "greeter state tmpfiles" test -f /usr/lib/tmpfiles.d/noctalia-greeter-state.conf
-gate "vendor repo cleaned" sh -c '! ls /etc/yum.repos.d/ | grep -qi halcyon-base-pkgs'
+gate "vendor repo cleaned" sh -c '! ls /etc/yum.repos.d/ | grep -qi base-pkgs'
 echo "::endgroup::"
 
 [ "$fail" = 0 ] || {

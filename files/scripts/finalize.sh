@@ -11,7 +11,10 @@
 set -euo pipefail
 echo "::group::finalize — third-party repo sweep"
 rm -f /etc/yum.repos.d/_copr*:*.repo /etc/yum.repos.d/_copr*.repo \
-      /etc/yum.repos.d/halcyon-*.repo \
+      /etc/yum.repos.d/applications.repo \
+      /etc/yum.repos.d/base-pkgs.repo \
+      /etc/yum.repos.d/cli-tools.repo \
+      /etc/yum.repos.d/texlive-packages.repo \
       /etc/yum.repos.d/ublue-*.repo \
       /etc/yum.repos.d/vscode.repo \
       /etc/yum.repos.d/brave-browser*.repo \

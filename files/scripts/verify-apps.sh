@@ -22,7 +22,7 @@ gate "utilities" rpm -q kitty distroshelf bitwarden ticktick zotero onlyoffice-d
 gate "VPN stack" rpm -q mullvad-vpn private-internet-access proton-vpn-gtk-app proton-vpn-daemon
 gate "vscode binary" test -x /usr/bin/code
 gate "brave binary" test -x /usr/bin/brave-browser
-gate "vendor repos cleaned" sh -c '! ls /etc/yum.repos.d/ | grep -Eqi "vscode|brave|halcyon-applications"'
+gate "vendor repos cleaned" sh -c '! ls /etc/yum.repos.d/ | grep -Eqi "vscode|brave|applications"'
 echo "::endgroup::"
 
 [ "$fail" = 0 ] || {

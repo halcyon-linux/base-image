@@ -53,7 +53,7 @@ echo "::group::final-verify — repo end state"
 # finalize.sh DELETES every third-party repo file, so a "terra repos all
 # disabled" glob gate would match nothing and could never fail. This single
 # gate is the property that survives: only Fedora repo files remain.
-gate "only Fedora repo files remain" sh -c '! ls /etc/yum.repos.d/ | grep -Eqi "copr|vscode|brave|terra|negativo|rpmfusion|halcyon|ublue"'
+gate "only Fedora repo files remain" sh -c '! ls /etc/yum.repos.d/ | grep -Eqi "copr|vscode|brave|terra|negativo|rpmfusion|halcyon|ublue|base-pkgs|cli-tools|texlive-packages|applications"'
 echo "::endgroup::"
 
 echo "::group::final-verify — identity files"

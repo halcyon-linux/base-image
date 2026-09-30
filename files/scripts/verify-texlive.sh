@@ -19,7 +19,7 @@ gate() {
 echo "::group::verify-texlive"
 gate "texlive collection" rpm -q texlive-basic texlive-latex texlive-latexextra texlive-latexrecommended texlive-binextra texlive-luatex texlive-mathscience texlive-publishers
 gate "PATH hook shipped" test -f /etc/profile.d/texlive.sh
-gate "repo cleaned" sh -c '! ls /etc/yum.repos.d/ | grep -qi halcyon-texlive'
+gate "repo cleaned" sh -c '! ls /etc/yum.repos.d/ | grep -qi texlive-packages'
 echo "::endgroup::"
 
 [ "$fail" = 0 ] || {
