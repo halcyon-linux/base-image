@@ -98,7 +98,7 @@ semodule -i /usr/share/selinux/packages/targeted/nvidia-driver.pp.bz2
 
 # Entangled subpackages: download only, then extract the payload (see header).
 install -d /tmp/nkc
-dnf5 -y --disable-repo='rpmfusion-*' download --destdir /tmp/nkc \
+"${DNF[@]}" download --destdir /tmp/nkc \
   nvidia-kmod-common nvidia-driver-cuda nvidia-settings
 nvidia_repo disable # NVIDIA userland is complete: close the negativo17 window
 echo "::endgroup::"
