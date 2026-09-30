@@ -1,4 +1,0 @@
-# Stage 05 — devtools: Fedora + halcyon-cli builds (cli-tools/devtools/misc).
-type: script
-scripts:
-  - devtools.sh

@@ -1,5 +1,0 @@
-# Stage 03 — base-packages: programming + core + hardware + editors +
-# desktop + gaming + ublue machinery + vendor apps.
-type: script
-scripts:
-  - base-packages.sh

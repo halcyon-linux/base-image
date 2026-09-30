@@ -6,7 +6,7 @@ description: >-
   Lean Hyprland gaming desktop forked from Bazzite (GNOME removed;
   Hyprland + Noctalia; NVIDIA open drivers inherited; curated dev tooling).
 base-image: quay.io/fedora/fedora-bootc
-image-version: 45
+image-version: 44
 platforms:
   - linux/amd64
 
@@ -28,9 +28,15 @@ modules:
       - source: dnf-libdnf5
         destination: /etc/dnf
 
+  # Stage 01
   - from-file: modules/removals.yml
   - from-file: modules/repos.yml
-  - from-file: modules/kernel-nvidia.yml
+
+  # Stage 02 — kernel-nvidia: p03 kernel + prebuilt nvidia-open modules (Stage K1).
+  - type: script
+    scripts:
+      - install-kernel.sh
+
   - from-file: modules/base-packages.yml
   - from-file: modules/terra.yml
   - from-file: modules/devtools.yml

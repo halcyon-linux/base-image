@@ -1,4 +1,0 @@
-# Stage 06 — nix: winter pattern packages + wiring.
-type: script
-scripts:
-  - nix.sh

@@ -1,7 +1,0 @@
-# Stage 09 — finish: image-info → build-initramfs → finalize in one module
-# (bazzite final-RUN pattern).
-type: script
-scripts:
-  - image-info.sh
-  - build-initramfs.sh
-  - finalize.sh

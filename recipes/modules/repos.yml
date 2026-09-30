@@ -1,5 +1,0 @@
-# Stage 00 — repos: dnf5 patience + keepcache + external repos + halcyon
-# group repos (copr enable, priority=1) + jq bootstrap.
-type: script
-scripts:
-  - repos.sh
