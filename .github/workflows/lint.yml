@@ -1,0 +1,109 @@
+name: lint halcyon
+# Every host-side check, so PRs fail here in seconds instead of 40 minutes
+# into the image build.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Validate, syntax and repo audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install bluebuild CLI (pinned)
+        run: |
+          # bluebuild validate is the recipe schema gate — the CLI must exist
+          # for this PR gate to fail fast. Same copy-out install as build.yml;
+          # the tag is renovate-tracked (see .github/renovate.json5).
+          podman create --name bluebuild-cli ghcr.io/blue-build/cli:v0.9.37-installer
+          podman cp bluebuild-cli:/out/bluebuild /tmp/bluebuild
+          podman rm bluebuild-cli
+          sudo mv /tmp/bluebuild /usr/local/bin/bluebuild
+          bluebuild --version
+
+      - name: Ensure shellcheck
+        run: |
+          if ! command -v shellcheck >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq shellcheck
+          fi
+          shellcheck --version | head -2
+
+      - name: Recipe + script gates
+        run: |
+          set -euo pipefail
+          status=0
+          # recipe schema + from-file resolution (must be fully valid now —
+          # no referenced-but-missing modules)
+          bluebuild validate recipes/halcyon.yml || status=1
+          # every build script parses
+          bash -n files/scripts/*.sh files/scripts/lib/*.sh || status=1
+          # every build script is shellcheck-clean (-x follows source directives)
+          find files/scripts -name '*.sh' -print0 | while IFS= read -r -d '' f; do
+            shellcheck --shell=bash -x "$f" || exit 1
+          done || status=1
+          exit "${status}"
+
+      - name: Repo audit
+        run: |
+          set -euo pipefail
+          status=0
+          fail() { echo "AUDIT-FAIL: $*" >&2; status=1; }
+          # every script a module references must exist (validate does not check this)
+          for f in $(grep -rhoE '^\s+- [a-zA-Z0-9._-]+\.sh$' recipes/modules/*.yml | awk '{print $2}' | sort -u); do
+            test -f "files/scripts/${f}" || fail "module references missing script files/scripts/${f}"
+          done
+          # no orphan scripts: every top-level files/scripts/*.sh must be referenced
+          for f in files/scripts/*.sh; do
+            base="$(basename "${f}")"
+            grep -rq "${base}" recipes/modules/*.yml recipes/halcyon.yml || fail "orphan script files/scripts/${base} (not referenced by any module)"
+          done
+          # workflow pins: runner must be the pinned image (line-start anchor
+          # keeps this grep from matching itself), no branch floats on uses:
+          if grep -rnE "^[[:space:]]*runs-on:" .github/workflows/ | grep -v "ubuntu-24.04"; then
+            fail "unpinned runner (only ubuntu-24.04 is allowed)"
+          fi
+          if grep -rE "uses: .+@(main|master)[[:space:]]*$" .github/workflows/; then
+            fail "actions must pin a version tag or SHA, never a branch"
+          fi
+          # the load-bearing pins this repo's CI story depends on
+          grep -q "ghcr.io/blue-build/cli:v0.9.37-installer" .github/workflows/build.yml \
+            || fail "build.yml lost the pinned bluebuild CLI installer"
+          grep -q 'cosign-release: "v2.6.5"' .github/workflows/build.yml \
+            || fail "build.yml lost the cosign 2.6.5 legacy-format pin"
+          grep -q -- "--new-bundle-format=false" .github/workflows/build.yml \
+            || fail "build.yml lost the legacy sigstore sign flags"
+          grep -q "PUBLISH_BRANCH: main" .github/workflows/build.yml \
+            || fail "build.yml lost the publish-branch gate"
+          test -f cosign.pub || fail "cosign.pub missing — the bluebuild signing module aborts without it"
+          exit "${status}"
+
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Lint workflows
+        # Tag-as-pin: renovate is configured to leave this container ref alone.
+        run: |
+          docker run --rm -v "${PWD}:/repo" --workdir /repo \
+            rhysd/actionlint:1.7.12 -color -shellcheck= -pyflakes=

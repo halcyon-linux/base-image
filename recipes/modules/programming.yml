@@ -1,14 +1,19 @@
 ---
-# yaml-language-server: $schema=https://schema.blue-build.org/module-v1.json
-type: dnf
-install:
-  install-weak-deps: false
-  packages:
-    - python3
-    - nodejs22
-    - nodejs22-npm
-    - perl
-    - gcc-c++
-    - cargo
-    - cmake
-    - golang
+# yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
+modules:
+  - type: dnf
+    install:
+      install-weak-deps: false
+      packages:
+        - python3
+        - nodejs22
+        - nodejs22-npm
+        - perl
+        - gcc-c++
+        - cargo
+        - cmake
+        - golang
+
+  - type: script
+    scripts:
+      - verify-programming.sh

@@ -1,0 +1,275 @@
+name: build halcyon
+on:
+  schedule:
+    # Daily rebuild (consumed COPRs republish; the image must track them).
+    - cron: "00 08 * * *"
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**/README.md"
+      - "**/TODO.md"
+  pull_request:
+  workflow_dispatch:
+
+env:
+  IMAGE_REGISTRY: "ghcr.io/${{ github.repository_owner }}" # do not edit
+  # Only this branch pushes and signs. Every other ref builds and verifies.
+  PUBLISH_BRANCH: main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  build_push:
+    name: Build and push image
+    runs-on: ubuntu-24.04
+    # 24.04 is pinned on purpose: ubuntu-latest migrates to 26.04 between
+    # 2026-10-19 and 2026-11-19, and ublue-os/remove-unwanted-software@v9 is
+    # incompatible with 26.04 (switch to jlumbroso/free-disk-space then).
+    timeout-minutes: 180
+    # Key-based signing: no OIDC exchange, so id-token is deliberately absent.
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Log helpers
+        run: |
+          source .github/log-helpers.sh
+          banner "halcyon build — run ${GITHUB_RUN_ID} on ${GITHUB_REF_NAME}"
+          step "event: ${GITHUB_EVENT_NAME} · ref: ${GITHUB_REF} · sha: ${GITHUB_SHA}"
+
+      - name: Decide whether this run publishes
+        id: publish
+        run: |
+          source .github/log-helpers.sh
+          if [ "${GITHUB_EVENT_NAME}" != "pull_request" ] && [ "${GITHUB_REF}" = "refs/heads/${PUBLISH_BRANCH}" ]; then
+            ok "event=${GITHUB_EVENT_NAME} ref=${GITHUB_REF} → this run pushes and signs"
+            echo "publish=true" >> "${GITHUB_OUTPUT}"
+          else
+            step "event=${GITHUB_EVENT_NAME} ref=${GITHUB_REF} → build-and-verify only"
+            echo "publish=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Wait for consumed COPR metadata (6 repos)
+        run: |
+          source .github/log-helpers.sh
+          # COPR's CDN serves 504s right after a build; every repo the recipe
+          # consumes must answer 200 before dnf5 touches it. negativo17 is
+          # deliberately absent — a static server, not the COPR CDN.
+          URLS=(
+            "https://download.copr.fedorainfracloud.org/results/aahsnr-work/applications/fedora-44-x86_64/repodata/repomd.xml"
+            "https://download.copr.fedorainfracloud.org/results/aahsnr-work/base-pkgs/fedora-44-x86_64/repodata/repomd.xml"
+            "https://download.copr.fedorainfracloud.org/results/aahsnr-work/cli-tools/fedora-44-x86_64/repodata/repomd.xml"
+            "https://download.copr.fedorainfracloud.org/results/aahsnr-work/texlive-packages/fedora-44-x86_64/repodata/repomd.xml"
+            "https://download.copr.fedorainfracloud.org/results/ublue-os/packages/fedora-44-x86_64/repodata/repomd.xml"
+            "https://download.copr.fedorainfracloud.org/results/catpieleaf/kernel-p03/fedora-44-x86_64/repodata/repomd.xml"
+          )
+          attempts=0
+          max_attempts=30
+          while [ "${attempts}" -lt "${max_attempts}" ]; do
+            attempts=$((attempts + 1))
+            ready=true
+            for url in "${URLS[@]}"; do
+              code="$(curl -sL -o /dev/null -w '%{http_code}' --max-time 20 "${url}")"
+              if [ "${code}" != "200" ]; then
+                warn "attempt ${attempts}/${max_attempts}: ${code} from ${url}"
+                ready=false
+              fi
+            done
+            if [ "${ready}" = true ]; then
+              ok "all ${#URLS[@]} COPR repodata available"
+              break
+            fi
+            [ "${attempts}" -lt "${max_attempts}" ] && sleep 60
+          done
+          [ "${ready}" = true ] || die "Copr metadata still unavailable after ${max_attempts} attempts — re-run later."
+
+      - name: Report build space (before)
+        run: df -h / /mnt
+
+      - name: Remove unwanted software
+        uses: ublue-os/remove-unwanted-software@v9
+
+      - name: Report freed space (after)
+        if: always()
+        run: df -h / /mnt
+
+      - name: Install bluebuild CLI (pinned)
+        run: |
+          source .github/log-helpers.sh
+          # The binary lives inside the installer image; copy it out rather
+          # than curl|sh (supply-chain: the image tag is renovate-tracked).
+          step "installing bluebuild from ghcr.io/blue-build/cli:v0.9.37-installer"
+          podman create --name bluebuild-cli ghcr.io/blue-build/cli:v0.9.37-installer
+          podman cp bluebuild-cli:/out/bluebuild /tmp/bluebuild
+          podman rm bluebuild-cli
+          sudo mv /tmp/bluebuild /usr/local/bin/bluebuild
+          ver="$(bluebuild --version | head -1)"
+          ok "bluebuild installed: ${ver}"
+
+      - name: Derive image identity from the recipe
+        run: |
+          source .github/log-helpers.sh
+          IMAGE_NAME="$(awk '/^name:/ {print $2}' recipes/halcyon.yml)"
+          FEDORA_VERSION="$(awk '/^image-version:/ {print $2}' recipes/halcyon.yml)"
+          test -n "${IMAGE_NAME}" || die "could not parse name: from recipes/halcyon.yml"
+          test -n "${FEDORA_VERSION}" || die "could not parse image-version: from recipes/halcyon.yml"
+          ok "image=${IMAGE_NAME} fedora=${FEDORA_VERSION} (recipe is the source of truth)"
+          echo "IMAGE_NAME=${IMAGE_NAME}"       >> "${GITHUB_ENV}"
+          echo "FEDORA_VERSION=${FEDORA_VERSION}" >> "${GITHUB_ENV}"
+          echo "DEFAULT_TAG=latest"             >> "${GITHUB_ENV}"
+
+      - name: Recipe + script syntax gates
+        run: |
+          source .github/log-helpers.sh
+          bash -n files/scripts/*.sh files/scripts/lib/*.sh || die "bash -n failed"
+          ok "bash -n clean"
+          bluebuild validate recipes/halcyon.yml || die "bluebuild validate failed"
+          ok "bluebuild validate passed"
+
+      - name: Build image
+        id: build-image
+        run: |
+          source .github/log-helpers.sh
+          # Same shape as the CLI's own podman driver: generate resolves the
+          # base digest + renders the module RUNs, podman builds the result.
+          echo "::group::bluebuild generate + podman build ${IMAGE_NAME}:${DEFAULT_TAG}"
+          bluebuild generate -o /tmp/halcyon.Containerfile recipes/halcyon.yml
+          podman build \
+            --pull=newer \
+            --platform linux/amd64 \
+            --tag "${IMAGE_NAME}:${DEFAULT_TAG}" \
+            --file /tmp/halcyon.Containerfile .
+          echo "::endgroup::"
+          ok "image built: ${IMAGE_NAME}:${DEFAULT_TAG}"
+
+      - name: Package census
+        run: |
+          source .github/log-helpers.sh
+          census="$(podman run --rm --entrypoint /bin/bash "${IMAGE_NAME}:${DEFAULT_TAG}" -c \
+            'echo "count=$(rpm -qa | wc -l)"; echo "kernel=$(rpm -q --qf "%{VERSION}-%{RELEASE}.%{ARCH}" kernel-p03 2>/dev/null || echo n/a)"')"
+          count="$(sed -n 's/^count=//p' <<<"${census}")"
+          kernel="$(sed -n 's/^kernel=//p' <<<"${census}")"
+          {
+            echo "## 📦 halcyon image package report"
+            echo ""
+            echo "| total RPMs | p03 kernel |"
+            echo "| --- | --- |"
+            echo "| ${count} | ${kernel} |"
+            echo ""
+            echo "source: \`${IMAGE_REGISTRY}/${IMAGE_NAME}:${GITHUB_SHA}\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+          echo "::notice title=halcyon package count::${count} RPMs (kernel: ${kernel})"
+
+      - name: Generate build tags
+        id: gen-build-tags
+        run: |
+          source .github/log-helpers.sh
+          DATE="$(date +%Y%m%d)"
+          GIT_SHA="${GITHUB_SHA::7}"
+          # CI checkouts are always clean, so the SHA aliases are unconditional.
+          TAGS=("${DEFAULT_TAG}" "${DATE}" "${DEFAULT_TAG}-${DATE}" \
+                "${DEFAULT_TAG}-${DATE}-${GIT_SHA}" "${DATE}-${GIT_SHA}" \
+                "${FEDORA_VERSION}" "${DATE}-${FEDORA_VERSION}")
+          alias_tags="${TAGS[*]}"
+          ok "tags: ${alias_tags}"
+          echo "alias_tags=${alias_tags}" >> "${GITHUB_OUTPUT}"
+
+      - name: Tag image
+        run: |
+          source .github/log-helpers.sh
+          for tag in ${{ steps.gen-build-tags.outputs.alias_tags }}; do
+            podman tag "${IMAGE_NAME}:${DEFAULT_TAG}" "${IMAGE_NAME}:${tag}"
+            step "tagged ${IMAGE_NAME}:${tag}"
+          done
+
+      - name: Login to GitHub Container Registry
+        if: steps.publish.outputs.publish == 'true'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Push to GHCR
+        id: push-image
+        if: steps.publish.outputs.publish == 'true'
+        run: |
+          source .github/log-helpers.sh
+          echo "::group::podman push ${IMAGE_NAME}"
+          for tag in ${{ steps.gen-build-tags.outputs.alias_tags }}; do
+            podman push --quiet --digestfile=/tmp/digestfile \
+              "${IMAGE_NAME}:${tag}" "${IMAGE_REGISTRY}/${IMAGE_NAME}:${tag}"
+            step "pushed ${IMAGE_REGISTRY}/${IMAGE_NAME}:${tag}"
+          done
+          echo "::endgroup::"
+          DIGEST="$(cat /tmp/digestfile)"
+          ok "digest: ${DIGEST}"
+          echo "digest=${DIGEST}" >> "${GITHUB_OUTPUT}"
+          {
+            echo "## 🔖 Published tags"
+            echo ""
+            for tag in ${{ steps.gen-build-tags.outputs.alias_tags }}; do
+              echo "- \`${IMAGE_REGISTRY}/${IMAGE_NAME}:${tag}\`"
+            done
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Install Cosign
+        if: steps.publish.outputs.publish == 'true'
+        uses: sigstore/cosign-installer@v4.1.2
+        with:
+          # 2.6.5 on purpose: cosign 3.1 removed --new-bundle-format entirely
+          # (the last release that still ships the legacy escape hatch is
+          # 3.0.x), and containers/image — bootc's verifier — cannot read the
+          # referrer/bundle format at all (containers/container-libs#388).
+          # Legacy sha256-<digest>.sig tags are the ONLY format
+          # `bootc switch --enforce-container-sigpolicy` can verify.
+          cosign-release: "v2.6.5"
+
+      - name: Sign container image (legacy sigstore attachment)
+        if: steps.publish.outputs.publish == 'true'
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
+          COSIGN_PASSWORD: ""
+          DIGEST: ${{ steps.push-image.outputs.digest }}
+        run: |
+          source .github/log-helpers.sh
+          # The three legacy flags keep the signature in the tag-based
+          # attachment scheme the bluebuild signing module's policy.json +
+          # registries.d (use-sigstore-attachments) read. Signing the
+          # DIGEST (not a tag) so re-tags never invalidate it.
+          cosign sign --yes \
+            --new-bundle-format=false \
+            --use-signing-config=false \
+            --registry-referrers-mode=legacy \
+            --key env://COSIGN_PRIVATE_KEY \
+            "${IMAGE_REGISTRY}/${IMAGE_NAME}@${DIGEST}"
+          ok "image signed (legacy attachment format)"
+
+      - name: Verify signature in the format bootc reads
+        if: steps.publish.outputs.publish == 'true'
+        env:
+          DIGEST: ${{ steps.push-image.outputs.digest }}
+        run: |
+          source .github/log-helpers.sh
+          # --new-bundle-format=false makes verify do a LEGACY lookup only:
+          # default cosign verify accepts both formats, so it could not detect
+          # a regression to the unverifiable referrer format. This also proves
+          # SIGNING_SECRET matches the repo's cosign.pub.
+          cosign verify --key cosign.pub --new-bundle-format=false \
+            "${IMAGE_REGISTRY}/${IMAGE_NAME}@${DIGEST}"
+          ok "signature verified where bootc looks for it"
+
+      - name: Done
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          source .github/log-helpers.sh
+          banner "halcyon build — conclusion: ${JOB_STATUS}"

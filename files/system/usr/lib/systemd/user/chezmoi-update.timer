@@ -1,0 +1,13 @@
+[Unit]
+Description=Timer for Chezmoi Update
+# This timer will only trigger for a user with an existing chezmoi directory.
+ConditionPathExists=%h/.local/share/chezmoi
+
+[Timer]
+# blue-build chezmoi module defaults: run 5m after boot, then after every
+# 1d of inactivity (replaces the previous OnCalendar=daily form).
+OnBootSec=5m
+OnUnitInactiveSec=1d
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,18 @@
+# halcyon TeX Live groups Copr repo — priority 1 (consumed by the dnf module via
+# files/dnf/halcyon-texlive-packages.repo; the copr plugin sets no priority, so the repo
+# file carries it).
+#
+# priority=1 (dnf: lower number wins; Fedora/Terra default to 99) makes every
+# package this repo builds shadow Fedora, Terra and any unprioritized Copr.
+
+[copr:copr.fedorainfracloud.org:aahsnr-work:texlive-packages]
+name=Copr repo for texlive-packages (aahsnr-work) — priority 1
+baseurl=https://download.copr.fedorainfracloud.org/results/aahsnr-work/texlive-packages/fedora-$releasever-$basearch/
+type=rpm-md
+skip_if_unavailable=False
+gpgcheck=1
+gpgkey=https://download.copr.fedorainfracloud.org/results/aahsnr-work/texlive-packages/pubkey.gpg
+repo_gpgcheck=0
+enabled=1
+enabled_metadata=1
+priority=1

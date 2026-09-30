@@ -1,0 +1,25 @@
+---
+# yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
+# Stage 09 — finish: image identity → hygiene → initramfs (bazzite final-RUN
+# pattern). os-release first (identity), then the sweep script, then the
+# bluebuild initramfs module LAST — it regenerates the initrd for every
+# kernel in /usr/lib/modules (only kernel-p03 exists at this point), so it
+# must run after everything that touches modules or the boot directory.
+modules:
+  # /etc/os-release identity (the module merges keys; /usr/lib/os-release
+  # keeps the stock Fedora values underneath).
+  - type: os-release
+    properties:
+      NAME: halcyon
+      PRETTY_NAME: halcyon (Fedora bootc)
+      HOME_URL: https://github.com/halcyon-linux/base-image
+
+  - type: script
+    scripts:
+      - image-info.sh
+      - finalize.sh
+
+  # Replaces build-initramfs.sh of the backup layout: same dracut contract
+  # (--no-hostonly --reproducible --add ostree, 0600) for every kernel found
+  # in /usr/lib/modules; F44's dracut defaults to zstd compression.
+  - type: initramfs

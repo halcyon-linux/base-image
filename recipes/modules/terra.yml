@@ -9,6 +9,8 @@ modules:
     install:
       install-weak-deps: false
       no-gpgchecks: true
+      exclude:
+        - zlib
       packages:
         - terra-release-extras
         - terra-release-mesa
@@ -22,6 +24,8 @@ modules:
     install:
       install-weak-deps: false
       no-gpgchecks: true
+      exclude:
+        - zlib
       packages:
         - bazzite-portal
         - scx-scheds
@@ -29,3 +33,7 @@ modules:
         - umu-launcher
         - umu-wrapper
         - bibata-cursor-theme
+
+  - type: script
+    scripts:
+      - verify-terra.sh

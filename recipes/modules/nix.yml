@@ -18,3 +18,7 @@ modules:
     system:
       enabled:
         - nix-daemon
+
+  - type: script
+    scripts:
+      - verify-nix.sh

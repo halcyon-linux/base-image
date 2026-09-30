@@ -61,6 +61,7 @@ modules:
         - man-db
         - mpv
         - ninja-build
+        - openssh-clients
         - pipx
         - pkgconf-pkg-config
         - plymouth
@@ -68,6 +69,7 @@ modules:
         - podman
         - podman-sequoia
         - policycoreutils-python-utils
+        - procps-ng
         - pymol
         - python3-xlib
         - qt5ct
@@ -100,3 +102,7 @@ modules:
         - zathura-plugins-all
         - zsh
         - zstd
+
+  - type: script
+    scripts:
+      - verify-core.sh

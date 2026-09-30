@@ -1,0 +1,26 @@
+# Keep the build context to what the recipe actually consumes: recipes/ and
+# files/. CI metadata, docs and editor state never belong in image layers, and
+# .bluebuild-scripts_* is the CLI's host-side runtime (bind-mounted, never
+# shipped).
+.git/
+.github/
+.vscode/
+.idea/
+.zcode/
+.obsidian/
+README.md
+TODO.md
+AGENTS.md
+LICENSE
+.gitignore
+.zcodeignore
+.bluebuild-scripts_*
+*.build
+*.log
+*.tar
+*.tar.gz
+*.oci
+*.iso
+*.iso-CHECKSUM
+cosign.key
+cosign.private

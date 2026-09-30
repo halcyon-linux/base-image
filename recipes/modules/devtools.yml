@@ -4,8 +4,8 @@ modules:
   - type: dnf
     repos:
       cleanup: true
-      copr:
-        - aahsnr-work/cli-tools
+      files:
+        - halcyon-cli-tools.repo # priority=1: Copr wins over Fedora/Terra
     install:
       install-weak-deps: false
       packages:
@@ -39,3 +39,7 @@ modules:
         - texlab
         - topgrade
         - uv
+
+  - type: script
+    scripts:
+      - verify-devtools.sh

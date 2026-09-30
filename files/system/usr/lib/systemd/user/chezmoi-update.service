@@ -1,0 +1,10 @@
+[Unit]
+Description=Chezmoi Update
+
+[Service]
+Type=oneshot
+# blue-build chezmoi module with file-conflict-policy: replace (main's
+# recipes/modules/files.yml) → `--no-tty --force`; the dotfiles repo is the
+# source of truth.
+ExecStart=/usr/bin/chezmoi update --no-tty --force
+TimeoutStartSec=600

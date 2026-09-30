@@ -7,11 +7,10 @@ modules:
       files:
         - vscode.repo
         - https://brave-browser-rpm-release.s3.brave.com/brave-browser.repo
+        - halcyon-applications.repo # priority=1: Copr wins over Fedora/Terra
       keys:
         - https://packages.microsoft.com/keys/microsoft.asc
         - https://brave-browser-rpm-release.s3.brave.com/brave-core.asc
-      copr:
-        - aahsnr-work/applications
   - type: dnf
     install:
       install-weak-deps: false
@@ -42,3 +41,7 @@ modules:
         - zed
         - zen-browser
         - zotero
+
+  - type: script
+    scripts:
+      - verify-apps.sh

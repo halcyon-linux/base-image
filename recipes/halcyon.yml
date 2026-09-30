@@ -1,6 +1,6 @@
 ---
 # yaml-language-server: $schema=https://schema.blue-build.org/recipe-v1.json
-# image will be published to ghcr.io/aahsnr-work/halcyon
+# image will be published to ghcr.io/halcyon-linux/halcyon
 name: halcyon
 description: >-
   Lean Hyprland gaming desktop forked from Bazzite (GNOME removed;
@@ -43,8 +43,8 @@ modules:
   - from-file: modules/terra.yml
   - from-file: modules/devtools.yml
   - from-file: modules/nix.yml
-  - from-file: modules/built-apps.yml
-  - from-file: modules/ujust-system.yml
+  - from-file: modules/texlive.yml
+  - from-file: modules/ujust.yml
   - from-file: modules/finish.yml
   - from-file: modules/final-verify.yml
   - from-file: modules/bootc-lint.yml

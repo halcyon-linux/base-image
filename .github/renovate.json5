@@ -1,0 +1,43 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  // config:best-practices (2026) already includes helpers:pinGitHubActionDigests
+  // and docker:pinDigests — every `uses:` gets SHA-pinned with a version-tag
+  // comment, and digest PRs keep the SHAs current while the readable tag stays.
+  "extends": [
+    "config:best-practices"
+  ],
+
+  "rebaseWhen": "never",
+
+  "customManagers": [
+    {
+      // Keep the pinned bluebuild CLI (ghcr.io/blue-build/cli:vX.Y.Z-installer,
+      // copied out of the installer image in both workflows) tracked against
+      // the CLI's release tags.
+      "customType": "regex",
+      "managerFilePatterns": ["/\\.github/workflows/[^/]+\\.ya?ml$/"],
+      "matchStrings": [
+        "ghcr\\.io/blue-build/cli:v(?<currentValue>[0-9]+\\.[0-9]+\\.[0-9]+)-installer"
+      ],
+      "depNameTemplate": "blue-build/cli",
+      "datasourceTemplate": "github-tags",
+      "extractVersionTemplate": "^v(?<version>.*)$"
+    }
+  ],
+
+  "packageRules": [
+    {
+      // Pin PRs carry no code change risk — merge them without review.
+      "automerge": true,
+      "matchUpdateTypes": ["pin", "pinDigest"]
+    },
+    {
+      // The actionlint image is referenced by tag on purpose; Renovate must not
+      // digest-pin it (the tag IS the pin, and digest PRs for it are noise).
+      "enabled": false,
+      "matchUpdateTypes": ["digest", "pinDigest", "pin"],
+      "matchDepTypes": ["container"],
+      "matchFileNames": [".github/workflows/**.yaml", ".github/workflows/**.yml"]
+    }
+  ]
+}

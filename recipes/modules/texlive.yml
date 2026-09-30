@@ -1,0 +1,27 @@
+---
+# yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
+modules:
+  - type: dnf
+    repos:
+      cleanup: true
+      files:
+        - halcyon-texlive-packages.repo # priority=1: Copr wins over Fedora/Terra
+    install:
+      install-weak-deps: false
+      packages:
+        - texlive-basic
+        - texlive-bibtexextra
+        - texlive-binextra
+        - texlive-fontsrecommended
+        - texlive-fontutils
+        - texlive-formatsextra
+        - texlive-latex
+        - texlive-latexextra
+        - texlive-latexrecommended
+        - texlive-luatex
+        - texlive-mathscience
+        - texlive-publishers
+
+  - type: script
+    scripts:
+      - verify-texlive.sh

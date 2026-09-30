@@ -16,8 +16,8 @@ Package installs use BlueBuild's `dnf` module with `install-weak-deps: false`;
 one-off build logic uses the `script` module (`scripts:` from `files/scripts/`,
 or inline `snippets:`); systemd units ship in the `files/system/` overlay and
 are enabled by name with the `systemd` module. The nix module's logic follows
-[fu5ha/winter](https://github.com/fu5ha/winter) (`recipes/modules/nix.yaml`:
-package set, enable order, verify checks); file placement follows this repo's
+[fu5ha/winter](https://github.com/fu5ha/winter) (`recipes/modules/nix.yml`:
+package set, enable order); file placement follows this repo's
 overlay rule, not winter's sidecar dirs.
 
 ## 2. Repository layout (actual)
@@ -28,36 +28,107 @@ recipes/halcyon.yml       # THE build definition. Module order is load-bearing:
                           #   /etc/dnf) → removals → install-kernel.sh →
                           #   programming → apps → core → desktop → gaming →
                           #   hardware → ublue-pkgs → terra → devtools → nix →
-                          #   built-apps → ujust-system → finish → final-verify →
-                          #   bootc-lint (last five MISSING, see §5)
+                          #   texlive → ujust → finish → final-verify →
+                          #   bootc-lint (bootc-lint must stay last)
 recipes/modules/*.yml     # present: apps, core, desktop, devtools, gaming,
                           #   hardware, nix, programming, removals, terra,
-                          #   ublue-pkgs
+                          #   texlive, ublue-pkgs, ujust
 files/                    # mounted at /tmp/files in every module RUN; never baked in
   system/                 # static overlay — recipe copies files/system/* → /
-                          #   etc/profile.d/01-nix-resolve-home-env.sh (mode 755)
-                          #   usr/lib/tmpfiles.d/zz-halcyon-nix.conf
+                          #   etc/default/useradd (SHELL=zsh)
+                          #   etc/greetd/config.toml (launches
+                          #     /usr/bin/noctalia-greeter-session)
+                          #   etc/pam.d/greetd (gnome-keyring auto-unlock)
+                          #   etc/yum.repos.d/fedora-nvidia.repo (staged
+                          #     enabled=0 — install-kernel.sh's preflight needs
+                          #     the repo id to exist; it enables in-window;
+                          #     finalize.sh deletes the file before shipping)
+                          #   etc/profile.d/00-path-guard.sh,
+                          #     01-nix-resolve-home-env.sh, 02-custom-environment.sh,
+                          #     image-path.sh (mode 755; run in that order —
+                          #     path guard first, image PATH hook last)
+                          #   usr/bin/bazzite-steam{,-bpm,-brand,-firstrun}
+                          #     (vendored bazzite Steam wrappers; steam.desktop's
+                          #     Exec is rewritten to bazzite-steam/-bpm)
+                          #   usr/libexec/bazzite-boot-remount (sourced by the
+                          #     kargs recipes in 80-halcyon.just)
+                          #   usr/libexec/halcyon-image/{encrypt-repo,git-setup,
+                          #     hyprtheme,nuke-nvim} (mode 755; exposed on PATH
+                          #     by image-path.sh)
                           #   usr/lib/systemd/system/{var-nix.service,nix.mount}
+                          #   usr/lib/systemd/user/pyprland.service (+ .d/
+                          #     10-halcyon-condition.conf), chezmoi-init.service,
+                          #     chezmoi-update.{service,timer} — their RPMs do
+                          #     NOT ship these units, so the overlay does
+                          #   usr/lib/tmpfiles.d/{zz-halcyon-nix,
+                          #     noctalia-greeter-state}.conf
+                          #   usr/share/ublue-os/just/{60-custom.just,*.just} —
+                          #     the 10 halcyon ujust modules plus the static
+                          #     import list registering them (the ublue-os-just
+                          #     RPM ships the justfile's `import?` hook)
   dnf/vscode.repo         # local .repo consumed by the dnf module (apps)
   dnf-libdnf5/libdnf5.conf.d/99-halcyon-retries.conf  # → /etc/dnf (retries=20)
-  scripts/install-kernel.sh  # kernel + NVIDIA userland installer (script module)
+  scripts/install-kernel.sh    # kernel + NVIDIA userland installer + its gates
+  scripts/ujust-system.sh      # Stage 08: ujust gates + steam/lutris wiring +
+                               #   ujust/system verify tail
+  scripts/guarded-removals.sh  # compose-variance sweep + must-be-gone gates
+  scripts/fonts-cleanup.sh     # reverse-dep-gated base font sweep
+  scripts/image-info.sh        # writes /usr/share/ublue-os/image-info.json
+  scripts/finalize.sh          # third-party repo sweep + end-of-build hygiene
+  scripts/final-verify.sh      # Stage 10 no-cache cross-cutting backstop
+  scripts/verify-<module>.sh   # per-module gates (12 files, one per dnf
+                               #   module; wired as trailing script blocks)
+  scripts/lib/cleanup.sh       # end-of-module hygiene; every MUTATING stage
+                               #   script ends by calling it (verify scripts
+                               #   and final-verify mutate nothing — they don't)
+
+cosign.pub                 # repo-root public key — the bluebuild CLI stages it
+                           #   to /etc/pki/containers/halcyon.pub BEFORE any
+                           #   module; the `signing` module hard-fails without
+                           #   it. CI signs with the SIGNING_SECRET secret.
+.containerignore           # keeps .github, docs and .bluebuild-scripts_* out
+                           #   of the build context
+.github/                   # CI (no Justfile — steps are inlined):
+                           #   workflows/build.yml (schedule/push/PR/dispatch;
+                           #     PUBLISH_BRANCH=main; ubuntu-24.04; COPR wait
+                           #     loop; pinned CLI ghcr.io/blue-build/cli:
+                           #     v0.9.37-installer; generate + podman build;
+                           #     census; tags; cosign 2.6.5 legacy-format
+                           #     sign+verify via SIGNING_SECRET)
+                           #   workflows/lint.yml (validate + bash -n +
+                           #     shellcheck + repo audit; actionlint 1.7.12)
+                           #   workflows/clean.yml (weekly GHCR prune, 90d)
+                           #   workflows/semantic-pr.yml (PR-title check)
+                           #   renovate.json5 (config:best-practices — digest-
+                           #     pins every action; tracks the bluebuild CLI
+                           #     pin via a regex customManager; automerges
+                           #     pin PRs; leaves the actionlint tag alone)
+                           #   log-helpers.sh, CODEOWNERS, PR template
 AGENTS.md / README.md (template text) / TODO.md / LICENSE / .gitignore
 ```
 
 NOT in this repo: `Justfile`, `files/packages.json`, `cosign.pub`,
 `.containerignore`, `.github/`, `verify/`, `halcyon.env`,
-`files/python-packages/`, `files/scripts/lib/`. Do not cite them in plans.
+`files/python-packages/`. Do not cite them in plans. (The backup-image repo
+kept a `packages.json` catalog + Justfile; this repo deliberately installs via
+the `dnf` module instead — do not reintroduce them.)
 
 ## 3. Module inventory (what each file actually does)
 
 - `signing` (inline in recipe): image signing setup.
 - `files` (inline): `system → /` runs first, so overlay files precede every
-  package install — an RPM owning the same path would silently overwrite an
-  overlaid file (no current collisions). `dnf-libdnf5 → /etc/dnf` second.
+  package install. A regular (non-config) file at an RPM-owned path would be
+  silently overwritten by the RPM; a `%config(noreplace)` path (greetd,
+  `pam.d/greetd`, `default/useradd`) KEEPS the overlaid file and the RPM's
+  copy lands as `.rpmnew` — verified 2026-09-30 against `greetd` on
+  `fedora-bootc:44`. `dnf-libdnf5 → /etc/dnf` second.
 - `removals.yml`: `dnf remove` (GNOME/Steam Deck leftovers, firefox, nano…)
-  with `auto-remove: true`. Also declares `scripts: guarded-removals.sh` and
-  `fonts-cleanup.sh` — both MISSING from `files/scripts/` (validate does not
-  check this; the build RUNs will fail until they land).
+  with `auto-remove: true` → `guarded-removals.sh` (compose-variance
+  candidates removed only-if-present, sddm/cage reverse-dep gates,
+  must-be-gone hard-fail loop) → `fonts-cleanup.sh` (reverse-dep-gated base
+  font sweep; the curated font set installs later in core.yml) →
+  `verify-removals.sh`. Keepers are NOT gated here — nothing is installed
+  yet this early; `final-verify.sh` owns the keeper set at end state.
 - `install-kernel.sh` (inline `script`): Stage 02 banner, `set -euo pipefail`,
   `::group::` folds. Kernel + prebuilt modules from COPR
   `catpieleaf/kernel-p03`; NVIDIA userland from negativo17 (repo id
@@ -85,12 +156,58 @@ NOT in this repo: `Justfile`, `files/packages.json`, `cosign.pub`,
   leftovers (`bazzite-portal`, `scx-*`, `umu-*`, `bibata-cursor-theme`).
 - `devtools.yml`: COPR `aahsnr-work/cli-tools` (`cleanup: true`), CLI tools.
 - `nix.yml`: `systemd` enable (`var-nix.service`, `nix.mount`) → `dnf install`
-  `nix`, `nix-daemon` → `systemd` enable (`nix-daemon`) → `script` `snippets:`
-  inline verify gate (banner, `::group::` fold, six guarded checks, `OK`
-  line). Units and config arrive via the `files/system/` overlay, not
-  `files/systemd/` (no such dirs — the `systemd` module's auto-copy path is
-  unused here). `dnf5` aborts a transaction on one bad name, so never add a
-  package name without verifying it first (see §6).
+  `nix`, `nix-daemon` → `systemd` enable (`nix-daemon`). Units and config
+  arrive via the `files/system/` overlay, not `files/systemd/` (no such
+  dirs — the `systemd` module's auto-copy path is unused here). `dnf5`
+  aborts a transaction on one bad name, so never add a package name without
+  verifying it first (see §6).
+- `texlive.yml`: COPR `aahsnr-work/texlive-packages` (`cleanup: true`), the
+  `texlive-*` collection (`install-weak-deps: false`) — replaces the retired
+  CTAN/tlmgr installer; `halcyon-texlive.just` sources the PATH hook
+  `/etc/profile.d/texlive.sh` the packages ship.
+- `ujust.yml`: `dnf` install of the ujust-fedora companions (`glow`,
+  `grubby`, `stress-ng`; `just` self-contained, also in core.yml; `jq` is a
+  verify-gate requirement) → `systemd` module (declarative unit state,
+  replaces the old script's systemctl/ln logic): `system.enabled` =
+  `uupd.timer`, `greetd.service`, `getty@tty2.service`; `system.masked` =
+  sddm/gdm/bazzite-autologin/nvidia-persistenced/nvidia-powerd (masking
+  needs no unit file); `user.enabled` = pyprland + chezmoi units (`--global`
+  → symlinks under `/etc/systemd/user/*.wants/`) → `script`
+  `ujust-system.sh` (Stage 08): only what no module covers — the ujust
+  presence gates, steam/lutris desktop-entry patching (bazzite parity), and
+  the ujust+system verify tail (`ujust --list`, companion-binary sweep, a
+  60-custom.just ↔ shipped-recipes completeness gate, gate-checked overlay
+  configs), ending with `lib/cleanup.sh`. The 10 modules are registered by
+  the static overlay file `60-custom.just` (the `ublue-os-just` RPM ships
+  the justfile's `import?` hook for it); `var-nix.service`/`nix.mount`
+  remain in nix.yml. Ported from backup-image's Stage 08; the
+  bazzite-Containerfile finalize echoes (justfile imports, steam.desktop
+  seds, `uupd.timer`) are covered by the systemd module + script pair.
+- `finish.yml`: `os-release` module (NAME/`PRETTY_NAME`/HOME_URL →
+  /etc/os-release) → `script` `[image-info.sh, finalize.sh]` → `initramfs`
+  module LAST. `image-info.sh` writes `/usr/share/ublue-os/image-info.json`
+  (bazzite-steam reads it); `finalize.sh` sweeps every third-party repo file
+  (incl. the overlay-staged `fedora-nvidia.repo`) and runs the end-of-build
+  hygiene. The `initramfs` module regenerates the initrd for every kernel in
+  `/usr/lib/modules` (`--no-hostonly --reproducible --add ostree`, 0600) —
+  the bluebuild-native replacement for the backup layout's
+  `build-initramfs.sh`.
+- `final-verify.yml`: `type: script`, **`no-cache: true`**, `final-verify.sh`
+  — the end-state backstop: 12 kernel/NVIDIA gates (incl. the initramfs.img
+  the finish module just built and the modinfo-vs-rpm version match), gaming
+  keeper set, the only-Fedora-repos-remain gate, identity files
+  (os-release/image-info.json/texlive hook), chezmoi wiring, and the package
+  census baked to `/usr/share/halcyon/package-count`.
+- `bootc-lint.yml`: `type: containerfile`, **`no-cache: true`**, hermetic
+  `RUN --mount=type=tmpfs,target=/run --network=none bootc container lint` —
+  always the last module.
+- Per-module verify scripts (`verify-<module>.sh`, wired as a trailing
+  `type: script` block in every module yml): `rpm -q`/binary/config gates
+  for that module's payload, `gate()` fail-latcher, `::error::<module>-verify
+  failed` + exit 1. Deliberately CACHEABLE — no `no-cache` — because a
+  no-cache gate per module would bust every downstream layer on each build;
+  `final-verify` + `bootc-lint` are the no-cache backstop. They mutate
+  nothing, so they do not call `lib/cleanup.sh`.
 
 ## 4. Conventions
 
@@ -104,6 +221,12 @@ NOT in this repo: `Justfile`, `files/packages.json`, `cosign.pub`,
   arrive weakly must be listed explicitly. Third-party `repos` always set
   `cleanup: true`. Local `.repo` files live in `files/dnf/` and are referenced
   by filename.
+- Declarative first: do with bluebuild modules (`files`, `dnf`, `systemd`)
+  whatever a module can express; the `script` module is only for what no
+  module covers (verify gates, foreign-file patching like steam.desktop).
+  The `systemd` module's `user.enabled` maps to `systemctl --global enable`
+  (symlinks under `/etc/systemd/user/<target>.wants/`), `masked` works on
+  units that aren't installed, and enabling a missing unit aborts the build.
 - `script` `scripts:` names files under `files/scripts/` — the file MUST exist
   (validate won't catch a missing one). Prefer `snippets:` for short inline
   gates. Build scripts start `#!/usr/bin/env bash` + `set -euo pipefail`; gates
@@ -111,44 +234,61 @@ NOT in this repo: `Justfile`, `files/packages.json`, `cosign.pub`,
   failable (invert once, confirm exit 1).
 - Log style: `████ STAGE nn/13 · <name> · … ████` banners, `::group::` /
   `::endgroup::` folds, `OK` / `FAIL` prefixes.
-- Executable bits come from git (`chmod +x` before commit); the profile.d hook
-  is mode 0755, everything else 0644.
+- Executable bits come from git (`chmod +x` before commit): build scripts
+  (`files/scripts/*.sh`, `lib/`), the `usr/bin` + `usr/libexec` wrappers and
+  the profile.d hooks are 0755; units, justfiles, configs and tmpfiles are
+  0644.
 - Nothing new lands in `/var`, `/usr/local`, `/boot`, or `/usr/etc`. Comments
   explain _why_, not _what_.
 
 ## 5. Known gaps (not work — status)
 
-- `built-apps.yml`, `ujust-system.yml`, `finish.yml`, `final-verify.yml`,
-  `bootc-lint.yml` are referenced by the recipe but unwritten: full-recipe
-  `bluebuild validate` fails until they land. When writing them, keep
-  initramfs-destined content before finish and `bootc container lint` last.
-- `guarded-removals.sh` + `fonts-cleanup.sh` (referenced by `removals.yml`)
-  are unwritten: extend-or-write them before any build.
-- `files/system/` currently holds only the four nix files; the broader overlay
-  is future work. `README.md` is still template text.
-- No `Justfile` or CI: verification is the commands in §6, run by hand.
+- Every module referenced by the recipe now exists — `bluebuild validate -a`
+  is expected to be CLEAN (tails landed 2026-10-01; `built-apps.yml`/
+  `ujust-system.yml` of the backup layout are superseded by the apps module
+  + `ujust.yml`).
+- CI prerequisites (repo side done): the `SIGNING_SECRET` GitHub secret must
+  hold the cosign private key matching the repo-root `cosign.pub`, and the
+  Renovate GitHub App must be installed on the repo — without the secret the
+  publish-gated sign/verify steps fail on the publish branch.
+- `files/system/` still misses the wider-overlay extras: wallpaper/plymouth
+  theme assets (image-info's plymouth section of the backup layout was not
+  ported) and `etc/issue`/`motd`. `README.md` is still template text.
+- Runner is pinned `ubuntu-24.04` with `remove-unwanted-software@v9`;
+  `ubuntu-latest` migrates to 26.04 between 2026-10-19 and 2026-11-19 —
+  when migrating, switch to `ubuntu-26.04` + `jlumbroso/free-disk-space`
+  (v9 is incompatible with 26.04).
 
 ## 6. Commands
 
 ```bash
-bluebuild validate recipes/halcyon.yml        # schema + from-file resolution
-bluebuild validate -a recipes/halcyon.yml     # all errors (expect the §5 gaps)
+bluebuild validate recipes/halcyon.yml        # schema + from-file resolution (must be clean)
+bluebuild validate -a recipes/halcyon.yml     # all errors, not just the first
 bluebuild generate -o /tmp/Containerfile.rendered recipes/halcyon.yml  # inspect RUNs
-bash -n files/scripts/*.sh                    # syntax check on build scripts
+bash -n files/scripts/*.sh files/scripts/lib/*.sh   # syntax check on build scripts
+shellcheck --shell=bash -x files/scripts/*.sh files/scripts/lib/*.sh
+docker run --rm -v "$PWD:/repo" --workdir /repo rhysd/actionlint:1.7.12 -shellcheck= -pyflakes=
 ```
 
-`bluebuild` CLI here is 0.9.37. Full image builds go through `bluebuild build`
-(not run in this checkout).
+`bluebuild` CLI here is 0.9.37 (pinned in both workflows; renovate tracks
+the pin). Full image builds go through CI (`.github/workflows/build.yml`):
+generate + `podman build` locally is possible but NOT run in this checkout —
+respect the no-local-build rule.
 
 ## 7. Checklist before proposing a change
 
-- [ ] `bluebuild validate` shows no NEW errors (the §5 gaps are known).
+- [ ] `bluebuild validate` is clean (no known gaps remain).
 - [ ] New module file uses the right schema header and is listed in
       `recipes/halcyon.yml` in the correct position.
 - [ ] New `script` entries name files that exist under `files/scripts/`;
-      `bash -n` is clean.
+      `bash -n` and `shellcheck -x` are clean.
+- [ ] New install module ships a `verify-<module>.sh` companion wired as a
+      trailing script block; every new gate has been inverted once and
+      confirmed to fail (no-cache backstop: `final-verify`/`bootc-lint`).
 - [ ] New `dnf install` sets `install-weak-deps: false`; third-party repos set
       `cleanup: true`; no added package name is unverified.
-- [ ] Every new gate has been inverted once and confirmed to fail.
 - [ ] Nothing new lands in `/var`, `/usr/local`, `/boot`, or `/usr/etc`.
+- [ ] Workflow changes: no `ubuntu-latest`, no branch pins on `uses:`, the
+      bluebuild CLI pin / cosign 2.6.5 legacy flags / `PUBLISH_BRANCH: main`
+      gate stay intact, and `actionlint` passes.
 - [ ] `_why_` comments are preserved — they are the design docs.
