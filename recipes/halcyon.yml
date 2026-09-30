@@ -20,24 +20,24 @@ modules:
       - source: system
         destination: / # files/system/** → /** (template+winter verified)
 
-  # dnf5 retry/timeout drop-in — must be staged before the FIRST dnf module
-  # (core.yml) runs, so flaky external repos (Copr CDN 504s) are retried
-  # instead of aborting the build.
   - type: files
     files:
       - source: dnf-libdnf5
         destination: /etc/dnf
 
-  # Stage 01
   - from-file: modules/removals.yml
-  - from-file: modules/repos.yml
 
-  # Stage 02 — kernel-nvidia: p03 kernel + prebuilt nvidia-open modules (Stage K1).
   - type: script
     scripts:
       - install-kernel.sh
 
-  - from-file: modules/base-packages.yml
+  - from-file: modules/programming.yml
+  - from-file: modules/apps.yml
+  - from-file: modules/core.yml
+  - from-file: modules/desktop.yml
+  - from-file: modules/gaming.yml
+  - from-file: modules/hardware.yml
+  - from-file: modules/ublue-pkgs.yml
   - from-file: modules/terra.yml
   - from-file: modules/devtools.yml
   - from-file: modules/nix.yml
