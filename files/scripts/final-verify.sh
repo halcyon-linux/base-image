@@ -37,6 +37,7 @@ gate "nvidia module version readable" test -n "${NV_MOD_VER}"
 gate "nvidia userland matches modules" test "${NV_MOD_VER}" = "$(rpm -q --qf '%{VERSION}' nvidia-driver-libs.x86_64)"
 gate "nvidia-smi present" test -x /usr/bin/nvidia-smi
 gate "32-bit nvidia + mesa libs" rpm -q nvidia-driver-libs.i686 mesa-libGL.i686
+gate "systemd-oomd masked (p03 LRU-Marie)" test "$(systemctl is-enabled systemd-oomd.service 2>/dev/null)" = masked
 echo "::endgroup::"
 
 echo "::group::final-verify — gaming keeper set (final state)"

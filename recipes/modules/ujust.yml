@@ -32,6 +32,10 @@ modules:
         - bazzite-autologin.service
         - nvidia-persistenced.service
         - nvidia-powerd.service
+        # p03's LRU-Marie handles OOM kernel-side; the kernel README
+        # (CatPieLeaf/linux-p03) instructs disabling oomd, which "kills apps
+        # prematurely, or freezes the system".
+        - systemd-oomd.service
     user:
       enabled:
         - pyprland.service
