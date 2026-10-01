@@ -59,8 +59,8 @@ echo "::endgroup::"
 echo "::group::final-verify — identity files"
 gate "os-release NAME=halcyon" grep -q '^NAME=halcyon$' /etc/os-release
 gate "image-info.json baked" test -s /usr/share/ublue-os/image-info.json
-gate "texlive installed" rpm -q texlive-basic
-gate "texlive PATH hook" test -f /etc/profile.d/texlive.sh
+gate "texlive installed" rpm -q texlive-collection-basic
+gate "texlive engines" test -x /usr/bin/latex && test -x /usr/bin/luatex
 echo "::endgroup::"
 
 echo "::group::final-verify — chezmoi"

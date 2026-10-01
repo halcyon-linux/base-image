@@ -164,10 +164,13 @@ the workflows (no Justfile).
   dirs — the `systemd` module's auto-copy path is unused here). `dnf5`
   aborts a transaction on one bad name, so never add a package name without
   verifying it first (see §6).
-- `texlive.yml`: COPR `aahsnr-work/texlive-packages` (`cleanup: true`), the
-  `texlive-*` collection (`install-weak-deps: false`) — replaces the retired
-  CTAN/tlmgr installer; `halcyon-texlive.just` sources the PATH hook
-  `/etc/profile.d/texlive.sh` the packages ship.
+- `texlive.yml`: Fedora's own texlive (`install-weak-deps: false`) — the
+  `texlive-collection-*` set mirrors the 12 groups the COPR
+  `aahsnr-work/texlive-packages` was meant to provide. That COPR is UNUSED
+  here by design: its groups are texmf-dist-only data monoliths that cannot
+  coexist with Fedora's engines (`texlive-luatex`/`xetex` collide by name,
+  and the engines hard-require Fedora component data that file-conflicts
+  with the COPR tree) — unusable until the splitter is redesigned.
 - `ujust.yml`: `dnf` install of the ujust-fedora companions (`glow`,
   `grubby`, `stress-ng`; `just` self-contained, also in core.yml; `jq` is a
   verify-gate requirement) → `systemd` module (declarative unit state,
@@ -195,8 +198,8 @@ the workflows (no Justfile).
   — the end-state backstop: 12 kernel/NVIDIA gates (incl. the initramfs.img
   the finish module just built and the modinfo-vs-rpm version match), gaming
   keeper set, the only-Fedora-repos-remain gate, identity files
-  (os-release/image-info.json/texlive hook), chezmoi wiring, and the package
-  census baked to `/usr/share/halcyon/package-count`.
+  (os-release/image-info.json/texlive engines), chezmoi wiring, and the
+  package census baked to `/usr/share/halcyon/package-count`.
 - `bootc-lint.yml`: `type: containerfile`, **`no-cache: true`**, hermetic
   `RUN --mount=type=tmpfs,target=/run --network=none bootc container lint` —
   always the last module.

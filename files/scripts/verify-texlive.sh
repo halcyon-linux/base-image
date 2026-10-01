@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# halcyon verify — texlive: the TeX Live collection landed from the
-# halcyon-texlive-packages repo and ships the PATH hook that
-# halcyon-texlive.just sources. Mutates nothing.
+# halcyon verify — texlive: the Fedora texlive-collection-* set landed with a
+# consistent engine+runfile stack (collection-basic requires the engines).
+# Mutates nothing.
 set -uo pipefail
 
 echo "████ verify · texlive ████"
@@ -17,9 +17,11 @@ gate() {
 }
 
 echo "::group::verify-texlive"
-gate "texlive collection" rpm -q texlive-basic texlive-latex texlive-latexextra texlive-latexrecommended texlive-binextra texlive-luatex texlive-mathscience texlive-publishers
-gate "PATH hook shipped" test -f /etc/profile.d/texlive.sh
-gate "repo cleaned" sh -c '! ls /etc/yum.repos.d/ | grep -qi texlive-packages'
+gate "texlive collections" rpm -q texlive-collection-basic texlive-collection-latex texlive-collection-latexextra texlive-collection-latexrecommended texlive-collection-binextra texlive-collection-luatex texlive-collection-mathscience texlive-collection-publishers
+gate "engines installed" rpm -q texlive-base texlive-kpathsea texlive-luatex texlive-pdftex texlive-tex
+gate "latex binary" test -x /usr/bin/latex
+gate "luatex binary" test -x /usr/bin/luatex
+gate "tlmgr binary" test -x /usr/bin/tlmgr
 echo "::endgroup::"
 
 [ "$fail" = 0 ] || {

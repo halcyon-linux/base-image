@@ -1,7 +1,7 @@
 # vim: set ft=make :
 
 # User-mode TeX Live package management into ~/texmf
-# (system tree is baked at /usr/lib/texlive; PATH via /etc/profile.d/texlive.sh)
+# (Fedora system tree ships at /usr/share/texlive; engines already on PATH)
 
 # Install a TeX Live package in user mode into ~/texmf
 [group("texlive")]
