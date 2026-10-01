@@ -29,9 +29,13 @@ test -f /usr/share/ublue-os/just/00-default.just || { echo "  FAIL  00-default.j
 test -f /usr/share/ublue-os/just/60-custom.just || { echo "  FAIL  60-custom.just missing" >&2; exit 1; }
 test -f /usr/share/ublue-os/just/80-halcyon.just || { echo "  FAIL  80-halcyon.just missing" >&2; exit 1; }
 grep -q '80-halcyon.just' /usr/share/ublue-os/just/60-custom.just || { echo "  FAIL  60-custom.just does not import 80-halcyon" >&2; exit 1; }
-# The import list is a static overlay file — gate it against the shipped
-# recipes so the list can never silently drift out of sync.
-for f in /usr/share/ublue-os/just/*.just; do
+# The import list is a static overlay file — gate it against the OVERLAY's
+# recipes (via the /tmp/files mount) so the list can never silently drift
+# out of sync. RPM-owned recipes (00-default.just) stay OUT of the loop:
+# the ublue-os-just spec generates the main justfile with an import line
+# for every recipe it ships, so a re-import from 60-custom.just would
+# duplicate them.
+for f in /tmp/files/system/usr/share/ublue-os/just/*.just; do
   base=$(basename "$f")
   [ "$base" = "60-custom.just" ] && continue
   grep -qF "\"/usr/share/ublue-os/just/${base}\"" /usr/share/ublue-os/just/60-custom.just ||
