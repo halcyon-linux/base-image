@@ -4,7 +4,8 @@
 # Everything declarative is owned by bluebuild modules: the ujust modules
 # register via the static 60-custom.just overlay file, unit enable/mask
 # state lives in the systemd block of modules/ujust.yml, /nix units in
-# modules/nix.yml, and the ujust-fedora companions in the module's dnf block.
+# modules/nix.yml, dotfiles units in modules/chezmoi.yml, and the
+# ujust-fedora companions in the module's dnf block.
 set -euo pipefail
 
 echo "████ STAGE 08/13 · ujust-system · gates + desktop wiring ████"
@@ -53,8 +54,6 @@ done
 systemctl is-enabled greetd.service >/dev/null 2>&1 || { echo "  FAIL  greetd not enabled" >&2; exit 1; }
 systemctl is-enabled var-nix.service >/dev/null 2>&1 || { echo "  FAIL  var-nix.service not enabled" >&2; exit 1; }
 systemctl is-enabled nix.mount >/dev/null 2>&1 || { echo "  FAIL  nix.mount not enabled" >&2; exit 1; }
-test -L /etc/systemd/user/default.target.wants/chezmoi-init.service || { echo "  FAIL  chezmoi-init symlink missing" >&2; exit 1; }
-test -L /etc/systemd/user/timers.target.wants/chezmoi-update.timer || { echo "  FAIL  chezmoi-update timer symlink missing" >&2; exit 1; }
 test -L /etc/systemd/user/graphical-session.target.wants/pyprland.service || { echo "  FAIL  pyprland symlink missing" >&2; exit 1; }
 test -f /etc/greetd/config.toml || { echo "  FAIL  greetd config missing" >&2; exit 1; }
 grep -q pam_gnome_keyring.so /etc/pam.d/greetd || { echo "  FAIL  PAM keyring line missing" >&2; exit 1; }

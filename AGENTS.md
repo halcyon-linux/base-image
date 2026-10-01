@@ -26,11 +26,12 @@ recipes/halcyon.yml       # THE build definition. Module order is load-bearing:
                           #   /etc/dnf) → removals → install-kernel.sh →
                           #   programming → core → gaming → hardware →
                           #   ublue-pkgs → terra → desktop → devtools → nix →
-                          #   texlive → apps → ujust → finish → final-verify →
-                          #   bootc-lint (bootc-lint must stay last)
-recipes/modules/*.yml     # present: apps, core, desktop, devtools, gaming,
-                          #   hardware, nix, programming, removals, terra,
-                          #   texlive, ublue-pkgs, ujust
+                          #   texlive → apps → chezmoi → ujust → finish →
+                          #   final-verify → bootc-lint (bootc-lint must stay
+                          #   last)
+recipes/modules/*.yml     # present: apps, chezmoi, core, desktop, devtools,
+                          #   gaming, hardware, nix, programming, removals,
+                          #   terra, texlive, ublue-pkgs, ujust
 files/                    # mounted at /tmp/files in every module RUN; never baked in
   system/                 # static overlay — recipe copies files/system/* → /
                           #   etc/default/useradd (SHELL=zsh)
@@ -55,9 +56,11 @@ files/                    # mounted at /tmp/files in every module RUN; never bak
                           #     by image-path.sh)
                           #   usr/lib/systemd/system/{var-nix.service,nix.mount}
                           #   usr/lib/systemd/user/pyprland.service (+ .d/
-                          #     10-halcyon-condition.conf), chezmoi-init.service,
-                          #     chezmoi-update.{service,timer} — their RPMs do
-                          #     NOT ship these units, so the overlay does
+                          #     10-halcyon-condition.conf; pyprland's RPM ships
+                          #     no unit) and chezmoi-init.service.d/
+                          #     10-halcyon.conf (first-rebase drop-in on the
+                          #     blue-build chezmoi module's generated unit —
+                          #     the module writes the base units itself)
                           #   usr/lib/tmpfiles.d/{zz-halcyon-nix,
                           #     noctalia-greeter-state}.conf
                           #   usr/share/ublue-os/just/{60-custom.just,*.just} —
@@ -85,8 +88,10 @@ files/                    # mounted at /tmp/files in every module RUN; never bak
   scripts/finalize.sh          # third-party repo sweep + /usr/etc sweep
                                #   (ublue-os-signing's policy.json) + hygiene
   scripts/final-verify.sh      # Stage 10 no-cache cross-cutting backstop
-  scripts/verify-<module>.sh   # per-module gates (12 files, one per dnf
-                               #   module; wired as trailing script blocks)
+  scripts/verify-<module>.sh   # per-module gates (13 files — one per dnf
+                               #   module plus verify-chezmoi.sh on the
+                               #   chezmoi module; wired as trailing script
+                               #   blocks)
   scripts/lib/cleanup.sh       # end-of-module hygiene; every MUTATING stage
                                #   script ends by calling it (verify scripts
                                #   and final-verify mutate nothing — they don't)
@@ -189,28 +194,47 @@ the workflows (no Justfile).
   lualatex bakes under luahbtex/, not luatex/). Fedora's texlive-collections
   era (2026-10-01) lasted one build — it was the fallback while the COPR
   shipped no engines.
+- `chezmoi.yml`: the OFFICIAL blue-build `chezmoi` module
+  (blue-build/modules) — writes `chezmoi-init.service` and
+  `chezmoi-update.{service,timer}` to `/usr/lib/systemd/user/` and enables
+  init+timer `--global` (`all-users: true`). `repository:
+  aahsnr-configs/dotfiles` (public, HTTPS — no keys needed on a fresh
+  machine) and `file-conflict-policy: replace` → the update timer runs
+  `chezmoi update --no-tty --force` (dotfiles are the source of truth),
+  with the module's default cadence stated explicitly (`wait-after-boot:
+  5m`, `run-every: 1d`). The binary is deliberately NOT an RPM: the module
+  downloads the latest GitHub release to `/usr/bin/chezmoi` itself (the
+  download shells out to `/usr/bin/curl`, installed by core.yml; freshness
+  over build reproducibility), and `final-verify.sh` backstops the
+  invariant with a negative `rpm -q chezmoi` gate. The generated init unit is
+  a plain `--apply`, so the overlay drop-in `usr/lib/systemd/user/
+  chezmoi-init.service.d/10-halcyon.conf` carries the first-rebase fixes
+  (its ExecStart override re-states the repository — keep the two in
+  sync): `--force` (a home rebasing from a previous OS holds differing
+  dotfiles and the non-interactive apply dies on the first "already
+  exists"), `ConditionUser=!greetd` (`--global` enablement also reaches
+  the greeter user), `Restart=on-failure` + 15s (network-online.target
+  does not exist in a user manager, so a clone racing the network retries
+  instead of waiting for the next login), and `TimeoutStartSec=600` (a
+  cold clone+apply can outrun the ~90s user-manager default). Trailing
+  `verify-chezmoi.sh` gates the binary, the not-RPM invariant, the three
+  units, the drop-in and the `--global` wiring.
 - `ujust.yml`: `dnf` install of the ujust-fedora companions (`glow`,
   `grubby`, `stress-ng`; `just` self-contained, also in core.yml; `jq` is a
   verify-gate requirement) → `systemd` module (declarative unit state,
   replaces the old script's systemctl/ln logic): `system.enabled` =
   `uupd.timer`, `greetd.service`, `getty@tty2.service`; `system.masked` =
-  sddm/gdm/bazzite-autologin/nvidia-persistenced/nvidia-powerd (masking
-  needs no unit file); `user.enabled` = pyprland + chezmoi units (`--global`
-  → symlinks under `/etc/systemd/user/*.wants/`); the overlay's
-  `chezmoi-init.service` clones + force-applies `aahsnr-configs/dotfiles`
-  (public, HTTPS — no keys needed on a fresh machine) at each user's first
-  login: `--force` because the update policy treats dotfiles as the source
-  of truth, `ConditionUser=!greetd` keeps the greeter out of `--global`
-  enablement, and `Restart=on-failure` covers the clone racing the network
-  (network-online.target does not exist in a user manager) → `script`
-  `ujust-system.sh` (Stage 08): only what no module covers — the ujust
-  presence gates, steam/lutris desktop-entry patching (bazzite parity), and
-  the ujust+system verify tail (`ujust --list`, companion-binary sweep, a
-  60-custom.just ↔ shipped-recipes completeness gate, gate-checked overlay
-  configs), ending with `lib/cleanup.sh`. The 10 modules are registered by
-  the static overlay file `60-custom.just` (the `ublue-os-just` RPM ships
-  the justfile's `import?` hook for it); `var-nix.service`/`nix.mount`
-  remain in nix.yml.
+  sddm/gdm/bazzite-autologin/nvidia-persistenced/nvidia-powerd/systemd-oomd
+  (masking needs no unit file); `user.enabled` = pyprland (`--global` →
+  symlinks under `/etc/systemd/user/*.wants/`; the chezmoi units enable
+  themselves --global in chezmoi.yml) → `script` `ujust-system.sh`
+  (Stage 08): only what no module covers — the ujust presence gates,
+  steam/lutris desktop-entry patching (bazzite parity), and the ujust+system
+  verify tail (`ujust --list`, companion-binary sweep, a 60-custom.just ↔
+  shipped-recipes completeness gate, gate-checked overlay configs), ending
+  with `lib/cleanup.sh`. The 10 modules are registered by the static overlay
+  file `60-custom.just` (the `ublue-os-just` RPM ships the justfile's
+  `import?` hook for it); `var-nix.service`/`nix.mount` remain in nix.yml.
 - `finish.yml`: `os-release` module (NAME/`PRETTY_NAME`/HOME_URL →
   /etc/os-release) → `script` `[image-info.sh, finalize.sh]` → `initramfs`
   module LAST. `image-info.sh` writes `/usr/share/ublue-os/image-info.json`

@@ -45,7 +45,7 @@ gate "gaming keeper packages" rpm -q scx-scheds scx-tools umu-launcher umu-wrapp
 gate "steam installed" rpm -q steam
 gate "bazzite-steam wrapper" test -x /usr/bin/bazzite-steam
 gate "steam desktop -> bazzite-steam" grep -q 'bazzite-steam' /usr/share/applications/steam.desktop
-gate "devtools keepers" rpm -q zed starship lazygit bat eza fzf pandoc chezmoi bun pixi opencode
+gate "devtools keepers" rpm -q zed starship lazygit bat eza fzf pandoc bun pixi opencode
 gate "zen-browser installed" rpm -q zen-browser
 echo "::endgroup::"
 
@@ -65,9 +65,11 @@ gate "texlive tree + formats" test -s /etc/profile.d/texlive.sh && find /usr/lib
 echo "::endgroup::"
 
 echo "::group::final-verify — chezmoi"
-gate "chezmoi installed" rpm -q chezmoi
+gate "chezmoi binary present" test -x /usr/bin/chezmoi
+gate "chezmoi not RPM-managed" sh -c '! rpm -q chezmoi'
 gate "chezmoi-init wired --global" test -L /etc/systemd/user/default.target.wants/chezmoi-init.service
 gate "chezmoi-update.timer wired" test -L /etc/systemd/user/timers.target.wants/chezmoi-update.timer
+gate "chezmoi first-rebase drop-in" test -f /usr/lib/systemd/user/chezmoi-init.service.d/10-halcyon.conf
 echo "::endgroup::"
 
 echo "::group::final-verify — package census"

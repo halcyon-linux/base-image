@@ -1,0 +1,25 @@
+---
+# yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
+modules:
+  # Dotfiles via the OFFICIAL blue-build module (blue-build/modules,
+  # modules/chezmoi): it downloads the chezmoi binary from the latest GitHub
+  # release to /usr/bin/chezmoi, writes the chezmoi-init/update user units
+  # itself, and enables them --global. chezmoi is deliberately NOT an RPM
+  # here — final-verify backstops that invariant with a negative
+  # `rpm -q chezmoi` gate. The download shells out to /usr/bin/curl, which
+  # core.yml installed long before this module runs.
+  - type: chezmoi
+    repository: "aahsnr-configs/dotfiles" # public, HTTPS — no keys needed on a fresh machine
+    all-users: true # systemctl --global enable → every login user gets the wiring
+    file-conflict-policy: replace # the repo is the source of truth → update runs --no-tty --force
+    wait-after-boot: 5m # module defaults, stated so upstream drift stays visible
+    run-every: 1d
+
+  # The module's generated init unit is a plain `--apply`: no --force, no
+  # greeter guard, no retry, default timeout. The overlay drop-in
+  # files/system/usr/lib/systemd/user/chezmoi-init.service.d/10-halcyon.conf
+  # carries those first-rebase fixes — its ExecStart override re-states the
+  # repository, keep the two in sync.
+  - type: script
+    scripts:
+      - verify-chezmoi.sh

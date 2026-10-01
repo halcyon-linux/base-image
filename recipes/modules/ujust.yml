@@ -18,8 +18,9 @@ modules:
 
   # Unit state is declarative bluebuild (systemd module), not script logic.
   # Every enabled unit exists by this point (greetd — desktop.yml; uupd —
-  # ublue-pkgs.yml; getty@.service — base systemd; user units — the overlay's
-  # files module). var-nix.service + nix.mount are enabled by nix.yml.
+  # ublue-pkgs.yml; getty@.service — base systemd; pyprland — the overlay's
+  # files module). var-nix.service + nix.mount are enabled by nix.yml; the
+  # chezmoi units enable themselves --global in chezmoi.yml.
   - type: systemd
     system:
       enabled:
@@ -39,8 +40,6 @@ modules:
     user:
       enabled:
         - pyprland.service
-        - chezmoi-init.service
-        - chezmoi-update.timer
 
   # Everything the systemd module cannot express: the ujust presence gates,
   # the steam/lutris desktop-entry patching (bazzite parity), and the

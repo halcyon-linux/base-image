@@ -16,8 +16,8 @@ gate() {
 }
 
 echo "::group::verify-devtools"
-gate "CLI packages" rpm -q asdf atuin bat bat-extras btop bun cava chafa chezmoi cliphist direnv dust eza fd-find fpaste fzf fzy gnuplot kilo lazygit marksman opencode pandoc pixi ripgrep starship tealdeer texlab topgrade uv
-gate "binaries on PATH" sh -c 'command -v bat && command -v rg && command -v fzf && command -v uv && command -v starship && command -v lazygit && command -v chezmoi'
+gate "CLI packages" rpm -q asdf atuin bat bat-extras btop bun cava chafa cliphist direnv dust eza fd-find fpaste fzf fzy gnuplot kilo lazygit marksman opencode pandoc pixi ripgrep starship tealdeer texlab topgrade uv
+gate "binaries on PATH" sh -c 'command -v bat && command -v rg && command -v fzf && command -v uv && command -v starship && command -v lazygit'
 gate "repo cleaned" sh -c '! ls /etc/yum.repos.d/ | grep -qi cli-tools'
 echo "::endgroup::"
 

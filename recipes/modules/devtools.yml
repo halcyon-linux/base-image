@@ -17,7 +17,6 @@ modules:
         - bun
         - cava
         - chafa
-        - chezmoi
         - cliphist
         - direnv
         - dust
