@@ -34,6 +34,13 @@ modules:
         - umu-wrapper
         - bibata-cursor-theme
 
+  # repos.cleanup only removes the module-staged terra.repo; the
+  # terra-release-* RPMs ship five enabled repo files of their own. Delete
+  # them here so no later dnf transaction can resolve off Terra.
+  - type: script
+    scripts:
+      - terra-repo-sweep.sh
+
   - type: script
     scripts:
       - verify-terra.sh

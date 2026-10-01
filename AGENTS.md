@@ -24,8 +24,8 @@ overlay rule, not winter's sidecar dirs.
 recipes/halcyon.yml       # THE build definition. Module order is load-bearing:
                           #   signing → files (system → /) → files (dnf-libdnf5 →
                           #   /etc/dnf) → removals → install-kernel.sh →
-                          #   programming → core → desktop → gaming →
-                          #   hardware → ublue-pkgs → terra → devtools → nix →
+                          #   programming → core → gaming → hardware →
+                          #   ublue-pkgs → terra → desktop → devtools → nix →
                           #   texlive → apps → ujust → finish → final-verify →
                           #   bootc-lint (bootc-lint must stay last)
 recipes/modules/*.yml     # present: apps, core, desktop, devtools, gaming,
@@ -72,6 +72,8 @@ files/                    # mounted at /tmp/files in every module RUN; never bak
                                #   ujust/system verify tail
   scripts/guarded-removals.sh  # compose-variance sweep + must-be-gone gates
   scripts/fonts-cleanup.sh     # reverse-dep-gated base font sweep
+  scripts/terra-repo-sweep.sh  # deletes the repo files terra-release-* ships
+                               #   (repos.cleanup can't remove RPM-owned files)
   scripts/image-info.sh        # writes /usr/share/ublue-os/image-info.json
   scripts/finalize.sh          # third-party repo sweep + end-of-build hygiene
   scripts/final-verify.sh      # Stage 10 no-cache cross-cutting backstop
@@ -151,7 +153,10 @@ the workflows (no Justfile).
   ublue-os-just/luks/selinux-workarounds/signing, ublue-recipes, uupd.
 - `terra.yml`: `terra.repo` URL with `no-gpgchecks: true` (`cleanup: true`);
   first block bootstraps `terra-release-*`, second installs the Terra-only
-  leftovers (`bazzite-portal`, `scx-*`, `umu-*`, `bibata-cursor-theme`).
+  leftovers (`bazzite-portal`, `scx-*`, `umu-*`, `bibata-cursor-theme`);
+  then `terra-repo-sweep.sh` — the `terra-release-*` RPMs ship five enabled
+  repo files of their own (`cleanup: true` only removes module-staged files),
+  which would otherwise shadow Fedora for every later dnf transaction.
 - `devtools.yml`: COPR `aahsnr-work/cli-tools` (`cleanup: true`), CLI tools.
 - `nix.yml`: `systemd` enable (`var-nix.service`, `nix.mount`) → `dnf install`
   `nix`, `nix-daemon` → `systemd` enable (`nix-daemon`). Units and config
