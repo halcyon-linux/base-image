@@ -74,6 +74,8 @@ files/                    # mounted at /tmp/files in every module RUN; never bak
   scripts/fonts-cleanup.sh     # reverse-dep-gated base font sweep
   scripts/terra-repo-sweep.sh  # deletes the repo files terra-release-* ships
                                #   (repos.cleanup can't remove RPM-owned files)
+  scripts/texlive-formats.sh   # bakes updmap maps + fmtutil formats after the
+                               #   rolling-COPR install (no %post ordering)
   scripts/image-info.sh        # writes /usr/share/ublue-os/image-info.json
   scripts/finalize.sh          # third-party repo sweep + end-of-build hygiene
   scripts/final-verify.sh      # Stage 10 no-cache cross-cutting backstop
@@ -164,13 +166,16 @@ the workflows (no Justfile).
   dirs — the `systemd` module's auto-copy path is unused here). `dnf5`
   aborts a transaction on one bad name, so never add a package name without
   verifying it first (see §6).
-- `texlive.yml`: Fedora's own texlive (`install-weak-deps: false`) — the
-  `texlive-collection-*` set mirrors the 12 groups the COPR
-  `aahsnr-work/texlive-packages` was meant to provide. That COPR is UNUSED
-  here by design: its groups are texmf-dist-only data monoliths that cannot
-  coexist with Fedora's engines (`texlive-luatex`/`xetex` collide by name,
-  and the engines hard-require Fedora component data that file-conflicts
-  with the COPR tree) — unusable until the splitter is redesigned.
+- `texlive.yml`: rolling TeX Live from COPR `aahsnr-work/texlive-packages`
+  (`cleanup: true`) — `texlive-bin` (upstream's engine bundle) + the 12
+  `texlive-*` data groups, all under one self-contained
+  `/usr/lib/texlive/<year>/` root that kpathsea resolves via
+  SELFAUTOPARENT, so Fedora's fixed-release texlive is never touched
+  (no path overlap, no name collisions). `texlive-formats.sh` bakes the
+  format files after the transaction (rpm can't order %post after sibling
+  data groups); `verify-texlive.sh` gates the tree, the PATH hook and the
+  baked formats. Fedora's texlive-collections era (2026-10-01) lasted one
+  build — it was the fallback while the COPR shipped no engines.
 - `ujust.yml`: `dnf` install of the ujust-fedora companions (`glow`,
   `grubby`, `stress-ng`; `just` self-contained, also in core.yml; `jq` is a
   verify-gate requirement) → `systemd` module (declarative unit state,
@@ -198,7 +203,7 @@ the workflows (no Justfile).
   — the end-state backstop: 12 kernel/NVIDIA gates (incl. the initramfs.img
   the finish module just built and the modinfo-vs-rpm version match), gaming
   keeper set, the only-Fedora-repos-remain gate, identity files
-  (os-release/image-info.json/texlive engines), chezmoi wiring, and the
+  (os-release/image-info.json/texlive tree), chezmoi wiring, and the
   package census baked to `/usr/share/halcyon/package-count`.
 - `bootc-lint.yml`: `type: containerfile`, **`no-cache: true`**, hermetic
   `RUN --mount=type=tmpfs,target=/run --network=none bootc container lint` —

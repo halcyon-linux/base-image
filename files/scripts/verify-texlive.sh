@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# halcyon verify — texlive: the Fedora texlive-collection-* set landed with a
-# consistent engine+runfile stack (collection-basic requires the engines).
+# halcyon verify — texlive: the rolling COPR stack (data groups + engine
+# bundle) landed under the self-contained /usr/lib/texlive root, the PATH
+# hook shipped, kpathsea resolves the tree, and the core formats baked.
 # Mutates nothing.
 set -uo pipefail
 
@@ -16,12 +17,23 @@ gate() {
   fi
 }
 
+shopt -s nullglob
+tl_roots=(/usr/lib/texlive/*/)
+shopt -u nullglob
+TL_ROOT=""
+if [ "${#tl_roots[@]}" -gt 0 ]; then
+  TL_ROOT="${tl_roots[${#tl_roots[@]}-1]}"
+fi
+
 echo "::group::verify-texlive"
-gate "texlive collections" rpm -q texlive-collection-basic texlive-collection-latex texlive-collection-latexextra texlive-collection-latexrecommended texlive-collection-binextra texlive-collection-luatex texlive-collection-mathscience texlive-collection-publishers
-gate "engines installed" rpm -q texlive-base texlive-kpathsea texlive-luatex texlive-pdftex texlive-tex
-gate "latex binary" test -x /usr/bin/latex
-gate "luatex binary" test -x /usr/bin/luatex
-gate "tlmgr binary" test -x /usr/bin/tlmgr
+gate "engine bundle" rpm -q texlive-bin
+gate "texlive groups" rpm -q texlive-basic texlive-latex texlive-latexextra texlive-latexrecommended texlive-binextra texlive-luatex texlive-mathscience texlive-publishers
+gate "tree layout" test -d "${TL_ROOT}/bin/x86_64-linux" && test -d "${TL_ROOT}/texmf-dist/web2c"
+gate "PATH hook shipped" test -x /etc/profile.d/texlive.sh
+gate "TEXMFDIST resolves into tree" test "$(env -i HOME=/root "${TL_ROOT}/bin/x86_64-linux/kpsewhich" -var-value=TEXMFDIST)" = "${TL_ROOT}texmf-dist"
+gate "pdflatex format baked" test -s "${TL_ROOT}/texmf-var/web2c/pdftex/pdflatex.fmt"
+gate "lualatex format baked" test -s "${TL_ROOT}/texmf-var/web2c/luatex/lualatex.fmt"
+gate "repo cleaned" sh -c '! ls /etc/yum.repos.d/ | grep -qi texlive-packages'
 echo "::endgroup::"
 
 [ "$fail" = 0 ] || {

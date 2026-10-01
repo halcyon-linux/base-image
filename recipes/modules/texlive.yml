@@ -1,28 +1,36 @@
 ---
 # yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
 modules:
-  # Fedora 44's own texlive generation: per-CTAN components + texlive-collection-*
-  # metas, engines and runfiles from one source. The aahsnr-work/texlive-packages
-  # COPR (texmf-dist-only data monoliths) cannot coexist with these engines —
-  # texlive-luatex/xetex collide by name and the engines hard-require the Fedora
-  # component data that file-conflicts with the COPR tree — so it is unused here
-  # until the splitter is redesigned.
+  # Rolling TeX Live from aahsnr-work/texlive-packages: the texmf-dist data
+  # groups plus texlive-bin (upstream's engine bundle) all install under one
+  # self-contained /usr/lib/texlive/<year> root, so nothing resolves from
+  # Fedora's fixed-release texlive packaging. texlive-formats.sh bakes the
+  # format files after the transaction; verify-texlive.sh gates the result.
   - type: dnf
+    repos:
+      cleanup: true
+      files:
+        - texlive-packages.repo # priority=1: Copr wins over Fedora/Terra
     install:
       install-weak-deps: false
       packages:
-        - texlive-collection-basic
-        - texlive-collection-bibtexextra
-        - texlive-collection-binextra
-        - texlive-collection-fontsrecommended
-        - texlive-collection-fontutils
-        - texlive-collection-formatsextra
-        - texlive-collection-latex
-        - texlive-collection-latexextra
-        - texlive-collection-latexrecommended
-        - texlive-collection-luatex
-        - texlive-collection-mathscience
-        - texlive-collection-publishers
+        - texlive-bin
+        - texlive-basic
+        - texlive-bibtexextra
+        - texlive-binextra
+        - texlive-fontsrecommended
+        - texlive-fontutils
+        - texlive-formatsextra
+        - texlive-latex
+        - texlive-latexextra
+        - texlive-latexrecommended
+        - texlive-luatex
+        - texlive-mathscience
+        - texlive-publishers
+
+  - type: script
+    scripts:
+      - texlive-formats.sh
 
   - type: script
     scripts:
