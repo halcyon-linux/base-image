@@ -17,4 +17,4 @@ repo_gpgcheck=0
 enabled=1
 enabled_metadata=1
 priority=1
-includepkgs=antigravity-cli,antigravity-ide,bitwarden,distroshelf,emacs-pgtk,ferdium,kitty,mullvad-vpn,obsidian,onlyoffice-desktopeditors,opencode-desktop,private-internet-access,proton-vpn-daemon,proton-vpn-gtk-app,python3-proton-core,python3-proton-keyring-linux,python3-proton-vpn-api-core,ticktick,zed,zen-browser,zotero
+includepkgs=antigravity-cli,antigravity-ide,bitwarden,distroshelf,emacs-pgtk,ferdium,kitty,kitty-kitten,kitty-shell-integration,kitty-terminfo,mullvad-vpn,obsidian,onlyoffice-desktopeditors,opencode-desktop,private-internet-access,proton-vpn-daemon,proton-vpn-gtk-app,python3-proton-core,python3-proton-keyring-linux,python3-proton-vpn-api-core,ticktick,zed,zen-browser,zotero
