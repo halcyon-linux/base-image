@@ -82,7 +82,8 @@ files/                    # mounted at /tmp/files in every module RUN; never bak
                                #   races dnf5's metadata cache); wired before
                                #   each repos-module verify gate
   scripts/image-info.sh        # writes /usr/share/ublue-os/image-info.json
-  scripts/finalize.sh          # third-party repo sweep + end-of-build hygiene
+  scripts/finalize.sh          # third-party repo sweep + /usr/etc sweep
+                               #   (ublue-os-signing's policy.json) + hygiene
   scripts/final-verify.sh      # Stage 10 no-cache cross-cutting backstop
   scripts/verify-<module>.sh   # per-module gates (12 files, one per dnf
                                #   module; wired as trailing script blocks)

@@ -38,6 +38,12 @@ rm -f /var/log/dnf5.log /var/log/dnf5.log.* || true
 find /boot -mindepth 1 -delete 2>/dev/null || true
 rm -rf /var/cache/libdnf5/* || true
 rm -rf /var/tmp/* || true
+# ublue-os-signing installs its policy.json under /usr/etc/containers — an
+# ostree-internal location bootc forbids in container images (the bootc
+# etc-usretc lint hard-fails the build on its existence). The ACTIVE policy
+# is /etc/containers/policy.json, owned by the signing module; the /usr/etc
+# copy is inert.
+rm -rf /usr/etc
 install -d -m1777 /var/tmp
 echo "  INFO  keepcache=0, skip_if_unavailable=1, /tmp + logs + /boot + caches cleared"
 echo "::endgroup::"
