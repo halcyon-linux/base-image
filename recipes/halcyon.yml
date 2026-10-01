@@ -35,11 +35,11 @@ modules:
 
   - from-file: modules/programming.yml
   - from-file: modules/core.yml
-  - from-file: modules/desktop.yml
   - from-file: modules/gaming.yml
   - from-file: modules/hardware.yml
   - from-file: modules/ublue-pkgs.yml
   - from-file: modules/terra.yml
+  - from-file: modules/desktop.yml
   - from-file: modules/devtools.yml
   - from-file: modules/nix.yml
   - from-file: modules/texlive.yml
