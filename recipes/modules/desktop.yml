@@ -48,4 +48,8 @@ modules:
 
   - type: script
     scripts:
+      - repo-leftover-sweep.sh
+
+  - type: script
+    scripts:
       - verify-desktop.sh

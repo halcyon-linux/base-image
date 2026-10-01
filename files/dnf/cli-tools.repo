@@ -17,4 +17,4 @@ repo_gpgcheck=0
 enabled=1
 enabled_metadata=1
 priority=1
-includepkgs=asdf,atuin,bat,bat-extras,bun,cava,chafa,cliphist,dust,eza,fd-find,fzf,fzy,gnuplot,kilo,lazygit,marksman,opencode,pandoc,pixi,starship,tealdeer,texlab,topgrade,uv
+includepkgs=asdf,atuin,bat,bat-extras,bun,cava,chafa,chafa-libs,cliphist,dust,eza,fd-find,fzf,fzy,gnuplot,kilo,lazygit,marksman,opencode,pandoc,pixi,starship,tealdeer,texlab,topgrade,uv

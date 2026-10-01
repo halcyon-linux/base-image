@@ -19,4 +19,8 @@ modules:
 
   - type: script
     scripts:
+      - repo-leftover-sweep.sh
+
+  - type: script
+    scripts:
       - verify-ublue-pkgs.sh

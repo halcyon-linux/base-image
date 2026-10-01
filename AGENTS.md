@@ -76,6 +76,11 @@ files/                    # mounted at /tmp/files in every module RUN; never bak
                                #   (repos.cleanup can't remove RPM-owned files)
   scripts/texlive-formats.sh   # bakes updmap maps + fmtutil formats after the
                                #   rolling-COPR install (no %post ordering)
+  scripts/repo-leftover-sweep.sh  # deletes module-staged repo files when
+                               #   bluebuild's cleanup mapping comes back
+                               #   empty (its parallel `dnf repo info` storm
+                               #   races dnf5's metadata cache); wired before
+                               #   each repos-module verify gate
   scripts/image-info.sh        # writes /usr/share/ublue-os/image-info.json
   scripts/finalize.sh          # third-party repo sweep + end-of-build hygiene
   scripts/final-verify.sh      # Stage 10 no-cache cross-cutting backstop
@@ -232,7 +237,12 @@ the workflows (no Justfile).
   filename; the COPR ones pair `priority=1` with `includepkgs=<curated set>`
   (sources of truth: `~/Git/halcyon/copr`): priority alone would make dnf5
   prefer the COPR for every dependency name it builds, and the allowlist
-  confines it to exactly the packages the consuming module installs.
+  confines it to exactly the packages the consuming module installs —
+  including their runtime subpackages (missing `chafa-libs` silently served
+  Fedora's older chafa: a name filtered out of the COPR falls back to
+  Fedora for the WHOLE closure). `cleanup: true` has a known failure mode —
+  its repo-info resolution races dnf5's cache and then removes nothing —
+  so `repo-leftover-sweep.sh` runs before every repos-module verify gate.
 - Declarative first: do with bluebuild modules (`files`, `dnf`, `systemd`)
   whatever a module can express; the `script` module is only for what no
   module covers (verify gates, foreign-file patching like steam.desktop).
