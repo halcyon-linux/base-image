@@ -31,8 +31,9 @@ gate "texlive groups" rpm -q texlive-basic texlive-latex texlive-latexextra texl
 gate "tree layout" test -d "${TL_ROOT}/bin/x86_64-linux" && test -d "${TL_ROOT}/texmf-dist/web2c"
 gate "PATH hook shipped" test -x /etc/profile.d/texlive.sh
 gate "TEXMFDIST resolves into tree" test "$(env -i HOME=/root "${TL_ROOT}/bin/x86_64-linux/kpsewhich" -var-value=TEXMFDIST)" = "${TL_ROOT}texmf-dist"
-gate "pdflatex format baked" test -s "${TL_ROOT}/texmf-var/web2c/pdftex/pdflatex.fmt"
-gate "lualatex format baked" test -s "${TL_ROOT}/texmf-var/web2c/luatex/lualatex.fmt"
+# engine-dir agnostic: pdflatex bakes under pdftex/, lualatex under luahbtex/
+gate "pdflatex format baked" test -n "$(find "${TL_ROOT}/texmf-var/web2c" -name 'pdflatex.fmt' -size +0 2>/dev/null | head -n1)"
+gate "lualatex format baked" test -n "$(find "${TL_ROOT}/texmf-var/web2c" -name 'lualatex.fmt' -size +0 2>/dev/null | head -n1)"
 gate "repo cleaned" sh -c '! ls /etc/yum.repos.d/ | grep -qi texlive-packages'
 echo "::endgroup::"
 

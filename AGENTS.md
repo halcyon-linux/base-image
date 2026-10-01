@@ -172,15 +172,22 @@ the workflows (no Justfile).
   aborts a transaction on one bad name, so never add a package name without
   verifying it first (see §6).
 - `texlive.yml`: rolling TeX Live from COPR `aahsnr-work/texlive-packages`
-  (`cleanup: true`) — `texlive-bin` (upstream's engine bundle) + the 12
-  `texlive-*` data groups, all under one self-contained
-  `/usr/lib/texlive/<year>/` root that kpathsea resolves via
-  SELFAUTOPARENT, so Fedora's fixed-release texlive is never touched
+  (`cleanup: true`) — `texlive-bin` (upstream's engine bundle + the TeXLive
+  perl modules + the repo tlpdb) + the 12 `texlive-*` data groups, all under
+  one self-contained `/usr/lib/texlive/<year>/` root that kpathsea resolves
+  via SELFAUTOPARENT, so Fedora's fixed-release texlive is never touched
   (no path overlap, no name collisions). `texlive-formats.sh` bakes the
   format files after the transaction (rpm can't order %post after sibling
-  data groups); `verify-texlive.sh` gates the tree, the PATH hook and the
-  baked formats. Fedora's texlive-collections era (2026-10-01) lasted one
-  build — it was the fallback while the COPR shipped no engines.
+  data groups): it FIRST rebuilds texmf-dist's ls-R (texlive-basic ships an
+  ls-R covering only its own members and mktexlsr refuses to overwrite a
+  file whose magic header deviates — rm before mktexlsr) and trims
+  language.dat/def/lua to the pattern files actually installed (the
+  language collections are pruned upstream; fmtutil aborts mid-ini on the
+  first missing loader); THEN updmap-sys + fmtutil-sys. `verify-texlive.sh`
+  gates the tree, the PATH hook and the baked formats (find-based —
+  lualatex bakes under luahbtex/, not luatex/). Fedora's texlive-collections
+  era (2026-10-01) lasted one build — it was the fallback while the COPR
+  shipped no engines.
 - `ujust.yml`: `dnf` install of the ujust-fedora companions (`glow`,
   `grubby`, `stress-ng`; `just` self-contained, also in core.yml; `jq` is a
   verify-gate requirement) → `systemd` module (declarative unit state,
