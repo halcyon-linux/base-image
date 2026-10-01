@@ -196,7 +196,13 @@ the workflows (no Justfile).
   `uupd.timer`, `greetd.service`, `getty@tty2.service`; `system.masked` =
   sddm/gdm/bazzite-autologin/nvidia-persistenced/nvidia-powerd (masking
   needs no unit file); `user.enabled` = pyprland + chezmoi units (`--global`
-  → symlinks under `/etc/systemd/user/*.wants/`) → `script`
+  → symlinks under `/etc/systemd/user/*.wants/`); the overlay's
+  `chezmoi-init.service` clones + force-applies `aahsnr-configs/dotfiles`
+  (public, HTTPS — no keys needed on a fresh machine) at each user's first
+  login: `--force` because the update policy treats dotfiles as the source
+  of truth, `ConditionUser=!greetd` keeps the greeter out of `--global`
+  enablement, and `Restart=on-failure` covers the clone racing the network
+  (network-online.target does not exist in a user manager) → `script`
   `ujust-system.sh` (Stage 08): only what no module covers — the ujust
   presence gates, steam/lutris desktop-entry patching (bazzite parity), and
   the ujust+system verify tail (`ujust --list`, companion-binary sweep, a
