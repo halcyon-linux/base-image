@@ -57,7 +57,8 @@ gate "only Fedora repo files remain" sh -c '! ls /etc/yum.repos.d/ | grep -Eqi "
 echo "::endgroup::"
 
 echo "::group::final-verify — identity files"
-gate "os-release NAME=halcyon" grep -q '^NAME=halcyon$' /etc/os-release
+# the bluebuild os-release module writes values double-quoted (NAME="halcyon")
+gate "os-release NAME=halcyon" grep -qE '^NAME="?halcyon"?$' /etc/os-release
 gate "image-info.json baked" test -s /usr/share/ublue-os/image-info.json
 gate "texlive installed" rpm -q texlive-bin texlive-basic
 gate "texlive tree + formats" test -s /etc/profile.d/texlive.sh && find /usr/lib/texlive/*/texmf-var/web2c -name 'pdflatex.fmt' 2>/dev/null | grep -q .
