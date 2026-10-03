@@ -23,10 +23,10 @@ modules:
   # chezmoi units enable themselves --global in chezmoi.yml.
   - type: systemd
     system:
-      enabled:
-        - uupd.timer
-        - greetd.service
-        - getty@tty2.service
+      # enabled:
+      #   - uupd.timer
+      #   - greetd.service
+      #   - getty@tty2.service
       masked:
         - sddm.service
         - gdm.service
