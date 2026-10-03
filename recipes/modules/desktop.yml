@@ -15,7 +15,6 @@ modules:
         - glaze
         - gnome-keyring
         - gnome-tweaks
-        - greetd
         - hyprcursor
         - hyprgraphics
         - hyprland-git
@@ -30,13 +29,13 @@ modules:
         - hyprwayland-scanner
         - hyprwire
         - noctalia-git
-        - noctalia-greeter-git
         - nwg-displays
         - nwg-look
         - papers
         - papirus-icon-theme
         - pyprland
         - qt6ct
+        - sddm
         - Thunar
         - thunar-archive-plugin
         - thunar-media-tags-plugin
