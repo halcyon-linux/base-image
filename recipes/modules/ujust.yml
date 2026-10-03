@@ -26,9 +26,9 @@ modules:
       # enabled:
       #   - uupd.timer
       #   - greetd.service
-      #   - getty@tty2.service
+       - getty@tty2.service
       masked:
-        - sddm.service
+      #  - sddm.service
         - gdm.service
         - bazzite-autologin.service
         - nvidia-persistenced.service
