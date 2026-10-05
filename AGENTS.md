@@ -82,6 +82,11 @@ files/                    # mounted at /tmp/files in every module RUN; never bak
   scripts/guarded-removals.sh  # compose-variance sweep (two passes: blind
                                #   candidates, then reverse-dep-gated cores:
                                #   sddm/cage/ibus/fcitx5) + must-be-gone gates
+  scripts/erase-noscripts-{on,off}.sh  # stage/unstage tsflags=noscripts for
+                               #   the removals stage: rpm fails the WHOLE
+                               #   transaction when any erase scriptlet fails
+                               #   (akonadi %postun killed a completed
+                               #   413-package erase); file triggers unaffected
   scripts/fonts-cleanup.sh     # reverse-dep-gated base font sweep (*fonts*
                                #   glob; dejavu-sans comes back as a noctalia
                                #   hard dep, curated set installs in core.yml)
@@ -145,7 +150,16 @@ the workflows (no Justfile).
   silently overwritten by the RPM; a `%config(noreplace)` path KEEPS the
   overlaid file and the RPM's copy lands as `.rpmnew` — verified 2026-09-30
   against `greetd` on `fedora-bootc:44`. `dnf-libdnf5 → /etc/dnf` second.
-- `removals.yml`: the bazzite de-Plasmaing. `dnf remove` with
+- `removals.yml`: the bazzite de-Plasmaing. The whole stage runs under a
+  staged `tsflags=noscripts` drop-in (`erase-noscripts-on.sh` first,
+  `erase-noscripts-off.sh` before the verify gate): rpm records ANY scriptlet
+  failure — even "non-critical" `%postun` — in a transaction-global flag and
+  then fails the whole transaction (rpm 6.0+, dnf5 #2507), and erase
+  scriptlets shell out to `systemctl`, which cannot work in a build chroot —
+  akonadi-server's `%postun` aborted the transaction after all 413 erases had
+  completed. File-trigger cache maintenance (ldconfig, glib schemas) is
+  unaffected, and the drop-in is removed before the first install stage (both
+  verify scripts gate on its absence). Then `dnf remove` with
   `auto-remove: true` (closes the orphaned kf5/kf6/qt5 closure) of every
   Plasma/KDE top-level package verified present in the base inventory
   (packages.md — dnf5 aborts the transaction on one absent name) PLUS the

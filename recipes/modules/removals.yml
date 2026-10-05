@@ -10,7 +10,19 @@
 #   kernel*/kmod-* (base kernel + NVIDIA akmods + gaming kmods), kbd*
 #   (console keymaps), kpartx (multipath), kvazaar-libs (video codec).
 # Orphaned kf5-/kf6-/qt5- libraries close via auto-remove: true.
+#
+# The whole stage runs under a staged tsflags=noscripts drop-in
+# (erase-noscripts-on/off.sh): rpm fails the ENTIRE transaction when any
+# %preun/%postun scriptlet fails, and erase scriptlets shell out to systemctl,
+# which cannot work in a build chroot (akonadi-server's %postun aborts the
+# transaction even after all 413 erases completed). File-trigger cache
+# maintenance (ldconfig, glib schemas) is unaffected; the drop-in is removed
+# before the first install stage.
 modules:
+  - type: script
+    scripts:
+      - erase-noscripts-on.sh
+
   - type: dnf
     remove:
       auto-remove: true # sweeps the orphaned kf5/kf6/qt5 closure with the stack
@@ -216,6 +228,10 @@ modules:
   - type: script
     scripts:
       - fonts-cleanup.sh
+
+  - type: script
+    scripts:
+      - erase-noscripts-off.sh
 
   - type: script
     scripts:

@@ -68,6 +68,8 @@ echo "::group::final-verify — repo end state"
 # base's own repo set (fedora, terra, rpmfusion, ublue) is deliberately kept.
 # This gate is the property that survives: no halcyon-staged repo file leaks.
 gate "no halcyon-staged repo files remain" sh -c '! ls /etc/yum.repos.d/ | grep -Eqi "copr|vscode|brave|negativo|fedora-nvidia|halcyon|base-pkgs|cli-tools|texlive-packages|applications|fonts.repo"'
+# the removals-stage noscripts drop-in must never survive into the shipped image
+gate "no erase-noscripts drop-in remains" test ! -e /etc/dnf/libdnf5.conf.d/99-halcyon-erase-noscripts.conf
 echo "::endgroup::"
 
 echo "::group::final-verify — identity files"

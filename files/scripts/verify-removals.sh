@@ -48,6 +48,7 @@ gate "input-method frameworks gone" all_absent ibus fcitx5 fcitx5-configtool
 gate "base font packages swept" all_globs_absent 'default-fonts-*' 'google-noto-*fonts' 'liberation-*-fonts'
 gate "greetd + noctalia-greeter gone" all_absent greetd noctalia-greeter-git
 gate "Thunar suite gone" all_absent Thunar thunar-archive-plugin thunar-media-tags-plugin thunar-vcs-plugin thunar-volman
+gate "noscripts drop-in unstaged (install stages need %post)" test ! -e /etc/dnf/libdnf5.conf.d/99-halcyon-erase-noscripts.conf
 gate "dnf still functional" dnf5 --version
 echo "::endgroup::"
 
