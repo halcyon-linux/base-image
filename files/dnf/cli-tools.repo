@@ -1,11 +1,3 @@
-# halcyon CLI tools Copr repo (aahsnr-work/cli-tools) — scoped with
-# includepkgs. priority=1 makes those packages win over Fedora/Terra, while
-# includepkgs confines the repo to exactly the names devtools.yml installs
-# (the monorepo also builds xwiimote-ng, yazi, zellij and zoxide, which the
-# recipe does not use — the allowlist keeps them unpullable). Keep the list
-# in sync with devtools.yml (a missing entry fails loudly with "No match" if
-# Fedora lacks the name; a stale entry silently serves Fedora's build).
-
 [copr:copr.fedorainfracloud.org:aahsnr-work:cli-tools]
 name=Copr repo for cli-tools (aahsnr-work) — priority 1
 baseurl=https://download.copr.fedorainfracloud.org/results/aahsnr-work/cli-tools/fedora-$releasever-$basearch/

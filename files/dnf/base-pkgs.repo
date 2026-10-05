@@ -1,11 +1,3 @@
-# halcyon desktop core Copr repo (aahsnr-work/base-pkgs) — the Hyprland +
-# Noctalia stack, scoped with includepkgs. priority=1 makes those packages win
-# over Fedora/Terra, while includepkgs confines the repo to exactly the names
-# desktop.yml installs — without the allowlist, dnf5 prefers this repo for
-# every dependency name it carries. Keep the list in sync with desktop.yml
-# (a missing entry fails loudly with "No match" if Fedora lacks the name; a
-# stale entry silently serves Fedora's build).
-
 [copr:copr.fedorainfracloud.org:aahsnr-work:base-pkgs]
 name=Copr repo for base-pkgs (aahsnr-work) — priority 1
 baseurl=https://download.copr.fedorainfracloud.org/results/aahsnr-work/base-pkgs/fedora-$releasever-$basearch/
