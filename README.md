@@ -12,7 +12,7 @@ on `ghcr.io/ublue-os/bazzite-nvidia-open:latest`.
   `bazzite-steam` wrapper
 - GNOME file stack instead of KDE's: nautilus + file-roller
 - Curated font set (JetBrainsMono, Nerd Fonts, Noto Color Emoji) over a fully
-  swept base font payload; GUI GPG prompts via pinentry-qt; gnome-keyring SSH
+  swept base font payload; GUI GPG prompts via pinentry-gnome3; gnome-keyring SSH
   agent; openssh-clients wired
 - GRUB menu visible for 10 seconds (rebasing machines: `ujust regenerate-grub`)
 - `ujust` tooling (`ujust --list`), `uupd` system updates, Nix + home-manager ready

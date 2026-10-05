@@ -28,9 +28,15 @@ modules:
         - fail2ban
         - git
         - inotify-tools
-        - intel-gpu-tools
+        - igt-gpu-tools # intel-gpu-tools is renamed in Fedora 44 — dnf
+                        # resolves the old name via provides, the gate must
+                        # use the real one
         - lynis
         - ninja-build
+        - pinentry-gnome3 # removals auto-removed pinentry-qt as a KDE orphan
+                          # and Qt pinentry is deliberately not reinstalled:
+                          # the GTK3/gcr deps are already in the base, and
+                          # the dialog is Wayland-native under Hyprland
         - pipx
         - pymol
         - setools-console
@@ -41,6 +47,7 @@ modules:
         - file-roller
         - grim
         - gtk4-layer-shell
+        - imv
         - slurp
         - swappy
         - transmission-gtk

@@ -48,8 +48,10 @@ packages.md               # rpm -qa of the base image; source of truth for
 files/                    # mounted at /tmp/files in every module RUN; never baked in
   system/                 # static overlay — recipe copies files/system/* → /
                           #   etc/default/useradd (SHELL=zsh)
-                          #   etc/skel/.gnupg/gpg-agent.conf (pinentry-qt —
-                          #     Wayland-native GPG prompts; chezmoi does not
+                          #   etc/skel/.gnupg/gpg-agent.conf (pinentry-gnome3 —
+                          #     GTK3 Wayland-native GPG prompts; pinentry-qt
+                          #     is deliberately not reinstalled after the KDE
+                          #     sweep; chezmoi does not
                           #     manage it, so --force applies never delete it)
                           #   etc/profile.d/00-path-guard.sh,
                           #     01-nix-resolve-home-env.sh, 02-custom-environment.sh,
@@ -320,7 +322,8 @@ the workflows (no Justfile).
   — the end-state backstop: bazzite kernel + kmod-nvidia gates (incl. the
   modinfo-vs-rpm version match and `kernel-p03` absent), gaming + desktop
   keeper sets (incl. heroic-games-launcher/gamemode, nautilus/file-roller,
-  pinentry-qt wiring, curated fonts, no `default-fonts-*`), the
+  pinentry-gnome3 wiring (and pinentry-qt absent), curated fonts, no
+  `default-fonts-*`), the
   no-halcyon-staged-repos gate, identity files
   (os-release/image-info.json/texlive tree), grub timing, zsh default shell,
   chezmoi wiring, and the package census baked to

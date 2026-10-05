@@ -53,8 +53,9 @@ echo "::endgroup::"
 echo "::group::final-verify — desktop keeper set (final state)"
 gate "hyprland + noctalia keepers" rpm -q hyprland-git noctalia-git pyprland qt6ct xdg-desktop-portal-hyprland xdg-desktop-portal-gtk adw-gtk3 papirus-icon-theme
 gate "file managers (thunar replacement)" rpm -q nautilus file-roller
-gate "keyring + pinentry (GUI GPG)" rpm -q gnome-keyring gnome-keyring-pam pinentry-qt
-gate "gpg-agent prompts via pinentry-qt" grep -q "pinentry-program /usr/bin/pinentry-qt" /etc/skel/.gnupg/gpg-agent.conf
+gate "keyring + pinentry (GUI GPG)" rpm -q gnome-keyring gnome-keyring-pam pinentry-gnome3
+gate "gpg-agent prompts via pinentry-gnome3" grep -q "pinentry-program /usr/bin/pinentry-gnome3" /etc/skel/.gnupg/gpg-agent.conf
+gate "qt pinentry not resurrected" sh -c '! rpm -q pinentry-qt'
 gate "openssh clients present" rpm -q openssh-clients
 gate "retired desktop pieces absent" sh -c '! rpm -q kwin konsole dolphin greetd noctalia-greeter-git Thunar'
 gate "curated font set" rpm -q jetbrains-mono-fonts-all nerd-fonts-jetbrainsmono nerd-fonts-symbols-only google-noto-color-emoji-fonts
