@@ -215,8 +215,9 @@ modules:
         - vlc-plugins-video-out
         - zenergy
         - zenergy-akmod-modules
-        # --- deliberate strippers, reinstalled vanilla later ---
+        # --- deliberate strippers, reinstalled later ---
         - fastfetch # removals strips bazzite's blinged build; core reinstalls vanilla
+        - fzf # base copy stripped; devtools reinstalls the cli-tools COPR build
         - nano
         - nano-default-editor
         - firewall-config

@@ -234,11 +234,16 @@ the workflows (no Justfile).
   atim/heroic-games-launcher. No `nonfree: rpmfusion` staging. The four
   NVIDIA exclude globs stay so no transaction can clobber the base's
   kmod-nvidia chain.
-- `devtools.yml`: COPR `aahsnr-work/cli-tools` (`cleanup: true`), only the
-  tools the base lacks (asdf, atuin, bun, direnv, lazygit, pixi, ripgrep,
-  starship, tealdeer, texlab, topgrade, uv…); bat/btop/cava/chafa/cliphist/
-  dust/eza/fd-find/fpaste/fzf/gnuplot/opencode/pandoc are base-provided and
-  re-asserted by `verify-devtools.sh`.
+- `devtools.yml`: COPR `aahsnr-work/cli-tools` (`cleanup: true`) — the full
+  curated set (asdf, atuin, bat, bat-extras, bun, cava, chafa, cliphist,
+  direnv, dust, eza, fd-find, fzf, fzy, gnuplot, kilo, lazygit, marksman,
+  opencode, pandoc, pixi, ripgrep, starship, tealdeer, texlab, topgrade,
+  uv). Only btop and fpaste are base-provided (the COPR doesn't build them)
+  and gated as keepers; the earlier claim that the other 13 were
+  base-provided was wrong and verify-devtools caught it on the first
+  bazzite build (packages.md never listed them). fzf IS in the base, but
+  the COPR builds it too — removals strips the base copy so the COPR
+  version can install (same-name install-of-installed would error).
 - `nix.yml`: `systemd` enable (`var-nix.service`, `nix.mount`) → `dnf install`
   `nix`, `nix-daemon` → `systemd` enable (`nix-daemon`). Units and config
   arrive via the `files/system/` overlay, not `files/systemd/` (no such
