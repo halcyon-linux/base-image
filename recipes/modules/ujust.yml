@@ -1,15 +1,9 @@
 ---
 # yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
-# ujust companions + declarative unit state. The bazzite base ships glow, jq,
-# just and stress-ng (packages.md) — grubby is the only gap (the kernel-arg
-# recipes in 80-halcyon.just need it).
+# Declarative unit state only — no dnf block: glow, jq, just and stress-ng
+# ship in the base (packages.md) and grubby was dropped with the halcyon
+# grub recipes (bazzite's own grub recipes neither need nor ship it).
 modules:
-  - type: dnf
-    install:
-      install-weak-deps: false
-      packages:
-        - grubby
-
   # Unit state is declarative bluebuild (systemd module), not script logic.
   # greetd/noctalia-greeter are removed — login is getty@tty2 and the user
   # starts Hyprland from the TTY (ly is planned, not landed). uupd ships in

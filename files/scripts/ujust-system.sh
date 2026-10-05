@@ -4,8 +4,9 @@
 # modules: the ujust modules register via the static 60-custom.just overlay
 # file, unit enable/mask state lives in the systemd block of
 # modules/ujust.yml, /nix units in modules/nix.yml, dotfiles units in
-# modules/chezmoi.yml, and grubby lands in the module's dnf block. The
-# steam/lutris desktop-entry wiring ships in the bazzite base itself.
+# modules/ujust.yml, /nix units in modules/nix.yml, dotfiles units in
+# modules/chezmoi.yml. The steam/lutris desktop-entry wiring ships in the
+# bazzite base itself.
 set -euo pipefail
 
 echo "████ STAGE 08/13 · ujust-system · gates + system verify ████"
@@ -47,23 +48,20 @@ test -f /usr/share/ublue-os/just/60-custom.just || {
   echo "  FAIL  60-custom.just missing" >&2
   exit 1
 }
-test -f /usr/share/ublue-os/just/80-halcyon.just || {
-  echo "  FAIL  80-halcyon.just missing" >&2
-  exit 1
-}
-grep -q '80-halcyon.just' /usr/share/ublue-os/just/60-custom.just || {
-  echo "  FAIL  60-custom.just does not import 80-halcyon" >&2
-  exit 1
-}
 # The import list is a static overlay file — gate it against the OVERLAY's
-# recipes (via the /tmp/files mount) so the list can never silently drift
-# out of sync. RPM-owned recipes (00-default.just) stay OUT of the loop:
-# the ublue-os-just spec generates the main justfile with an import line
-# for every recipe it ships, so a re-import from 60-custom.just would
-# duplicate them.
+# recipes (via the /tmp/files mount) in BOTH directions: every overlay
+# module must exist in the image and be imported by the shipped
+# 60-custom.just, so the list can never silently drift. Recipes shared with
+# the bazzite base are deliberately NOT carried in the overlay (bazzite's
+# win — `just` hard-errors on duplicate aliases), so files like the old
+# 80-halcyon.just are gone rather than stubbed.
 for f in /tmp/files/system/usr/share/ublue-os/just/*.just; do
   base=$(basename "$f")
   [ "$base" = "60-custom.just" ] && continue
+  test -f "/usr/share/ublue-os/just/${base}" || {
+    echo "  FAIL  overlay module ${base} missing from the image" >&2
+    exit 1
+  }
   grep -qF "\"/usr/share/ublue-os/just/${base}\"" /usr/share/ublue-os/just/60-custom.just ||
     {
       echo "  FAIL  60-custom.just does not import ${base}" >&2
@@ -94,7 +92,7 @@ just --help 2>&1 | grep -q -- --choose || {
   echo "  FAIL  just lacks --choose" >&2
   exit 1
 }
-for b in grubby ethtool wget hostname fpaste wl-copy zenity jq; do
+for b in ethtool wget hostname fpaste wl-copy zenity jq; do
   command -v "$b" >/dev/null 2>&1 || {
     echo "  FAIL  ujust companion binary missing: $b" >&2
     exit 1

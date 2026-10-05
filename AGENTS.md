@@ -58,10 +58,6 @@ files/                    # mounted at /tmp/files in every module RUN; never bak
                           #     03-gnupg-ssh.sh (SSH_AUTH_SOCK → keyring socket
                           #     when present), image-path.sh (mode 755; run in
                           #     that order — path guard first, image PATH hook last)
-                          #   usr/libexec/bazzite-boot-remount (sourced by the
-                          #     grub recipes in 80-halcyon.just; the vendored
-                          #     usr/bin/bazzite-steam* wrappers were deleted —
-                          #     the base ships them)
                           #   usr/libexec/halcyon-image/{encrypt-repo,git-setup,
                           #     hyprtheme,nuke-nvim} (mode 755; exposed on PATH
                           #     by image-path.sh)
@@ -76,9 +72,10 @@ files/                    # mounted at /tmp/files in every module RUN; never bak
                           #     user exists anymore)
                           #   usr/lib/tmpfiles.d/zz-halcyon-nix.conf
                           #   usr/share/ublue-os/just/{60-custom.just,*.just} —
-                          #     the 10 halcyon ujust modules plus the static
+                          #     the 6 halcyon-own ujust modules plus the static
                           #     import list registering them (the ublue-os-just
-                          #     RPM ships the justfile's `import?` hook)
+                          #     RPM ships the justfile's `import?` hook;
+                          #     recipes shared with bazzite are bazzite's)
   dnf/*.repo              # local .repo files consumed by the dnf module (the
                           #   scoped COPR repos, see §4; fonts.repo +
                           #   terra-gaming.repo — the scoped Terra repo for
@@ -292,8 +289,9 @@ the workflows (no Justfile).
   `ConditionUser=!greetd` is gone — no greeter user exists anymore.
   Trailing `verify-chezmoi.sh` gates the binary, the not-RPM invariant, the
   three units, the drop-in and the `--global` wiring.
-- `ujust.yml`: `dnf` install of `grubby` only (glow/jq/just/stress-ng ship
-  in the base; grubby backs the kernel-arg recipes in 80-halcyon.just) →
+- `ujust.yml`: no dnf block (glow/jq/just/stress-ng ship in the base;
+  grubby was dropped with the halcyon grub recipes — bazzite's own recipes
+  neither need nor ship it) →
   `systemd` module (declarative unit state): `system.enabled` =
   `uupd.timer`, `getty@tty2.service` (the login path until ly lands);
   `system.masked` = sddm/gdm/plasma-login-manager/bazzite-autologin/
@@ -306,9 +304,16 @@ the workflows (no Justfile).
   bazzite-steam + the patched steam.desktop; gate, don't re-patch), and the
   ujust+system verify tail (`ujust --list`, companion-binary sweep, a
   60-custom.just ↔ shipped-recipes completeness gate, getty@tty2/uupd
-  enablement, overlay configs), ending with `lib/cleanup.sh`. The 10
-  modules are registered by the static overlay file `60-custom.just` (the
-  `ublue-os-just` RPM ships the justfile's `import?` hook for it);
+  enablement, overlay configs), ending with `lib/cleanup.sh`. Only
+  halcyon-OWN modules (6) are registered by the static overlay file
+  `60-custom.just` (the
+  `ublue-os-just` RPM ships the justfile's `import?` hook for it); recipes
+  shared with the bazzite base are NOT carried — the first bazzite build's
+  `ujust --list` died on duplicate aliases (just has no
+  allow-duplicate-aliases), so the forked copies in 80-halcyon.just,
+  81-halcyon-fixes.just, 83-halcyon-audio.just and 87-halcyon-framegen.just
+  were deleted and bazzite's recipes win (2026-10-06); the vendored
+  usr/libexec/bazzite-boot-remount went with them (the base ships it).
   `var-nix.service`/`nix.mount` remain in nix.yml.
 - `finish.yml`: `os-release` module (NAME/`PRETTY_NAME: halcyon (Bazzite)`/
   HOME_URL → /etc/os-release) → `script` `[grub-config.sh, finalize.sh]`.
