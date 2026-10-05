@@ -4,34 +4,29 @@
 # here was checked against the base inventory (packages.md) — the base brings
 # cockpit, podman, distrobox, gnupg2, openssh, plymouth, the xorg servers,
 # hunspell, ImageMagick, fastfetch's deps and the rest of the old list, so
-# re-installing them is pure redundancy. The curated font set replaces the
-# base fonts swept in the removals module (dejavu-sans-fonts returns as a
-# noctalia-git hard dep).
+# re-installing them is pure redundancy.
+#
+# Deliberately ABSENT after the first bazzite-based CI build proved them
+# fatal (2026-10-05): libinput-utils (the base ships the same name — dnf5
+# errors on install-of-installed), ddcutil (the base ships terra-ddcutil,
+# which conflicts with Fedora's ddcutil), and mpv (Fedora's mpv needs
+# libavfilter-free, which the base's epoch-1 RPM Fusion ffmpeg obsoletes;
+# RPM Fusion ships no mpv and Terra only mpv-nightly — dropped by user
+# decision). The curated font set lives in fonts.yml, wired after
+# programming.yml; desktop.yml drops xdg-desktop-portal-gtk/wl-clipboard for
+# the same already-installed reason.
 modules:
   - type: dnf
-    repos:
-      cleanup: true
-      files:
-        - fonts.repo # priority=1 + includepkgs: the curated font set only
     install:
       install-weak-deps: false
       packages:
-        # curated fonts (fonts-cleanup.sh swept every base font package)
-        - google-noto-color-emoji-fonts
-        - jetbrains-mono-fonts-all
-        - nerd-fonts-jetbrainsmono
-        - nerd-fonts-symbols-only
-        - nerd-fonts-ubuntu
-        - nerd-fonts-ubuntu-mono
         # CLI / system utilities missing from the base
         - bleachbit
         - bluez-tools
         - brightnessctl
         - cronie
-        - ddcutil
         - fail2ban
         - git
-        - libinput-utils
         - inotify-tools
         - intel-gpu-tools
         - lynis
@@ -46,8 +41,6 @@ modules:
         - file-roller
         - grim
         - gtk4-layer-shell
-        - imv
-        - mpv
         - slurp
         - swappy
         - transmission-gtk
@@ -57,10 +50,6 @@ modules:
         - zsh
         # removals.yml stripped bazzite's blinged build — ship vanilla
         - fastfetch
-
-  - type: script
-    scripts:
-      - repo-leftover-sweep.sh
 
   - type: script
     scripts:

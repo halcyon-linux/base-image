@@ -1,0 +1,30 @@
+---
+# yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
+# The curated font set from the aahsnr-work/fonts COPR, replacing every base
+# font package swept by removals' fonts-cleanup.sh (dejavu-sans-fonts returns
+# on its own as a noctalia-git hard dep). Sits right after programming.yml:
+# the core system and toolchains assemble first, fonts are cosmetic and can
+# land last before the desktop stack.
+modules:
+  - type: dnf
+    repos:
+      cleanup: true
+      files:
+        - fonts.repo # priority=1 + includepkgs: the curated font set only
+    install:
+      install-weak-deps: false
+      packages:
+        - google-noto-color-emoji-fonts
+        - jetbrains-mono-fonts-all
+        - nerd-fonts-jetbrainsmono
+        - nerd-fonts-symbols-only
+        - nerd-fonts-ubuntu
+        - nerd-fonts-ubuntu-mono
+
+  - type: script
+    scripts:
+      - repo-leftover-sweep.sh
+
+  - type: script
+    scripts:
+      - verify-fonts.sh

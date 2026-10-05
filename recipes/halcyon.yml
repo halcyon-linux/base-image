@@ -16,10 +16,12 @@ labels:
   halcyon.desktop: "hyprland-noctalia"
 
 # Module order is load-bearing: removals (KDE sweep + font sweep) must run
-# before every install so the curated set cannot be swept; desktop installs
-# the Hyprland stack the later modules depend on. The base ships kernel,
-# NVIDIA open drivers, firmware/mesa/audio, steam/lutris/gamescope, terra,
-# ublue-os-* and uupd — none of that is (re)installed here.
+# before every install so the curated set cannot be swept; core sits right
+# after removals, programming before the fonts module, desktop installs the
+# Hyprland stack the later modules depend on. The base ships kernel,
+# NVIDIA open drivers, firmware/mesa/audio, steam/lutris/gamescope, the
+# terra/rpmfusion repo files (disabled), ublue-os-* and uupd — none of that
+# is (re)installed here.
 modules:
   - type: signing
 
@@ -34,9 +36,9 @@ modules:
         destination: /etc/dnf
 
   - from-file: modules/removals.yml
-
-  - from-file: modules/programming.yml
   - from-file: modules/core.yml
+  - from-file: modules/programming.yml
+  - from-file: modules/fonts.yml
   - from-file: modules/gaming.yml
   - from-file: modules/desktop.yml
   - from-file: modules/devtools.yml

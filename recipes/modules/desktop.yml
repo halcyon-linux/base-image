@@ -42,8 +42,10 @@ modules:
         - papirus-icon-theme
         - pyprland
         - qt6ct
-        - wl-clipboard
-        - xdg-desktop-portal-gtk
+        # xdg-desktop-portal-gtk and wl-clipboard are deliberately absent:
+        # the bazzite base ships both under the same names and dnf5 errors on
+        # install-of-installed (proven by CI 2026-10-05); verify-desktop
+        # keeps asserting their presence as base-provided keepers.
         - xdg-desktop-portal-hyprland
 
   - type: script

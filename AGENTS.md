@@ -10,10 +10,13 @@ the tree.
 `ghcr.io/ublue-os/bazzite-nvidia-open:latest` (Bazzite's KDE Plasma edition
 with NVIDIA open modules) via the BlueBuild CLI (`bluebuild generate` +
 build). The base already ships the kernel, NVIDIA driver stack,
-firmware/mesa/audio, Steam/Lutris/gamescope, Terra + RPM Fusion + ublue
-repos, ublue-os-* tooling and uupd — halcyon strips the Plasma desktop,
-install-closure-sweeps the base fonts, and layers Hyprland + Noctalia plus a
-curated app/dev set. `recipes/halcyon.yml` is the build definition: base
+firmware/mesa/audio, Steam/Lutris/gamescope, ublue-os-* tooling and uupd,
+plus the Terra + RPM Fusion repo files — SHIPPED DISABLED (CI 2026-10-05:
+only fedora/updates/updates-archive load during dnf transactions), so any
+Terra payload must stage a scoped .repo file — halcyon strips the Plasma
+desktop, install-closure-sweeps the base fonts, and layers Hyprland +
+Noctalia plus a curated app/dev set. `recipes/halcyon.yml` is the build
+definition: base
 image, labels, and the module list in execution order. Shared module groups
 live in `recipes/modules/*.yml` and are pulled in with
 `from-file: modules/<name>.yml`. Package installs use BlueBuild's `dnf`
@@ -32,7 +35,7 @@ follows this repo's overlay rule, not winter's sidecar dirs.
 ```
 recipes/halcyon.yml       # THE build definition. Module order is load-bearing:
                           #   signing → files (system → /) → files (dnf-libdnf5 →
-                          #   /etc/dnf) → removals → programming → core →
+                          #   /etc/dnf) → removals → core → programming → fonts →
                           #   gaming → desktop → devtools → nix → texlive →
                           #   apps → chezmoi → ujust → finish → final-verify →
                           #   bootc-lint (bootc-lint must stay last)
@@ -75,7 +78,10 @@ files/                    # mounted at /tmp/files in every module RUN; never bak
                           #     import list registering them (the ublue-os-just
                           #     RPM ships the justfile's `import?` hook)
   dnf/*.repo              # local .repo files consumed by the dnf module (the
-                          #   scoped COPR repos, see §4; fonts.repo included)
+                          #   scoped COPR repos, see §4; fonts.repo +
+                          #   terra-gaming.repo — the scoped Terra repo for
+                          #   heroic-games-launcher, since the base ships
+                          #   terra's own repo files disabled)
   dnf-libdnf5/libdnf5.conf.d/99-halcyon-retries.conf  # → /etc/dnf (retries=20)
   scripts/ujust-system.sh      # Stage 08: ujust gates + base steam wiring
                                #   no-op gates + ujust/system verify tail
@@ -89,7 +95,7 @@ files/                    # mounted at /tmp/files in every module RUN; never bak
                                #   413-package erase); file triggers unaffected
   scripts/fonts-cleanup.sh     # reverse-dep-gated base font sweep (*fonts*
                                #   glob; dejavu-sans comes back as a noctalia
-                               #   hard dep, curated set installs in core.yml)
+                               #   hard dep, curated set installs in fonts.yml)
   scripts/grub-config.sh       # key-preserving /etc/default/grub update:
                                #   GRUB_TIMEOUT=10 + GRUB_TIMEOUT_STYLE=menu
   scripts/texlive-formats.sh   # bakes updmap maps + fmtutil formats after the
@@ -104,7 +110,7 @@ files/                    # mounted at /tmp/files in every module RUN; never bak
                                #   deliberately untouched) + /usr/etc sweep
                                #   (ublue-os-signing's policy.json) + hygiene
   scripts/final-verify.sh      # Stage 10 no-cache cross-cutting backstop
-  scripts/verify-<module>.sh   # per-module gates (10 files — one per module
+  scripts/verify-<module>.sh   # per-module gates (11 files — one per module
                                #   with a payload; wired as trailing script
                                #   blocks)
   scripts/lib/cleanup.sh       # end-of-module hygiene; every MUTATING stage
@@ -186,33 +192,46 @@ the workflows (no Justfile).
   browsers, VPNs, office apps. `zed` is a DELIBERATE install, not pulled by
   `emacs-pgtk` (verified against both COPR specs — emacs-pgtk has no
   zed-related dep at all).
-- `core.yml`: the curated font set from COPR `aahsnr-work/fonts` (via
-  `fonts.repo`, priority=1 + includepkgs) + the utilities the base lacks
-  (grim/slurp/swappy/imv/mpv/zathura, file-roller, zsh, brightnessctl,
-  ddcutil, fail2ban/lynis/bleachbit, setroubleshoot…). Everything the old
-  list carried that packages.md shows in the base (cockpit*, podman*,
-  distrobox, gnupg2, openssh-clients, plymouth*, hunspell*, ImageMagick,
-  just, fastfetch deps…) is dropped — re-installing base packages is pure
-  redundancy. The old `group-install custom-environment` is gone (the base
-  provides it) and qt5ct is retired (the qt5 stack now follows whatever
-  actually requires it). fastfetch stays: removals strips bazzite's blinged
-  build and core reinstalls vanilla.
+- `core.yml`: the utilities the base lacks (grim/slurp/swappy/imv/zathura,
+  file-roller, zsh, brightnessctl, fail2ban/lynis/bleachbit, setroubleshoot…),
+  wired right after removals.yml. Everything the old list carried that
+  packages.md shows in the base (cockpit*, podman*, distrobox, gnupg2,
+  openssh-clients, plymouth*, hunspell*, ImageMagick, just, fastfetch deps…)
+  is dropped — re-installing base packages is pure redundancy, and dnf5
+  ERRORS on install-of-installed. Deliberately absent (first bazzite CI
+  build, 2026-10-05): libinput-utils (base ships the same name), ddcutil
+  (base ships terra-ddcutil, which conflicts with Fedora's ddcutil), and
+  mpv (Fedora's mpv needs libavfilter-free, obsoleted by the base's epoch-1
+  RPM Fusion ffmpeg; RPM Fusion ships no mpv, Terra only mpv-nightly —
+  dropped by user decision). The old `group-install custom-environment` is
+  gone (the base provides it) and qt5ct is retired (the qt5 stack now
+  follows whatever actually requires it). fastfetch stays: removals strips
+  bazzite's blinged build and core reinstalls vanilla.
+- `fonts.yml`: the curated font set from COPR `aahsnr-work/fonts` (via
+  `fonts.repo`, priority=1 + includepkgs), wired right after
+  programming.yml. Swept base fonts + dejavu-sans return as a noctalia hard
+  dep; `verify-fonts.sh` gates the set + fontconfig registration.
 - `desktop.yml`: COPR `aahsnr-work/base-pkgs` (`cleanup: true`), the Hyprland
   + Noctalia stack. greetd + noctalia-greeter-git are REMOVED (ly is planned,
   not landed — login is `getty@tty2` + a manual Hyprland start) and the
   Thunar suite is replaced by nautilus (file-roller installs in core.yml).
   Noctalia ships its own polkit agent, so removing polkit-kde strands
   nothing. gnome-keyring + gnome-keyring-pam install here (the PAM module
-  pre-wires the future ly stack).
+  pre-wires the future ly stack). xdg-desktop-portal-gtk and wl-clipboard
+  are NOT installed — the base ships both under the same names (dnf5
+  install-of-installed errors); verify-desktop keeps asserting them as
+  base-provided keepers.
 - `gaming.yml`: the native gaming stack (RakuOS model — Steam/Lutris/Heroic
   as RPMs, zero Flatpak). The base already ships steam, steam-devices,
   lutris, gamescope (as terra-gamescope), mangohud (+i686, as terra-mangohud),
   zenity, evtest, input-remapper, usbip, ydotool; this module installs only
-  `gamemode` and `heroic-games-launcher` (native Terra RPM — the base ships
-  Terra repos enabled; documented fallback if the name ever vanishes:
-  COPR atim/heroic-games-launcher). No `nonfree: rpmfusion` staging — the
-  base manages its own rpmfusion/terra repo files. The four NVIDIA exclude
-  globs stay so no transaction can clobber the base's kmod-nvidia chain.
+  `gamemode` (Fedora) and `heroic-games-launcher` via `terra-gaming.repo` —
+  the base ships terra's own repo files DISABLED (CI repo-load log,
+  2026-10-05), so the scoped repo (priority=1 + includepkgs) is mandatory;
+  documented fallback if the name ever vanishes: COPR
+  atim/heroic-games-launcher. No `nonfree: rpmfusion` staging. The four
+  NVIDIA exclude globs stay so no transaction can clobber the base's
+  kmod-nvidia chain.
 - `devtools.yml`: COPR `aahsnr-work/cli-tools` (`cleanup: true`), only the
   tools the base lacks (asdf, atuin, bun, direnv, lazygit, pixi, ripgrep,
   starship, tealdeer, texlab, topgrade, uv…); bat/btop/cava/chafa/cliphist/
@@ -344,6 +363,13 @@ the workflows (no Justfile).
   through `guarded-removals.sh`'s only-if-present sweeps instead. Never add a
   package name to ANY dnf block without verifying it first (packages.md,
   dnf repoquery, or the consuming repo's spec).
+- Install lists get the same treatment in reverse: dnf5 ERRORS when a listed
+  name is already installed, and same-name/terra-name twins conflict
+  (ddcutil vs the base's terra-ddcutil). Before adding any install name,
+  check packages.md AND its terra-*/renamed twins. The base also ships
+  terra + rpmfusion repo files DISABLED — any Terra/RPM Fusion payload
+  needs a scoped `.repo` file staged in the consuming module
+  (see terra-gaming.repo), never a bare package name.
 - Declarative first: do with bluebuild modules (`files`, `dnf`, `systemd`)
   whatever a module can express; the `script` module is only for what no
   module covers (verify gates, key-preserving file edits like grub-config).

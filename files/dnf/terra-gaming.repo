@@ -1,0 +1,21 @@
+# Terra, scoped for the gaming module. The bazzite base ships terra with its
+# repos disabled, and this recipe needs exactly one payload from it
+# (heroic-games-launcher) — priority=1 plus includepkgs confines the repo to
+# that name so dnf5 can never resolve a dependency from Terra over
+# Fedora/the base. gpgkey points at the per-release key.asc shipped next to
+# the repo index; the base also has terra-gpg-keys installed, so the signing
+# key is present either way. Fallback if Terra ever drops the name: the
+# atim/heroic-games-launcher COPR.
+
+[terra-halcyon]
+name=Terra (halcyon gaming scope)
+baseurl=https://repos.fyralabs.com/terra$releasever
+type=rpm-md
+skip_if_unavailable=False
+gpgcheck=1
+gpgkey=https://repos.fyralabs.com/terra$releasever/key.asc
+repo_gpgcheck=0
+enabled=1
+enabled_metadata=1
+priority=1
+includepkgs=heroic-games-launcher

@@ -3,13 +3,20 @@
 # Native gaming stack (RakuOS model: Steam/Lutris/Heroic as native RPMs, no
 # Flatpak). The bazzite base already ships steam, steam-devices, lutris,
 # gamescope, mangohud (+i686), zenity, evtest, input-remapper, usbip and
-# ydotool with Terra repos enabled — only the gaps install here, from Fedora
-# and Terra. No `nonfree: rpmfusion` staging: the base ships its own
-# rpmfusion/terra repo files. The NVIDIA excludes stay as belt-and-suspenders
-# so no transaction can ever clobber the base's kmod-nvidia/nvidia-driver
-# userland with an rpmfusion akmod chain.
+# ydotool — only the gaps install here, from Fedora and Terra. The base
+# ships its terra/rpmfusion repo files DISABLED (proven by CI 2026-10-05:
+# only the fedora/updates/updates-archive repos load during dnf
+# transactions), so heroic-games-launcher needs terra-gaming.repo staged
+# here — scoped with includepkgs so Terra can never serve anything else.
+# The NVIDIA excludes stay as belt-and-suspenders so no transaction can
+# ever clobber the base's kmod-nvidia/nvidia-driver userland with an
+# rpmfusion akmod chain.
 modules:
   - type: dnf
+    repos:
+      cleanup: true
+      files:
+        - terra-gaming.repo
     install:
       install-weak-deps: false
       exclude:
@@ -20,6 +27,10 @@ modules:
       packages:
         - gamemode
         - heroic-games-launcher # native Terra RPM (matches RakuOS' stack)
+
+  - type: script
+    scripts:
+      - repo-leftover-sweep.sh
 
   - type: script
     scripts:
