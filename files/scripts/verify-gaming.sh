@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-# halcyon verify — gaming: RPM Fusion window delivered steam/gamescope/lutris
-# with the NVIDIA driver chain excluded. Mutates nothing.
+# halcyon verify — gaming: the native (RakuOS-model) stack is complete —
+# steam/lutris/gamescope/mangohud come from the bazzite base (terra-builds
+# ship under terra-* names here), gamemode/heroic-games-launcher install in
+# this module, and the base's bazzite-steam wrapper still fronts steam.
+# Mutates nothing.
 set -uo pipefail
 
 echo "████ verify · gaming ████"
@@ -16,10 +19,12 @@ gate() {
 }
 
 echo "::group::verify-gaming"
-gate "gaming packages" rpm -q steam steam-devices gamescope lutris mangohud gamemode zenity input-remapper evtest usbip ydotool
-gate "32-bit mangohud" rpm -q mangohud.i686
+gate "base gaming stack" rpm -q steam steam-devices lutris terra-gamescope terra-mangohud zenity input-remapper evtest usbip ydotool
+gate "32-bit graphics stack" rpm -q terra-mangohud.i686 mesa-libGL.i686
+gate "module installs" rpm -q gamemode heroic-games-launcher
 gate "steam binary" test -x /usr/bin/steam
-gate "rpmfusion repo cleaned" sh -c '! ls /etc/yum.repos.d/ | grep -qi rpmfusion'
+gate "bazzite-steam wrapper present" test -x /usr/bin/bazzite-steam
+gate "steam.desktop launched via bazzite-steam" grep -q "bazzite-steam" /usr/share/applications/steam.desktop
 echo "::endgroup::"
 
 [ "$fail" = 0 ] || {

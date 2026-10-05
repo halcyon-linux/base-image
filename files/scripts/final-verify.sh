@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # halcyon build step — final-verify: FINAL cross-cutting gates.
 # Stage-scoped checks live in the per-module verify scripts (verify-*.sh) and
-# the stage tails (install-kernel.sh, ujust-system.sh); this script gates what
-# only the finished image can answer: kernel/NVIDIA end state, gaming keepers,
-# the repo sweep, identity files and the package census.
+# the stage tails (ujust-system.sh); this script gates what only the finished
+# image can answer: bazzite kernel/NVIDIA end state, the gaming + desktop
+# keeper sets, the repo sweep, identity files and the package census.
 set -uo pipefail
 
 echo "████ STAGE 10/13 · final-verify · cross-cutting gates ████"
 
-KVER="$(rpm -q --qf '%{VERSION}-%{RELEASE}.%{ARCH}' kernel-p03)"
+KVER="$(rpm -q --qf '%{VERSION}-%{RELEASE}.%{ARCH}' kernel)"
 NV_KO="$(find "/usr/lib/modules/${KVER}" -name 'nvidia.ko*' 2>/dev/null | head -1)"
 NV_MOD_VER="$(modinfo -F version "${NV_KO}" 2>/dev/null || true)"
 
@@ -22,14 +22,14 @@ gate() {
   fi
 }
 
-echo "::group::final-verify — p03 kernel + NVIDIA end state"
-gate "p03 kernel installed" rpm -q kernel-p03
-gate "nvidia-open built for p03" rpm -q kernel-p03-nvidia-open
-gate "stock kernel absent" sh -c '! rpm -q kernel'
-gate "p03 vmlinuz present" test -f "/usr/lib/modules/${KVER}/vmlinuz"
-gate "p03 initramfs present" test -f "/usr/lib/modules/${KVER}/initramfs.img"
-gate "nvidia modules for p03" sh -c "find /usr/lib/modules/${KVER} -name 'nvidia.ko*' | grep -q ."
-gate "p03 keeps SELinux config" grep -q '^CONFIG_SECURITY_SELINUX=y' "/usr/lib/modules/${KVER}/config"
+echo "::group::final-verify — bazzite kernel + NVIDIA end state"
+gate "bazzite kernel installed" rpm -q kernel kernel-modules
+gate "retired p03 kernel absent" sh -c '! rpm -q kernel-p03'
+gate "vmlinuz present" test -f "/usr/lib/modules/${KVER}/vmlinuz"
+gate "initramfs present" test -f "/usr/lib/modules/${KVER}/initramfs.img"
+gate "nvidia modules for the base kernel" sh -c "find /usr/lib/modules/${KVER} -name 'nvidia.ko*' | grep -q ."
+gate "nvidia kmod package installed" rpm -q kmod-nvidia
+gate "kernel keeps SELinux config" grep -q '^CONFIG_SECURITY_SELINUX=y' "/usr/lib/modules/${KVER}/config"
 gate "nvidia SELinux policy linked" sh -c 'semodule -lfull 2>/dev/null | grep -q nvidia-driver'
 # Without this, `test "" = ""` PASSES when modinfo failed, turning the single
 # most important NVIDIA gate into a no-op.
@@ -37,29 +37,43 @@ gate "nvidia module version readable" test -n "${NV_MOD_VER}"
 gate "nvidia userland matches modules" test "${NV_MOD_VER}" = "$(rpm -q --qf '%{VERSION}' nvidia-driver-libs.x86_64)"
 gate "nvidia-smi present" test -x /usr/bin/nvidia-smi
 gate "32-bit nvidia + mesa libs" rpm -q nvidia-driver-libs.i686 mesa-libGL.i686
-gate "systemd-oomd masked (p03 LRU-Marie)" test "$(systemctl is-enabled systemd-oomd.service 2>/dev/null)" = masked
+gate "systemd-oomd masked (gaming box)" test "$(systemctl is-enabled systemd-oomd.service 2>/dev/null)" = masked
 echo "::endgroup::"
 
 echo "::group::final-verify — gaming keeper set (final state)"
-gate "gaming keeper packages" rpm -q scx-scheds scx-tools umu-launcher umu-wrapper bazaar bazzite-portal lutris gamescope input-remapper usbip
+gate "base gaming keepers" rpm -q scx-scheds scx-tools umu-launcher umu-wrapper bazaar bazzite-portal lutris terra-gamescope terra-mangohud input-remapper usbip uupd
 gate "steam installed" rpm -q steam
+gate "module gaming installs" rpm -q gamemode heroic-games-launcher
 gate "bazzite-steam wrapper" test -x /usr/bin/bazzite-steam
 gate "steam desktop -> bazzite-steam" grep -q 'bazzite-steam' /usr/share/applications/steam.desktop
 gate "devtools keepers" rpm -q zed starship lazygit bat eza fzf pandoc bun pixi opencode
 gate "zen-browser installed" rpm -q zen-browser
 echo "::endgroup::"
 
+echo "::group::final-verify — desktop keeper set (final state)"
+gate "hyprland + noctalia keepers" rpm -q hyprland-git noctalia-git pyprland qt6ct xdg-desktop-portal-hyprland xdg-desktop-portal-gtk adw-gtk3 papirus-icon-theme
+gate "file managers (thunar replacement)" rpm -q nautilus file-roller
+gate "keyring + pinentry (GUI GPG)" rpm -q gnome-keyring gnome-keyring-pam pinentry-qt
+gate "gpg-agent prompts via pinentry-qt" grep -q "pinentry-program /usr/bin/pinentry-qt" /etc/skel/.gnupg/gpg-agent.conf
+gate "openssh clients present" rpm -q openssh-clients
+gate "retired desktop pieces absent" sh -c '! rpm -q kwin konsole dolphin greetd noctalia-greeter-git Thunar'
+gate "curated font set" rpm -q jetbrains-mono-fonts-all nerd-fonts-jetbrainsmono nerd-fonts-symbols-only google-noto-color-emoji-fonts
+gate "base font packages swept" sh -c '! rpm -qa "default-fonts-*" | grep -q .'
+gate "zsh is the default shell" grep -q 'SHELL=/bin/zsh' /etc/default/useradd
+gate "grub menu visible for 10s" sh -c 'grep -q "^GRUB_TIMEOUT=10$" /etc/default/grub && grep -q "^GRUB_TIMEOUT_STYLE=menu$" /etc/default/grub'
+echo "::endgroup::"
+
 echo "::group::final-verify — repo end state"
-# finalize.sh DELETES every third-party repo file, so a "terra repos all
-# disabled" glob gate would match nothing and could never fail. This single
-# gate is the property that survives: only Fedora repo files remain.
-gate "only Fedora repo files remain" sh -c '! ls /etc/yum.repos.d/ | grep -Eqi "copr|vscode|brave|terra|negativo|rpmfusion|halcyon|ublue|base-pkgs|cli-tools|texlive-packages|applications"'
+# finalize.sh deletes only the repo files THIS recipe stages; the bazzite
+# base's own repo set (fedora, terra, rpmfusion, ublue) is deliberately kept.
+# This gate is the property that survives: no halcyon-staged repo file leaks.
+gate "no halcyon-staged repo files remain" sh -c '! ls /etc/yum.repos.d/ | grep -Eqi "copr|vscode|brave|negativo|fedora-nvidia|halcyon|base-pkgs|cli-tools|texlive-packages|applications|fonts.repo"'
 echo "::endgroup::"
 
 echo "::group::final-verify — identity files"
 # the bluebuild os-release module writes values double-quoted (NAME="halcyon")
 gate "os-release NAME=halcyon" grep -qE '^NAME="?halcyon"?$' /etc/os-release
-gate "image-info.json baked" test -s /usr/share/ublue-os/image-info.json
+gate "image-info.json present (base-provided)" test -s /usr/share/ublue-os/image-info.json
 gate "texlive installed" rpm -q texlive-bin texlive-basic
 gate "texlive tree + formats" test -s /etc/profile.d/texlive.sh && find /usr/lib/texlive/*/texmf-var/web2c -name 'pdflatex.fmt' 2>/dev/null | grep -q .
 echo "::endgroup::"
@@ -80,7 +94,8 @@ install -d -m0755 /usr/share/halcyon
 {
   echo "halcyon image package census (generated at build time)"
   echo "date_utc: $(date -u '+%Y-%m-%dT%H:%M:%SZ')"
-  echo "kernel_p03: $(rpm -q --qf '%{VERSION}-%{RELEASE}.%{ARCH}' kernel-p03 2>/dev/null || echo unknown)"
+  echo "kernel: $(rpm -q --qf '%{VERSION}-%{RELEASE}.%{ARCH}' kernel 2>/dev/null || echo unknown)"
+  echo "nvidia_driver: $(rpm -q --qf '%{VERSION}' nvidia-driver-libs.x86_64 2>/dev/null || echo unknown)"
   echo "total_packages: ${TOTAL_PACKAGES}"
   echo
   echo "per-vendor:"

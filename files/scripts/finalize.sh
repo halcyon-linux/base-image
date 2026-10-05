@@ -1,28 +1,24 @@
 #!/usr/bin/env bash
 # halcyon build step — finalize (repo sweep + end-of-build hygiene).
 #
-# Mirrors bazzite's finalize: the bluebuild dnf module's `cleanup: true`
-# already removes each third-party repo file after its own module — this is
-# the belt-and-braces sweep plus the end-of-build hygiene (keepcache=0,
-# skip_if_unavailable, /var/tmp recreation, /tmp + log + /boot wipes for the
-# bootc lints). The shipped image carries NO third-party repo files — updates
-# arrive via image rebuilds (bootc); any repo can be re-enabled at runtime.
-# Includes the negativo17 file staged by the overlay (fedora-nvidia.repo).
+# Belt-and-braces sweep of the repo files THIS recipe stages (the bluebuild
+# dnf module's `cleanup: true` already removes each one after its own module,
+# repo-leftover-sweep.sh guards per-module leaks). The bazzite base's own
+# repo set — fedora, terra, rpmfusion, ublue — is DELIBERATELY untouched:
+# the base manages its third-party repos and updates arrive via image
+# rebuilds (bootc), so deleting them would break the base's update path.
 set -euo pipefail
-echo "::group::finalize — third-party repo sweep"
+echo "::group::finalize — staged repo file sweep"
 rm -f /etc/yum.repos.d/_copr*:*.repo /etc/yum.repos.d/_copr*.repo \
       /etc/yum.repos.d/applications.repo \
       /etc/yum.repos.d/base-pkgs.repo \
       /etc/yum.repos.d/cli-tools.repo \
+      /etc/yum.repos.d/fonts.repo \
       /etc/yum.repos.d/texlive-packages.repo \
-      /etc/yum.repos.d/ublue-*.repo \
       /etc/yum.repos.d/vscode.repo \
       /etc/yum.repos.d/brave-browser*.repo \
-      /etc/yum.repos.d/terra*.repo \
-      /etc/yum.repos.d/fedora-nvidia.repo \
-      /etc/yum.repos.d/negativo17*.repo \
-      /etc/yum.repos.d/rpmfusion-*.repo
-echo "  INFO  remaining repo files (Fedora only):"
+      /etc/yum.repos.d/fedora-nvidia.repo
+echo "  INFO  remaining repo files (Fedora + bazzite-managed third-party):"
 ls /etc/yum.repos.d/
 echo "::endgroup::"
 

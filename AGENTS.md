@@ -1,56 +1,62 @@
 # AGENTS.md — halcyon (base-image)
 
-Guidance for AI coding agents (and humans) working in this repository. This is a
-from-scratch BlueBuild project: every claim below was checked against the tree.
+Guidance for AI coding agents (and humans) working in this repository. This is
+a BlueBuild project on the Bazzite base: every claim below was checked against
+the tree.
 
 ## 1. What this repo is
 
-`halcyon` builds a Hyprland gaming-desktop OCI image on
-`quay.io/fedora/fedora-bootc:44` via the BlueBuild CLI (`bluebuild generate` +
-build). `recipes/halcyon.yml` is the build definition: base image, labels, and
-the module list in execution order. Shared module groups live in
-`recipes/modules/*.yml` and are pulled in with `from-file: modules/<name>.yml`.
-Package installs use BlueBuild's `dnf` module with `install-weak-deps: false`;
-one-off build logic uses the `script` module (`scripts:` from `files/scripts/`,
-or inline `snippets:`); systemd units ship in the `files/system/` overlay and
-are enabled by name with the `systemd` module. The nix module's logic follows
-[fu5ha/winter](https://github.com/fu5ha/winter) (`recipes/modules/nix.yml`:
-package set, enable order); file placement follows this repo's
-overlay rule, not winter's sidecar dirs.
+`halcyon` builds a minimal Hyprland gaming-desktop OCI image on
+`ghcr.io/ublue-os/bazzite-nvidia-open:latest` (Bazzite's KDE Plasma edition
+with NVIDIA open modules) via the BlueBuild CLI (`bluebuild generate` +
+build). The base already ships the kernel, NVIDIA driver stack,
+firmware/mesa/audio, Steam/Lutris/gamescope, Terra + RPM Fusion + ublue
+repos, ublue-os-* tooling and uupd — halcyon strips the Plasma desktop,
+install-closure-sweeps the base fonts, and layers Hyprland + Noctalia plus a
+curated app/dev set. `recipes/halcyon.yml` is the build definition: base
+image, labels, and the module list in execution order. Shared module groups
+live in `recipes/modules/*.yml` and are pulled in with
+`from-file: modules/<name>.yml`. Package installs use BlueBuild's `dnf`
+module with `install-weak-deps: false`; one-off build logic uses the `script`
+module (`scripts:` from `files/scripts/`, or inline `snippets:`); systemd
+units ship in the `files/system/` overlay and are enabled by name with the
+`systemd` module. `packages.md` at the repo root is an `rpm -qa` inventory of
+the base image — THE source of truth for "is this name already installed"
+dedupe and for the removals list (checked `[x]` entries are user-marked
+removals). The nix module's logic follows [fu5ha/winter](https://github.com/fu5ha/winter)
+(`recipes/modules/nix.yml`: package set, enable order); file placement
+follows this repo's overlay rule, not winter's sidecar dirs.
 
 ## 2. Repository layout (actual)
 
 ```
 recipes/halcyon.yml       # THE build definition. Module order is load-bearing:
                           #   signing → files (system → /) → files (dnf-libdnf5 →
-                          #   /etc/dnf) → removals → install-kernel.sh →
-                          #   programming → core → gaming → hardware →
-                          #   ublue-pkgs → terra → desktop → devtools → nix →
-                          #   texlive → apps → chezmoi → ujust → finish →
-                          #   final-verify → bootc-lint (bootc-lint must stay
-                          #   last)
+                          #   /etc/dnf) → removals → programming → core →
+                          #   gaming → desktop → devtools → nix → texlive →
+                          #   apps → chezmoi → ujust → finish → final-verify →
+                          #   bootc-lint (bootc-lint must stay last)
 recipes/modules/*.yml     # present: apps, chezmoi, core, desktop, devtools,
-                          #   gaming, hardware, nix, programming, removals,
-                          #   terra, texlive, ublue-pkgs, ujust
+                          #   gaming, nix, programming, removals, texlive,
+                          #   ujust (terra/ublue-pkgs/hardware were deleted —
+                          #   the bazzite base provides all three payloads)
+packages.md               # rpm -qa of the base image; source of truth for
+                          #   dedupe + the checked ([x]) removal set
 files/                    # mounted at /tmp/files in every module RUN; never baked in
   system/                 # static overlay — recipe copies files/system/* → /
                           #   etc/default/useradd (SHELL=zsh)
-                          #   etc/greetd/config.toml (launches
-                          #     /usr/bin/noctalia-greeter-session)
-                          #   etc/pam.d/greetd (gnome-keyring auto-unlock)
-                          #   etc/yum.repos.d/fedora-nvidia.repo (staged
-                          #     enabled=0 — install-kernel.sh's preflight needs
-                          #     the repo id to exist; it enables in-window;
-                          #     finalize.sh deletes the file before shipping)
+                          #   etc/skel/.gnupg/gpg-agent.conf (pinentry-qt —
+                          #     Wayland-native GPG prompts; chezmoi does not
+                          #     manage it, so --force applies never delete it)
                           #   etc/profile.d/00-path-guard.sh,
                           #     01-nix-resolve-home-env.sh, 02-custom-environment.sh,
-                          #     image-path.sh (mode 755; run in that order —
-                          #     path guard first, image PATH hook last)
-                          #   usr/bin/bazzite-steam{,-bpm,-brand,-firstrun}
-                          #     (vendored bazzite Steam wrappers; steam.desktop's
-                          #     Exec is rewritten to bazzite-steam/-bpm)
+                          #     03-gnupg-ssh.sh (SSH_AUTH_SOCK → keyring socket
+                          #     when present), image-path.sh (mode 755; run in
+                          #     that order — path guard first, image PATH hook last)
                           #   usr/libexec/bazzite-boot-remount (sourced by the
-                          #     kargs recipes in 80-halcyon.just)
+                          #     grub recipes in 80-halcyon.just; the vendored
+                          #     usr/bin/bazzite-steam* wrappers were deleted —
+                          #     the base ships them)
                           #   usr/libexec/halcyon-image/{encrypt-repo,git-setup,
                           #     hyprtheme,nuke-nvim} (mode 755; exposed on PATH
                           #     by image-path.sh)
@@ -60,23 +66,27 @@ files/                    # mounted at /tmp/files in every module RUN; never bak
                           #     no unit) and chezmoi-init.service.d/
                           #     10-halcyon.conf (first-rebase drop-in on the
                           #     blue-build chezmoi module's generated unit —
-                          #     the module writes the base units itself)
-                          #   usr/lib/tmpfiles.d/{zz-halcyon-nix,
-                          #     noctalia-greeter-state}.conf
+                          #     the module writes the base units itself; the
+                          #     old ConditionUser=!greetd is gone — no greeter
+                          #     user exists anymore)
+                          #   usr/lib/tmpfiles.d/zz-halcyon-nix.conf
                           #   usr/share/ublue-os/just/{60-custom.just,*.just} —
                           #     the 10 halcyon ujust modules plus the static
                           #     import list registering them (the ublue-os-just
                           #     RPM ships the justfile's `import?` hook)
-  dnf/*.repo              # local .repo files consumed by the dnf module (vendor +
-                          #   the scoped COPR repos, see §4)
+  dnf/*.repo              # local .repo files consumed by the dnf module (the
+                          #   scoped COPR repos, see §4; fonts.repo included)
   dnf-libdnf5/libdnf5.conf.d/99-halcyon-retries.conf  # → /etc/dnf (retries=20)
-  scripts/install-kernel.sh    # kernel + NVIDIA userland installer + its gates
-  scripts/ujust-system.sh      # Stage 08: ujust gates + steam/lutris wiring +
-                               #   ujust/system verify tail
-  scripts/guarded-removals.sh  # compose-variance sweep + must-be-gone gates
-  scripts/fonts-cleanup.sh     # reverse-dep-gated base font sweep
-  scripts/terra-repo-sweep.sh  # deletes the repo files terra-release-* ships
-                               #   (repos.cleanup can't remove RPM-owned files)
+  scripts/ujust-system.sh      # Stage 08: ujust gates + base steam wiring
+                               #   no-op gates + ujust/system verify tail
+  scripts/guarded-removals.sh  # compose-variance sweep (two passes: blind
+                               #   candidates, then reverse-dep-gated cores:
+                               #   sddm/cage/ibus/fcitx5) + must-be-gone gates
+  scripts/fonts-cleanup.sh     # reverse-dep-gated base font sweep (*fonts*
+                               #   glob; dejavu-sans comes back as a noctalia
+                               #   hard dep, curated set installs in core.yml)
+  scripts/grub-config.sh       # key-preserving /etc/default/grub update:
+                               #   GRUB_TIMEOUT=10 + GRUB_TIMEOUT_STYLE=menu
   scripts/texlive-formats.sh   # bakes updmap maps + fmtutil formats after the
                                #   rolling-COPR install (no %post ordering)
   scripts/repo-leftover-sweep.sh  # deletes module-staged repo files when
@@ -84,13 +94,13 @@ files/                    # mounted at /tmp/files in every module RUN; never bak
                                #   empty (its parallel `dnf repo info` storm
                                #   races dnf5's metadata cache); wired before
                                #   each repos-module verify gate
-  scripts/image-info.sh        # writes /usr/share/ublue-os/image-info.json
-  scripts/finalize.sh          # third-party repo sweep + /usr/etc sweep
+  scripts/finalize.sh          # sweep of RECIPE-STAGED repo files only (the
+                               #   base's own terra/rpmfusion/ublue repos are
+                               #   deliberately untouched) + /usr/etc sweep
                                #   (ublue-os-signing's policy.json) + hygiene
   scripts/final-verify.sh      # Stage 10 no-cache cross-cutting backstop
-  scripts/verify-<module>.sh   # per-module gates (13 files — one per dnf
-                               #   module plus verify-chezmoi.sh on the
-                               #   chezmoi module; wired as trailing script
+  scripts/verify-<module>.sh   # per-module gates (10 files — one per module
+                               #   with a payload; wired as trailing script
                                #   blocks)
   scripts/lib/cleanup.sh       # end-of-module hygiene; every MUTATING stage
                                #   script ends by calling it (verify scripts
@@ -105,10 +115,11 @@ cosign.pub                 # repo-root public key — the bluebuild CLI stages i
 .github/                   # CI (no Justfile — steps are inlined):
                            #   workflows/build.yml (schedule/push/PR/dispatch;
                            #     PUBLISH_BRANCH=main; ubuntu-24.04; COPR wait
-                           #     loop; pinned CLI ghcr.io/blue-build/cli:
-                           #     v0.9.37-installer; generate + podman build;
-                           #     census; tags; cosign 2.6.5 legacy-format
-                           #     sign+verify via SIGNING_SECRET)
+                           #     loop over the 5 aahsnr-work repos; pinned CLI
+                           #     ghcr.io/blue-build/cli:v0.9.37-installer;
+                           #     generate + podman build; census (kernel +
+                           #     nvidia driver version); tags; cosign 2.6.5
+                           #     legacy-format sign+verify via SIGNING_SECRET)
                            #   workflows/lint.yml (validate + bash -n +
                            #     shellcheck + repo audit; actionlint 1.7.12)
                            #   workflows/clean.yml (weekly GHCR prune, 90d)
@@ -118,7 +129,7 @@ cosign.pub                 # repo-root public key — the bluebuild CLI stages i
                            #     pin via a regex customManager; automerges
                            #     pin PRs; leaves the actionlint tag alone)
                            #   log-helpers.sh, CODEOWNERS, PR template
-AGENTS.md / README.md (template text) / TODO.md / LICENSE / .gitignore
+AGENTS.md / README.md / TODO.md / LICENSE / .gitignore
 ```
 
 NOT in this repo: `Justfile`, `files/packages.json`, `verify/`, `halcyon.env`,
@@ -131,52 +142,74 @@ the workflows (no Justfile).
 - `signing` (inline in recipe): image signing setup.
 - `files` (inline): `system → /` runs first, so overlay files precede every
   package install. A regular (non-config) file at an RPM-owned path would be
-  silently overwritten by the RPM; a `%config(noreplace)` path (greetd,
-  `pam.d/greetd`, `default/useradd`) KEEPS the overlaid file and the RPM's
-  copy lands as `.rpmnew` — verified 2026-09-30 against `greetd` on
-  `fedora-bootc:44`. `dnf-libdnf5 → /etc/dnf` second.
-- `removals.yml`: `dnf remove` (GNOME/Steam Deck leftovers, firefox, nano…)
-  with `auto-remove: true` → `guarded-removals.sh` (compose-variance
-  candidates removed only-if-present, sddm/cage reverse-dep gates,
-  must-be-gone hard-fail loop) → `fonts-cleanup.sh` (reverse-dep-gated base
-  font sweep; the curated font set installs later in core.yml) →
-  `verify-removals.sh`. Keepers are NOT gated here — nothing is installed
-  yet this early; `final-verify.sh` owns the keeper set at end state.
-- `install-kernel.sh` (inline `script`): Stage 02 banner, `set -euo pipefail`,
-  `::group::` folds. Kernel + prebuilt modules from COPR
-  `catpieleaf/kernel-p03`; NVIDIA userland from negativo17 (repo id
-  `fedora-nvidia`); RPM Fusion disabled for its transactions. Three
-  negativo17 subpackages (`nvidia-driver-cuda`, `nvidia-kmod-common`,
-  `nvidia-settings`) are payload-extracted file-only via `rpm2cpio` — never add
-  them to a `dnf install` line. Installs use `tsflags=noscripts`; depmod runs
-  here, dracut is deferred to the finish module.
-- `programming.yml`: toolchains (`python3`, `nodejs22`, `gcc-c++`, `cargo`,
-  `cmake`, `golang`, `perl`) — single-module schema.
+  silently overwritten by the RPM; a `%config(noreplace)` path KEEPS the
+  overlaid file and the RPM's copy lands as `.rpmnew` — verified 2026-09-30
+  against `greetd` on `fedora-bootc:44`. `dnf-libdnf5 → /etc/dnf` second.
+- `removals.yml`: the bazzite de-Plasmaing. `dnf remove` with
+  `auto-remove: true` (closes the orphaned kf5/kf6/qt5 closure) of every
+  Plasma/KDE top-level package verified present in the base inventory
+  (packages.md — dnf5 aborts the transaction on one absent name) PLUS the
+  checked `[x]` set from packages.md (rom-properties*, ryzen_smu*, ryzenadj,
+  signon*, system76-*, tesseract*, twitter-twemoji-fonts, urw-base35-*,
+  vlc-*, xdg-desktop-portal-kde, zenergy*) → `guarded-removals.sh` (pass 1:
+  tolerant only-if-present candidates — old GNOME stack, steamdeck variance,
+  ibus/fcitx5 application packages; pass 2: reverse-dep-gated cores sddm/
+  cage/ibus/ibus-libs/fcitx5/fcitx5-libs removed only when nothing installed
+  requires them; must-be-gone hard-fail loop) → `fonts-cleanup.sh`
+  (reverse-dep-gated sweep of EVERY `*fonts*` package; keep-regex protects
+  fontconfig/fonts-filesystem/fontpackages/dejavu-sans{,-mono}; the curated
+  set installs in core.yml, and dejavu-sans-fonts returns as a hard dep of
+  noctalia-git) → `verify-removals.sh`. Never pattern-match keepers:
+  kernel*/kmod-* (base kernel + NVIDIA akmods + gaming kmods), kbd*,
+  kpartx (multipath), kvazaar-libs (codec). Keepers are NOT gated here —
+  nothing is installed yet this early; `final-verify.sh` owns the keeper set
+  at end state.
+- `programming.yml`: the toolchains the base lacks (`nodejs22(+npm)`,
+  `cargo`, `cmake`, `golang`); python3/perl/gcc-c++ are base-provided and
+  PATH-asserted by `verify-programming.sh`.
 - `apps.yml`: `repos` (local `vscode.repo`, brave `.repo` URL, both GPG keys,
   COPR `aahsnr-work/applications`, `cleanup: true`) then `install` — editors,
-  browsers, VPNs, office apps.
-- `core.yml`: `group-install custom-environment` (`with-optional: false`) then
-  the base package install.
-- `desktop.yml`: COPR `aahsnr-work/base-pkgs` (`cleanup: true`), Hyprland +
-  Noctalia + greeter stack.
-- `gaming.yml`: `nonfree: rpmfusion` (`cleanup: true`), NVIDIA driver globs in
-  `exclude:`, Steam/gamescope/mangohud/zenity — single-module schema.
-- `hardware.yml`: firmware, audio, 32-bit mesa — single-module schema.
-- `ublue-pkgs.yml`: COPR `ublue-os/packages` (`cleanup: true`) — bazaar,
-  ublue-os-just/luks/selinux-workarounds/signing, ublue-recipes, uupd.
-- `terra.yml`: `terra.repo` URL with `no-gpgchecks: true` (`cleanup: true`);
-  first block bootstraps `terra-release-*`, second installs the Terra-only
-  leftovers (`bazzite-portal`, `scx-*`, `umu-*`, `bibata-cursor-theme`);
-  then `terra-repo-sweep.sh` — the `terra-release-*` RPMs ship five enabled
-  repo files of their own (`cleanup: true` only removes module-staged files),
-  which would otherwise shadow Fedora for every later dnf transaction.
-- `devtools.yml`: COPR `aahsnr-work/cli-tools` (`cleanup: true`), CLI tools.
+  browsers, VPNs, office apps. `zed` is a DELIBERATE install, not pulled by
+  `emacs-pgtk` (verified against both COPR specs — emacs-pgtk has no
+  zed-related dep at all).
+- `core.yml`: the curated font set from COPR `aahsnr-work/fonts` (via
+  `fonts.repo`, priority=1 + includepkgs) + the utilities the base lacks
+  (grim/slurp/swappy/imv/mpv/zathura, file-roller, zsh, brightnessctl,
+  ddcutil, fail2ban/lynis/bleachbit, setroubleshoot…). Everything the old
+  list carried that packages.md shows in the base (cockpit*, podman*,
+  distrobox, gnupg2, openssh-clients, plymouth*, hunspell*, ImageMagick,
+  just, fastfetch deps…) is dropped — re-installing base packages is pure
+  redundancy. The old `group-install custom-environment` is gone (the base
+  provides it) and qt5ct is retired (the qt5 stack now follows whatever
+  actually requires it). fastfetch stays: removals strips bazzite's blinged
+  build and core reinstalls vanilla.
+- `desktop.yml`: COPR `aahsnr-work/base-pkgs` (`cleanup: true`), the Hyprland
+  + Noctalia stack. greetd + noctalia-greeter-git are REMOVED (ly is planned,
+  not landed — login is `getty@tty2` + a manual Hyprland start) and the
+  Thunar suite is replaced by nautilus (file-roller installs in core.yml).
+  Noctalia ships its own polkit agent, so removing polkit-kde strands
+  nothing. gnome-keyring + gnome-keyring-pam install here (the PAM module
+  pre-wires the future ly stack).
+- `gaming.yml`: the native gaming stack (RakuOS model — Steam/Lutris/Heroic
+  as RPMs, zero Flatpak). The base already ships steam, steam-devices,
+  lutris, gamescope (as terra-gamescope), mangohud (+i686, as terra-mangohud),
+  zenity, evtest, input-remapper, usbip, ydotool; this module installs only
+  `gamemode` and `heroic-games-launcher` (native Terra RPM — the base ships
+  Terra repos enabled; documented fallback if the name ever vanishes:
+  COPR atim/heroic-games-launcher). No `nonfree: rpmfusion` staging — the
+  base manages its own rpmfusion/terra repo files. The four NVIDIA exclude
+  globs stay so no transaction can clobber the base's kmod-nvidia chain.
+- `devtools.yml`: COPR `aahsnr-work/cli-tools` (`cleanup: true`), only the
+  tools the base lacks (asdf, atuin, bun, direnv, lazygit, pixi, ripgrep,
+  starship, tealdeer, texlab, topgrade, uv…); bat/btop/cava/chafa/cliphist/
+  dust/eza/fd-find/fpaste/fzf/gnuplot/opencode/pandoc are base-provided and
+  re-asserted by `verify-devtools.sh`.
 - `nix.yml`: `systemd` enable (`var-nix.service`, `nix.mount`) → `dnf install`
   `nix`, `nix-daemon` → `systemd` enable (`nix-daemon`). Units and config
   arrive via the `files/system/` overlay, not `files/systemd/` (no such
   dirs — the `systemd` module's auto-copy path is unused here). `dnf5`
   aborts a transaction on one bad name, so never add a package name without
-  verifying it first (see §6).
+  verifying it first (against packages.md or a repo file — see §6).
 - `texlive.yml`: rolling TeX Live from COPR `aahsnr-work/texlive-packages`
   (`cleanup: true`) — `texlive-bin` (upstream's engine bundle + the TeXLive
   perl modules + the repo tlpdb) + the 12 `texlive-*` data groups, all under
@@ -204,7 +237,7 @@ the workflows (no Justfile).
   with the module's default cadence stated explicitly (`wait-after-boot:
   5m`, `run-every: 1d`). The binary is deliberately NOT an RPM: the module
   downloads the latest GitHub release to `/usr/bin/chezmoi` itself (the
-  download shells out to `/usr/bin/curl`, installed by core.yml; freshness
+  download shells out to `/usr/bin/curl`, shipped by the base; freshness
   over build reproducibility), and `final-verify.sh` backstops the
   invariant with a negative `rpm -q chezmoi` gate. The generated init unit is
   a plain `--apply`, so the overlay drop-in `usr/lib/systemd/user/
@@ -212,42 +245,53 @@ the workflows (no Justfile).
   (its ExecStart override re-states the repository — keep the two in
   sync): `--force` (a home rebasing from a previous OS holds differing
   dotfiles and the non-interactive apply dies on the first "already
-  exists"), `ConditionUser=!greetd` (`--global` enablement also reaches
-  the greeter user), `Restart=on-failure` + 15s (network-online.target
+  exists"), `Restart=on-failure` + 15s (network-online.target
   does not exist in a user manager, so a clone racing the network retries
   instead of waiting for the next login), and `TimeoutStartSec=600` (a
-  cold clone+apply can outrun the ~90s user-manager default). Trailing
-  `verify-chezmoi.sh` gates the binary, the not-RPM invariant, the three
-  units, the drop-in and the `--global` wiring.
-- `ujust.yml`: `dnf` install of the ujust-fedora companions (`glow`,
-  `grubby`, `stress-ng`; `just` self-contained, also in core.yml; `jq` is a
-  verify-gate requirement) → `systemd` module (declarative unit state,
-  replaces the old script's systemctl/ln logic): `system.enabled` =
-  `uupd.timer`, `greetd.service`, `getty@tty2.service`; `system.masked` =
-  sddm/gdm/bazzite-autologin/nvidia-persistenced/nvidia-powerd/systemd-oomd
-  (masking needs no unit file); `user.enabled` = pyprland (`--global` →
-  symlinks under `/etc/systemd/user/*.wants/`; the chezmoi units enable
-  themselves --global in chezmoi.yml) → `script` `ujust-system.sh`
-  (Stage 08): only what no module covers — the ujust presence gates,
-  steam/lutris desktop-entry patching (bazzite parity), and the ujust+system
-  verify tail (`ujust --list`, companion-binary sweep, a 60-custom.just ↔
-  shipped-recipes completeness gate, gate-checked overlay configs), ending
-  with `lib/cleanup.sh`. The 10 modules are registered by the static overlay
-  file `60-custom.just` (the `ublue-os-just` RPM ships the justfile's
-  `import?` hook for it); `var-nix.service`/`nix.mount` remain in nix.yml.
-- `finish.yml`: `os-release` module (NAME/`PRETTY_NAME`/HOME_URL →
-  /etc/os-release) → `script` `[image-info.sh, finalize.sh]` → `initramfs`
-  module LAST. `image-info.sh` writes `/usr/share/ublue-os/image-info.json`
-  (bazzite-steam reads it); `finalize.sh` sweeps every third-party repo file
-  (incl. the overlay-staged `fedora-nvidia.repo`) and runs the end-of-build
-  hygiene. The `initramfs` module regenerates the initrd for every kernel in
-  `/usr/lib/modules` (`--no-hostonly --reproducible --add ostree`, 0600).
+  cold clone+apply can outrun the ~90s user-manager default). The old
+  `ConditionUser=!greetd` is gone — no greeter user exists anymore.
+  Trailing `verify-chezmoi.sh` gates the binary, the not-RPM invariant, the
+  three units, the drop-in and the `--global` wiring.
+- `ujust.yml`: `dnf` install of `grubby` only (glow/jq/just/stress-ng ship
+  in the base; grubby backs the kernel-arg recipes in 80-halcyon.just) →
+  `systemd` module (declarative unit state): `system.enabled` =
+  `uupd.timer`, `getty@tty2.service` (the login path until ly lands);
+  `system.masked` = sddm/gdm/plasma-login-manager/bazzite-autologin/
+  nvidia-persistenced/nvidia-powerd/systemd-oomd (oomd stays masked — this
+  is a gaming box; masking needs no unit file); `user.enabled` = pyprland
+  (`--global` → symlinks under `/etc/systemd/user/*.wants/`; the chezmoi
+  units enable themselves --global in chezmoi.yml) → `script`
+  `ujust-system.sh` (Stage 08): only what no module covers — the ujust
+  presence gates, base steam wiring no-op gates (the base ships
+  bazzite-steam + the patched steam.desktop; gate, don't re-patch), and the
+  ujust+system verify tail (`ujust --list`, companion-binary sweep, a
+  60-custom.just ↔ shipped-recipes completeness gate, getty@tty2/uupd
+  enablement, overlay configs), ending with `lib/cleanup.sh`. The 10
+  modules are registered by the static overlay file `60-custom.just` (the
+  `ublue-os-just` RPM ships the justfile's `import?` hook for it);
+  `var-nix.service`/`nix.mount` remain in nix.yml.
+- `finish.yml`: `os-release` module (NAME/`PRETTY_NAME: halcyon (Bazzite)`/
+  HOME_URL → /etc/os-release) → `script` `[grub-config.sh, finalize.sh]`.
+  `grub-config.sh` key-preservingly sets `GRUB_TIMEOUT=10` +
+  `GRUB_TIMEOUT_STYLE=menu` in /etc/default/grub (the base hides the menu
+  with ~1s; fresh installs read it at grub.cfg generation, deployed machines
+  use the shipped `ujust regenerate-grub`). `finalize.sh` sweeps ONLY the
+  repo files this recipe stages (the base's terra/rpmfusion/ublue repos are
+  deliberately untouched — deleting them breaks the base's update path) and
+  runs the end-of-build hygiene (keepcache=0, log//boot/cache wipes, the
+  /usr/etc sweep that keeps the bootc etc-usretc lint green). No `initramfs`
+  module anymore: the base ships a valid initrd for its kernel and this
+  recipe adds no kernel modules. No `image-info.sh` anymore: the base ships
+  `/usr/share/ublue-os/image-info.json` and bazzite-steam reads it.
 - `final-verify.yml`: `type: script`, **`no-cache: true`**, `final-verify.sh`
-  — the end-state backstop: 12 kernel/NVIDIA gates (incl. the initramfs.img
-  the finish module just built and the modinfo-vs-rpm version match), gaming
-  keeper set, the only-Fedora-repos-remain gate, identity files
-  (os-release/image-info.json/texlive tree), chezmoi wiring, and the
-  package census baked to `/usr/share/halcyon/package-count`.
+  — the end-state backstop: bazzite kernel + kmod-nvidia gates (incl. the
+  modinfo-vs-rpm version match and `kernel-p03` absent), gaming + desktop
+  keeper sets (incl. heroic-games-launcher/gamemode, nautilus/file-roller,
+  pinentry-qt wiring, curated fonts, no `default-fonts-*`), the
+  no-halcyon-staged-repos gate, identity files
+  (os-release/image-info.json/texlive tree), grub timing, zsh default shell,
+  chezmoi wiring, and the package census baked to
+  `/usr/share/halcyon/package-count` (kernel + nvidia driver version).
 - `bootc-lint.yml`: `type: containerfile`, **`no-cache: true`**, hermetic
   `RUN --mount=type=tmpfs,target=/run --network=none bootc container lint` —
   always the last module.
@@ -281,9 +325,14 @@ the workflows (no Justfile).
   Fedora for the WHOLE closure). `cleanup: true` has a known failure mode —
   its repo-info resolution races dnf5's cache and then removes nothing —
   so `repo-leftover-sweep.sh` runs before every repos-module verify gate.
+- `dnf remove` blocks may only list names verified present in `packages.md`
+  (dnf5 aborts on one absent name); anything that may or may not exist goes
+  through `guarded-removals.sh`'s only-if-present sweeps instead. Never add a
+  package name to ANY dnf block without verifying it first (packages.md,
+  dnf repoquery, or the consuming repo's spec).
 - Declarative first: do with bluebuild modules (`files`, `dnf`, `systemd`)
   whatever a module can express; the `script` module is only for what no
-  module covers (verify gates, foreign-file patching like steam.desktop).
+  module covers (verify gates, key-preserving file edits like grub-config).
   The `systemd` module's `user.enabled` maps to `systemctl --global enable`
   (symlinks under `/etc/systemd/user/<target>.wants/`), `masked` works on
   units that aren't installed, and enabling a missing unit aborts the build.
@@ -295,9 +344,8 @@ the workflows (no Justfile).
 - Log style: `████ STAGE nn/13 · <name> · … ████` banners, `::group::` /
   `::endgroup::` folds, `OK` / `FAIL` prefixes.
 - Executable bits come from git (`chmod +x` before commit): build scripts
-  (`files/scripts/*.sh`, `lib/`), the `usr/bin` + `usr/libexec` wrappers and
-  the profile.d hooks are 0755; units, justfiles, configs and tmpfiles are
-  0644.
+  (`files/scripts/*.sh`, `lib/`), the `usr/libexec` wrappers and the
+  profile.d hooks are 0755; units, justfiles, configs and tmpfiles are 0644.
 - Nothing new lands in `/var`, `/usr/local`, `/boot`, or `/usr/etc`. Comments
   explain _why_, not _what_.
 
@@ -310,7 +358,10 @@ the workflows (no Justfile).
   Renovate GitHub App must be installed on the repo — without the secret the
   publish-gated sign/verify steps fail on the publish branch.
 - `files/system/` still misses the wider-overlay extras: wallpaper/plymouth
-  theme assets and `etc/issue`/`motd`. `README.md` is still template text.
+  theme assets and `etc/issue`/`motd`.
+- Login has no display manager (greetd + noctalia-greeter were removed with
+  the bazzite migration): `getty@tty2` + manual Hyprland start is the interim
+  path; `ly` (in Fedora repos) is the planned replacement — see TODO.md.
 - Runner is pinned `ubuntu-24.04` with `remove-unwanted-software@v9`;
   `ubuntu-latest` migrates to 26.04 between 2026-10-19 and 2026-11-19 —
   when migrating, switch to `ubuntu-26.04` + `jlumbroso/free-disk-space`
@@ -343,7 +394,8 @@ respect the no-local-build rule.
       trailing script block; every new gate has been inverted once and
       confirmed to fail (no-cache backstop: `final-verify`/`bootc-lint`).
 - [ ] New `dnf install` sets `install-weak-deps: false`; third-party repos set
-      `cleanup: true`; no added package name is unverified.
+      `cleanup: true`; no added package name is unverified (packages.md is
+      the base-dedupe source of truth).
 - [ ] Nothing new lands in `/var`, `/usr/local`, `/boot`, or `/usr/etc`.
 - [ ] Workflow changes: no `ubuntu-latest`, no branch pins on `uses:`, the
       bluebuild CLI pin / cosign 2.6.5 legacy flags / `PUBLISH_BRANCH: main`

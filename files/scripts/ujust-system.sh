@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# halcyon build step — ujust-system (Stage 08): ujust presence gates,
-# steam/lutris desktop-entry patching, and the ujust+system verify tail.
-# Everything declarative is owned by bluebuild modules: the ujust modules
-# register via the static 60-custom.just overlay file, unit enable/mask
-# state lives in the systemd block of modules/ujust.yml, /nix units in
-# modules/nix.yml, dotfiles units in modules/chezmoi.yml, and the
-# ujust-fedora companions in the module's dnf block.
+# halcyon build step — ujust-system (Stage 08): ujust presence gates and the
+# ujust+system verify tail. Everything declarative is owned by bluebuild
+# modules: the ujust modules register via the static 60-custom.just overlay
+# file, unit enable/mask state lives in the systemd block of
+# modules/ujust.yml, /nix units in modules/nix.yml, dotfiles units in
+# modules/chezmoi.yml, and grubby lands in the module's dnf block. The
+# steam/lutris desktop-entry wiring ships in the bazzite base itself.
 set -euo pipefail
 
-echo "████ STAGE 08/13 · ujust-system · gates + desktop wiring ████"
+echo "████ STAGE 08/13 · ujust-system · gates + system verify ████"
 
 echo "::group::ujust-system — ujust presence"
 test -x /usr/bin/ujust || {
@@ -21,13 +21,17 @@ test -f /usr/share/ublue-os/justfile || {
 }
 echo "::endgroup::"
 
-echo "::group::ujust-system — steam/lutris desktop wiring"
-sed -i 's@/usr/bin/steam@/usr/bin/bazzite-steam@g' /usr/share/applications/steam.desktop 2>/dev/null || true
-sed -i 's@Exec=steam steam://open/bigpicture@Exec=/usr/bin/bazzite-steam-bpm@g' /usr/share/applications/steam.desktop 2>/dev/null || true
-mkdir -p /etc/skel/.config/autostart
-cp "/usr/share/applications/steam.desktop" "/etc/skel/.config/autostart/steam.desktop" 2>/dev/null || true
-sed -i 's@/usr/bin/bazzite-steam %U@/usr/bin/bazzite-steam -silent %U@g' /etc/skel/.config/autostart/steam.desktop 2>/dev/null || true
-sed -i 's|^Exec=lutris %U$|Exec=env PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python lutris %U|' /usr/share/applications/net.lutris.Lutris.desktop 2>/dev/null || true
+echo "::group::ujust-system — base desktop wiring (no-op gates)"
+# The bazzite base ships bazzite-steam and the patched steam.desktop; gate
+# them instead of re-patching (the old vendored wrappers are gone).
+test -x /usr/bin/bazzite-steam || {
+  echo "  FAIL  /usr/bin/bazzite-steam missing from the base" >&2
+  exit 1
+}
+grep -q 'bazzite-steam' /usr/share/applications/steam.desktop || {
+  echo "  FAIL  steam.desktop is not wired to bazzite-steam" >&2
+  exit 1
+}
 echo "::endgroup::"
 
 echo "::group::ujust-system — verification (ujust + system verify tails)"
@@ -96,7 +100,20 @@ for b in grubby ethtool wget hostname fpaste wl-copy zenity jq; do
     exit 1
   }
 done
-# systemctl is-enabled greetd.service >/dev/null 2>&1 || { echo "  FAIL  greetd not enabled" >&2; exit 1; }
+# Login path: greetd is retired — getty@tty2 hosts the manual Hyprland start
+# (ly is planned but not landed).
+rpm -q greetd >/dev/null 2>&1 && {
+  echo "  FAIL  greetd still installed — removals stage missed it" >&2
+  exit 1
+}
+systemctl is-enabled getty@tty2.service >/dev/null 2>&1 || {
+  echo "  FAIL  getty@tty2.service not enabled" >&2
+  exit 1
+}
+systemctl is-enabled uupd.timer >/dev/null 2>&1 || {
+  echo "  FAIL  uupd.timer not enabled" >&2
+  exit 1
+}
 systemctl is-enabled var-nix.service >/dev/null 2>&1 || {
   echo "  FAIL  var-nix.service not enabled" >&2
   exit 1
@@ -107,18 +124,6 @@ systemctl is-enabled nix.mount >/dev/null 2>&1 || {
 }
 test -L /etc/systemd/user/graphical-session.target.wants/pyprland.service || {
   echo "  FAIL  pyprland symlink missing" >&2
-  exit 1
-}
-test -f /etc/greetd/config.toml || {
-  echo "  FAIL  greetd config missing" >&2
-  exit 1
-}
-grep -q pam_gnome_keyring.so /etc/pam.d/greetd || {
-  echo "  FAIL  PAM keyring line missing" >&2
-  exit 1
-}
-test -f /usr/lib/tmpfiles.d/noctalia-greeter-state.conf || {
-  echo "  FAIL  greeter state tmpfiles missing" >&2
   exit 1
 }
 test -f /etc/profile.d/00-path-guard.sh || {

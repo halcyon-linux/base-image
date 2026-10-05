@@ -56,19 +56,19 @@ jobs:
             echo "publish=false" >> "${GITHUB_OUTPUT}"
           fi
 
-      - name: Wait for consumed COPR metadata (6 repos)
+      - name: Wait for consumed COPR metadata (5 repos)
         run: |
           source .github/log-helpers.sh
           # COPR's CDN serves 504s right after a build; every repo the recipe
-          # consumes must answer 200 before dnf5 touches it. negativo17 is
-          # deliberately absent — a static server, not the COPR CDN.
+          # consumes must answer 200 before dnf5 touches it. The bazzite
+          # base's own repos (terra, rpmfusion, ublue) are maintained
+          # upstream and deliberately not waited on here.
           URLS=(
             "https://download.copr.fedorainfracloud.org/results/aahsnr-work/applications/fedora-44-x86_64/repodata/repomd.xml"
             "https://download.copr.fedorainfracloud.org/results/aahsnr-work/base-pkgs/fedora-44-x86_64/repodata/repomd.xml"
             "https://download.copr.fedorainfracloud.org/results/aahsnr-work/cli-tools/fedora-44-x86_64/repodata/repomd.xml"
+            "https://download.copr.fedorainfracloud.org/results/aahsnr-work/fonts/fedora-44-x86_64/repodata/repomd.xml"
             "https://download.copr.fedorainfracloud.org/results/aahsnr-work/texlive-packages/fedora-44-x86_64/repodata/repomd.xml"
-            "https://download.copr.fedorainfracloud.org/results/ublue-os/packages/fedora-44-x86_64/repodata/repomd.xml"
-            "https://download.copr.fedorainfracloud.org/results/catpieleaf/kernel-p03/fedora-44-x86_64/repodata/repomd.xml"
           )
           attempts=0
           max_attempts=30
@@ -153,19 +153,20 @@ jobs:
         run: |
           source .github/log-helpers.sh
           census="$(podman run --rm --entrypoint /bin/bash "${IMAGE_NAME}:${DEFAULT_TAG}" -c \
-            'echo "count=$(rpm -qa | wc -l)"; echo "kernel=$(rpm -q --qf "%{VERSION}-%{RELEASE}.%{ARCH}" kernel-p03 2>/dev/null || echo n/a)"')"
+            'echo "count=$(rpm -qa | wc -l)"; echo "kernel=$(rpm -q --qf "%{VERSION}-%{RELEASE}.%{ARCH}" kernel 2>/dev/null || echo n/a)"; echo "nvidia=$(rpm -q --qf "%{VERSION}" nvidia-driver-libs.x86_64 2>/dev/null || echo n/a)"')"
           count="$(sed -n 's/^count=//p' <<<"${census}")"
           kernel="$(sed -n 's/^kernel=//p' <<<"${census}")"
+          nvidia="$(sed -n 's/^nvidia=//p' <<<"${census}")"
           {
             echo "## 📦 halcyon image package report"
             echo ""
-            echo "| total RPMs | p03 kernel |"
-            echo "| --- | --- |"
-            echo "| ${count} | ${kernel} |"
+            echo "| total RPMs | base kernel | nvidia driver |"
+            echo "| --- | --- | --- |"
+            echo "| ${count} | ${kernel} | ${nvidia} |"
             echo ""
             echo "source: \`${IMAGE_REGISTRY}/${IMAGE_NAME}:${GITHUB_SHA}\`"
           } >> "${GITHUB_STEP_SUMMARY}"
-          echo "::notice title=halcyon package count::${count} RPMs (kernel: ${kernel})"
+          echo "::notice title=halcyon package count::${count} RPMs (kernel: ${kernel}, nvidia: ${nvidia})"
 
       - name: Generate build tags
         id: gen-build-tags

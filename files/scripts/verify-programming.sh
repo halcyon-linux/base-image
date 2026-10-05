@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# halcyon verify — programming: language toolchains landed (installed FIRST
-# in the module order so every later module can rely on them). Mutates nothing.
+# halcyon verify — programming: the toolchains the bazzite base lacks landed
+# (installed FIRST in the module order so every later module can rely on
+# them). python3/perl/gcc are base-provided and PATH-asserted here. Mutates
+# nothing.
 set -uo pipefail
 
 echo "████ verify · programming ████"
@@ -16,7 +18,8 @@ gate() {
 }
 
 echo "::group::verify-programming"
-gate "toolchain packages" rpm -q python3 nodejs22 nodejs22-npm perl gcc-c++ cargo cmake golang
+gate "installed toolchains" rpm -q nodejs22 nodejs22-npm cargo cmake golang
+gate "base toolchains" rpm -q python3 perl gcc gcc-c++
 gate "python3 on PATH" command -v python3
 gate "node on PATH" command -v node
 gate "gcc/g++ on PATH" sh -c 'command -v gcc && command -v g++'

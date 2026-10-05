@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# halcyon verify — core: the base desktop/tool set (and the custom-environment
-# group) landed. Mutates nothing.
+# halcyon verify — core: the curated font set landed over the swept base
+# fonts, and the utilities the bazzite base does NOT ship are installed.
+# Base-provided sets (cockpit, podman, openssh, plymouth…) are asserted by
+# final-verify.sh instead. Mutates nothing.
 set -uo pipefail
 
 echo "████ verify · core ████"
@@ -16,12 +18,16 @@ gate() {
 }
 
 echo "::group::verify-core"
-gate "core packages" rpm -q git curl zsh podman just fastfetch ImageMagick gnupg2 distrobox btop ethtool wget2-wget hostname
-gate "flatpak/portal base" rpm -q xdg-desktop-portal xdg-user-dirs
-gate "plymouth base" rpm -q plymouth plymouth-theme-spinner
-gate "cockpit set" rpm -q cockpit-system cockpit-networkmanager cockpit-podman cockpit-files cockpit-storaged cockpit-selinux
-gate "selinux tooling" rpm -q policycoreutils-python-utils setools-console udica
-gate "binaries on PATH" sh -c 'command -v git && command -v curl && command -v zsh && command -v just && command -v podman && command -v fastfetch'
+gate "curated font set" rpm -q google-noto-color-emoji-fonts jetbrains-mono-fonts-all nerd-fonts-jetbrainsmono nerd-fonts-symbols-only nerd-fonts-ubuntu nerd-fonts-ubuntu-mono
+gate "nerd font registered with fontconfig" sh -c "fc-list | grep -qi 'JetBrainsMono Nerd Font'"
+gate "core utilities" rpm -q git zsh fastfetch file-roller grim slurp swappy imv mpv zathura brightnessctl ddcutil cronie fail2ban bleachbit lynis ninja-build pipx pymol transmission-gtk udiskie inotify-tools intel-gpu-tools libinput-utils setools-console setroubleshoot bluez-tools
+gate "vanilla fastfetch binary on PATH" sh -c 'command -v git && command -v zsh && command -v fastfetch'
+# openssh + GUI pinentry: the bazzite base ships them; assert the integration
+# points that the rest of the image relies on.
+gate "openssh clients present" rpm -q openssh-clients
+gate "ssh client runs" sh -c 'ssh -V 2>&1 | grep -q OpenSSH'
+gate "pinentry-qt present (Wayland-capable GPG prompts)" rpm -q pinentry-qt
+gate "skel gpg-agent uses pinentry-qt" grep -q "pinentry-program /usr/bin/pinentry-qt" /etc/skel/.gnupg/gpg-agent.conf
 echo "::endgroup::"
 
 [ "$fail" = 0 ] || {

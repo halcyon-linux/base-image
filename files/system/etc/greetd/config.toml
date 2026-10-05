@@ -1,9 +1,0 @@
-[terminal]
-vt = 1
-
-[default_session]
-# noctalia-greeter: greetd must launch the wrapper (it starts the bundled
-# wlroots compositor and runs the greeter inside it), by absolute path —
-# per docs.noctalia.dev/greeter. Session list comes from wayland-sessions.
-command = "/usr/bin/noctalia-greeter-session"
-user = "greetd"

@@ -17,4 +17,4 @@ repo_gpgcheck=0
 enabled=1
 enabled_metadata=1
 priority=1
-includepkgs=adw-gtk3,aquamarine,glaze,hyprcursor,hyprgraphics,hyprland-git,hyprland-guiutils,hyprland-protocols,hyprland-qt-support,hyprlang,hyprpwcenter,hyprshutdown,hyprtoolkit,hyprutils,hyprwayland-scanner,hyprwire,noctalia-git,noctalia-greeter-git,nwg-displays,nwg-look,pyprland,qt6ct,xdg-desktop-portal-hyprland,xcur2png
+includepkgs=adw-gtk3,aquamarine,glaze,hyprcursor,hyprgraphics,hyprland-git,hyprland-guiutils,hyprland-protocols,hyprland-qt-support,hyprlang,hyprpwcenter,hyprshutdown,hyprtoolkit,hyprutils,hyprwayland-scanner,hyprwire,noctalia-git,nwg-displays,nwg-look,pyprland,qt6ct,xdg-desktop-portal-hyprland,xcur2png

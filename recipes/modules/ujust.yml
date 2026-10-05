@@ -1,49 +1,43 @@
 ---
 # yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
+# ujust companions + declarative unit state. The bazzite base ships glow, jq,
+# just and stress-ng (packages.md) — grubby is the only gap (the kernel-arg
+# recipes in 80-halcyon.just need it).
 modules:
-  # ujust-fedora companions (bazzite parity). grubby backs the kernel-arg
-  # recipes; stress-ng powers `ujust benchmark`; glow is a deliberate
-  # user-facing terminal markdown renderer; jq is required by the stage's
-  # verify gate (and the vendored bazzite-steam wrapper). just itself is also
-  # in core.yml — listed here to keep the ujust toolchain self-contained.
   - type: dnf
     install:
       install-weak-deps: false
       packages:
-        - glow
         - grubby
-        - jq
-        - just
-        - stress-ng
 
   # Unit state is declarative bluebuild (systemd module), not script logic.
-  # Every enabled unit exists by this point (greetd — desktop.yml; uupd —
-  # ublue-pkgs.yml; getty@.service — base systemd; pyprland — the overlay's
-  # files module). var-nix.service + nix.mount are enabled by nix.yml; the
-  # chezmoi units enable themselves --global in chezmoi.yml.
+  # greetd/noctalia-greeter are removed — login is getty@tty2 and the user
+  # starts Hyprland from the TTY (ly is planned, not landed). uupd ships in
+  # the base; getty@.service is base systemd. var-nix.service + nix.mount are
+  # enabled by nix.yml; the chezmoi units enable themselves --global in
+  # chezmoi.yml.
   - type: systemd
     system:
-      # enabled:
-      #   - uupd.timer
-      #   - greetd.service
-       - getty@tty2.service
+      enabled:
+        - uupd.timer
+        - getty@tty2.service
       masked:
-      #  - sddm.service
+        - sddm.service
         - gdm.service
+        - plasma-login-manager.service # KDE's login manager, removed with the stack
         - bazzite-autologin.service
         - nvidia-persistenced.service
         - nvidia-powerd.service
-        # p03's LRU-Marie handles OOM kernel-side; the kernel README
-        # (CatPieLeaf/linux-p03) instructs disabling oomd, which "kills apps
-        # prematurely, or freezes the system".
+        # gaming box: oomd kills games prematurely or freezes the session —
+        # keep it masked as on the previous build
         - systemd-oomd.service
     user:
       enabled:
         - pyprland.service
 
-  # Everything the systemd module cannot express: the ujust presence gates,
-  # the steam/lutris desktop-entry patching (bazzite parity), and the
-  # ujust+system verify tail.
+  # Everything the systemd module cannot express: the ujust presence gates
+  # and the ujust+system verify tail (steam/lutris desktop wiring ships in
+  # the bazzite base — no patching needed anymore).
   - type: script
     scripts:
       - ujust-system.sh

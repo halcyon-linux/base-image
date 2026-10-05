@@ -1,13 +1,20 @@
 # halcyon
 
 A lean Hyprland gaming-desktop OCI image built with [BlueBuild](https://blue-build.org)
-on `quay.io/fedora/fedora-bootc`.
+on `ghcr.io/ublue-os/bazzite-nvidia-open:latest`.
 
-- Hyprland + Noctalia, greetd with the noctalia greeter, zsh as the default shell
-- `catpieleaf/kernel-p03` kernel with prebuilt `nvidia-open` modules and negativo17
-  NVIDIA userland (RPM Fusion's NVIDIA chain is excluded)
-- Steam/Lutris gaming stack with the vendored `bazzite-steam` wrappers,
-  gamescope, mangohud, umu, scx schedulers
+- Hyprland + Noctalia on the Bazzite base (KDE Plasma removed), zsh as the
+  default shell, login via getty@tty2 (a display manager — ly — is planned)
+- Bazzite's kernel and NVIDIA open driver stack, inherited untouched
+- Native gaming stack, no Flatpak: Steam, Lutris and Heroic Launcher install
+  as RPMs for maximum Proton/Wine compatibility (RakuOS model), plus
+  gamescope, mangohud, gamemode, umu, scx schedulers and the base's
+  `bazzite-steam` wrapper
+- GNOME file stack instead of KDE's: nautilus + file-roller
+- Curated font set (JetBrainsMono, Nerd Fonts, Noto Color Emoji) over a fully
+  swept base font payload; GUI GPG prompts via pinentry-qt; gnome-keyring SSH
+  agent; openssh-clients wired
+- GRUB menu visible for 10 seconds (rebasing machines: `ujust regenerate-grub`)
 - `ujust` tooling (`ujust --list`), `uupd` system updates, Nix + home-manager ready
 - Curated dev tooling; every module is gated by build-time verify scripts
 

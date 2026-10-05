@@ -1,0 +1,21 @@
+# fonts Copr repo (aahsnr-work) — the curated font set that replaces the
+# bazzite base's entire font payload (swept by fonts-cleanup.sh), scoped with
+# includepkgs. priority=1 makes those packages win over Fedora/Terra, while
+# includepkgs confines the repo to exactly the names core.yml installs —
+# without the allowlist, dnf5 prefers this repo for every dependency name it
+# carries. Keep the list in sync with core.yml (a missing entry fails loudly
+# with "No match" if Fedora lacks the name; a stale entry silently serves
+# Fedora's build).
+
+[copr:copr.fedorainfracloud.org:aahsnr-work:fonts]
+name=Copr repo for fonts (aahsnr-work) — priority 1
+baseurl=https://download.copr.fedorainfracloud.org/results/aahsnr-work/fonts/fedora-$releasever-$basearch/
+type=rpm-md
+skip_if_unavailable=False
+gpgcheck=1
+gpgkey=https://download.copr.fedorainfracloud.org/results/aahsnr-work/fonts/pubkey.gpg
+repo_gpgcheck=0
+enabled=1
+enabled_metadata=1
+priority=1
+includepkgs=google-noto-color-emoji-fonts,jetbrains-mono-fonts-all,nerd-fonts-jetbrainsmono,nerd-fonts-symbols-only,nerd-fonts-ubuntu,nerd-fonts-ubuntu-mono

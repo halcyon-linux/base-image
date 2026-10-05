@@ -1,5 +1,10 @@
 ---
 # yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
+# The Hyprland + Noctalia stack from the personal base-pkgs COPR, on top of
+# the bazzite base. greetd/noctalia-greeter are gone (login is getty@tty2;
+# ly is planned but not landed) and the Thunar suite is replaced by
+# nautilus (file-roller installs in core.yml). Noctalia ships its own polkit
+# agent, so the KDE removal in removals.yml does not strand GUI auth prompts.
 modules:
   - type: dnf
     repos:
@@ -14,6 +19,7 @@ modules:
         - cliphist
         - glaze
         - gnome-keyring
+        - gnome-keyring-pam # pam_gnome_keyring.so for the future ly stack
         - gnome-tweaks
         - hyprcursor
         - hyprgraphics
@@ -28,6 +34,7 @@ modules:
         - hyprutils
         - hyprwayland-scanner
         - hyprwire
+        - nautilus # replaces the removed Thunar suite
         - noctalia-git
         - nwg-displays
         - nwg-look
@@ -35,12 +42,6 @@ modules:
         - papirus-icon-theme
         - pyprland
         - qt6ct
-        - sddm
-        - Thunar
-        - thunar-archive-plugin
-        - thunar-media-tags-plugin
-        - thunar-vcs-plugin
-        - thunar-volman
         - wl-clipboard
         - xdg-desktop-portal-gtk
         - xdg-desktop-portal-hyprland
@@ -49,6 +50,6 @@ modules:
     scripts:
       - repo-leftover-sweep.sh
 
-  #- type: script
-   # scripts:
-     # - verify-desktop.sh
+  - type: script
+    scripts:
+      - verify-desktop.sh

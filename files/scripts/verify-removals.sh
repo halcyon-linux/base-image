@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# halcyon verify — removals: the base's GNOME/Steam-Deck leftovers and
-# firefox/nano are really gone after the dnf remove block + guarded-removals
-# + fonts-cleanup. Runs BEFORE any module installs, so there are deliberately
-# no "keeper installed" gates here — final-verify.sh owns the keeper set at
-# end state. Mutates nothing.
+# halcyon verify — removals: the base's KDE Plasma stack, the packages.md
+# checked set, nano and the input-method frameworks are really gone after the
+# dnf remove block + guarded-removals + fonts-cleanup. Runs BEFORE any module
+# installs, so there are deliberately no "keeper installed" gates here —
+# final-verify.sh owns the keeper set at end state. Mutates nothing.
 set -uo pipefail
 
 echo "████ verify · removals ████"
@@ -27,12 +27,27 @@ all_absent() {
   return 0
 }
 
+# Succeeds only when NO installed package matches any of the rpm globs.
+all_globs_absent() {
+  local g
+  for g in "$@"; do
+    rpm -qa "$g" 2>/dev/null | grep -q . && return 1
+  done
+  return 0
+}
+
 echo "::group::verify-removals"
-gate "GNOME stack gone" all_absent gnome-shell gdm mutter gnome-session nautilus ptyxis gnome-control-center gnome-settings-daemon gjs xdg-desktop-portal-gnome
+gate "KDE Plasma stack gone" all_absent plasma-workspace plasma-desktop kwin konsole dolphin kate kwrite spectacle kscreenlocker ksshaskpass kwalletmanager5 polkit-kde powerdevil breeze-icon-theme plasma-login-manager steamdeck-kde-presets-desktop xdg-desktop-portal-kde
+gate "GNOME stack gone" all_absent gnome-shell gdm mutter gnome-session ptyxis gnome-control-center gnome-settings-daemon gjs xdg-desktop-portal-gnome
 gate "firefox + langpacks gone" all_absent firefox firefox-langpacks
 gate "nano gone" all_absent nano nano-default-editor
 gate "steam-deck leftovers gone" all_absent inputplumber steamos-manager-powerstation jupiter-fan-control jupiter-hw-support-btrfs galileo-mura steamdeck-dsp powerbuttond vpower sdgyrodsu steamdeck-backgrounds steamdeck-gnome-presets
-gate "waydroid gone" all_absent waydroid
+gate "waydroid gone" all_absent waydroid waydroid-nvidia
+gate "packages.md checked set gone" all_absent rom-properties ryzen_smu ryzenadj signon system76-driver system76-io tesseract-libs twitter-twemoji-fonts urw-base35-fonts vlc-libs zenergy
+gate "input-method frameworks gone" all_absent ibus fcitx5 fcitx5-configtool
+gate "base font packages swept" all_globs_absent 'default-fonts-*' 'google-noto-*fonts' 'liberation-*-fonts'
+gate "greetd + noctalia-greeter gone" all_absent greetd noctalia-greeter-git
+gate "Thunar suite gone" all_absent Thunar thunar-archive-plugin thunar-media-tags-plugin thunar-vcs-plugin thunar-volman
 gate "dnf still functional" dnf5 --version
 echo "::endgroup::"
 

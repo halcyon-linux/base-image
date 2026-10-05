@@ -1,5 +1,8 @@
 ---
 # yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
+# CLI tools from the personal cli-tools COPR, minus everything the bazzite
+# base already ships (bat, btop, cava, chafa, cliphist, dust, eza, fd-find,
+# fpaste, fzf, gnuplot, opencode, pandoc — all in packages.md).
 modules:
   - type: dnf
     repos:
@@ -11,26 +14,12 @@ modules:
       packages:
         - asdf
         - atuin
-        - bat
-        - bat-extras
-        - btop
         - bun
-        - cava
-        - chafa
-        - cliphist
         - direnv
-        - dust
-        - eza
-        - fd-find
-        - fpaste
-        - fzf
         - fzy
-        - gnuplot
         - kilo
         - lazygit
         - marksman
-        - opencode
-        - pandoc
         - pixi
         - ripgrep
         - starship

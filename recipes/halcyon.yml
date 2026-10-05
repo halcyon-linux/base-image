@@ -3,17 +3,23 @@
 # image will be published to ghcr.io/halcyon-linux/halcyon
 name: halcyon
 description: >-
-  Lean Hyprland gaming desktop forked from Bazzite (GNOME removed;
-  Hyprland + Noctalia; NVIDIA open drivers inherited; curated dev tooling).
-base-image: quay.io/fedora/fedora-bootc
-image-version: 44
+  Lean Hyprland gaming desktop on the Bazzite base (KDE Plasma removed;
+  Hyprland + Noctalia; NVIDIA open drivers inherited; native gaming stack;
+  curated dev tooling).
+base-image: ghcr.io/ublue-os/bazzite-nvidia-open
+image-version: latest
 platforms:
   - linux/amd64
 
 labels:
-  halcyon.base: "fedora-bootc"
+  halcyon.base: "bazzite-nvidia-open"
   halcyon.desktop: "hyprland-noctalia"
 
+# Module order is load-bearing: removals (KDE sweep + font sweep) must run
+# before every install so the curated set cannot be swept; desktop installs
+# the Hyprland stack the later modules depend on. The base ships kernel,
+# NVIDIA open drivers, firmware/mesa/audio, steam/lutris/gamescope, terra,
+# ublue-os-* and uupd — none of that is (re)installed here.
 modules:
   - type: signing
 
@@ -29,16 +35,9 @@ modules:
 
   - from-file: modules/removals.yml
 
-  - type: script
-    scripts:
-      - install-kernel.sh
-
   - from-file: modules/programming.yml
   - from-file: modules/core.yml
   - from-file: modules/gaming.yml
-  - from-file: modules/hardware.yml
-  - from-file: modules/ublue-pkgs.yml
-  - from-file: modules/terra.yml
   - from-file: modules/desktop.yml
   - from-file: modules/devtools.yml
   - from-file: modules/nix.yml
