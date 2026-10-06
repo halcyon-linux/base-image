@@ -58,7 +58,9 @@ cosign.pub                # CLI stages it to /etc/pki/containers before any modu
 .github/                  # workflows: build (PUBLISH_BRANCH=main gate, CLI pin
                           #   v0.9.37, cosign 2.6.5 legacy sign, COPR wait loop,
                           #   package census, ubuntu-24.04, docker.io zstd:chunked
-                          #   mirror push gated on the DOCKERHUB_* secrets), lint,
+                          #   mirror push (latest+date tags — docker.io re-uploads
+                          #   the full image per tag — gated on the DOCKERHUB_*
+                          #   secrets), lint,
                           #   clean, semantic-pr; renovate.json5 (digest-pins
                           #   everything, tracks the CLI pin, automerges pin PRs)
 AGENTS.md / README.md / TODO.md / LICENSE / .gitignore

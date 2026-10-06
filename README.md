@@ -30,9 +30,9 @@ Rebase an existing Fedora atomic system (bootc or rpm-ostree):
 sudo bootc switch ghcr.io/halcyon-linux/halcyon:latest
 ```
 
-If ghcr.io is slow from your network, the same tags are mirrored to
-Docker Hub (`docker.io/halcyonlinux/halcyon`, pushed by the same workflow in
-zstd:chunked form for smaller delta pulls):
+If ghcr.io is slow from your network, the `latest` and date tags are
+mirrored to Docker Hub (`docker.io/halcyonlinux/halcyon`, pushed by the
+same workflow in zstd:chunked form for smaller delta pulls):
 
 ```bash
 sudo bootc switch docker.io/halcyonlinux/halcyon:latest

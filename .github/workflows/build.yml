@@ -182,6 +182,10 @@ jobs:
           alias_tags="${TAGS[*]}"
           ok "tags: ${alias_tags}"
           echo "alias_tags=${alias_tags}" >> "${GITHUB_OUTPUT}"
+          # The docker.io mirror pushes only latest + date: every tag push
+          # there re-uploads the full ~5 GB instead of HEAD-skipping blobs,
+          # so the 7-tag set blew the 180-minute job budget.
+          echo "hub_tags=${DEFAULT_TAG} ${DATE}" >> "${GITHUB_OUTPUT}"
 
       - name: Tag image
         run: |
@@ -313,7 +317,7 @@ jobs:
           source .github/log-helpers.sh
           HUB_NS="${DOCKERHUB_USERNAME}"
           echo "::group::podman push ${HUB_NS}/${IMAGE_NAME} (Docker Hub mirror)"
-          for tag in ${{ steps.gen-build-tags.outputs.alias_tags }}; do
+          for tag in ${{ steps.gen-build-tags.outputs.hub_tags }}; do
             podman push --quiet --compression-format zstd:chunked --digestfile=/tmp/hub-digestfile \
               "${IMAGE_NAME}:${tag}" "docker.io/${HUB_NS}/${IMAGE_NAME}:${tag}"
             step "pushed docker.io/${HUB_NS}/${IMAGE_NAME}:${tag}"
@@ -325,8 +329,8 @@ jobs:
           echo "hub_digest=${HUB_DIGEST}" >> "${GITHUB_OUTPUT}"
           {
             echo ""
-            echo "Docker Hub mirror (zstd:chunked):"
-            for tag in ${{ steps.gen-build-tags.outputs.alias_tags }}; do
+            echo "Docker Hub mirror (zstd:chunked, latest + date):"
+            for tag in ${{ steps.gen-build-tags.outputs.hub_tags }}; do
               echo "- \`docker.io/${HUB_NS}/${IMAGE_NAME}:${tag}\`"
             done
           } >> "${GITHUB_STEP_SUMMARY}"
