@@ -46,7 +46,8 @@ sudo rpm-ostree rebase ostree-unverified-registry:ghcr.io/halcyon-linux/halcyon:
 
 Reboot to apply. The image ships its own sigstore policy and public key, so
 `bootc switch --enforce-container-sigpolicy` verifies the signature baked into
-the image (`cosign.pub` at the repo root) from the first update on. A
+the image (`cosign.pub` at the repo root) from the first update on — from
+either registry, both are trusted by the baked policy. A
 `rebase-to-custom` ujust recipe wraps the same flow.
 
 ## Verification

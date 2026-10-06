@@ -70,7 +70,9 @@ module; CI steps are inlined (no Justfile).
 
 ## 3. Module inventory (the _why_ per module, in recipe order)
 
-- `signing`: image signing.
+- `signing`: image signing; the following `quay-signing.sh` mirrors its
+  policy.json + registries.d scope to the quay.io mirror ref (same key,
+  same matchRepository rule — the module itself scopes to one repo only).
 - `files`: `system → /` first, so overlay files precede installs. A
   regular file at an RPM-owned path is silently overwritten by the RPM; a
   `%config(noreplace)` path KEEPS the overlaid file and the RPM's copy
@@ -297,7 +299,9 @@ module; CI steps are inlined (no Justfile).
   QUAY_USERNAME/QUAY_PASSWORD secrets (a quay.io robot account — free, no
   credit card) and its repo flipped to PUBLIC once in the web UI (quay
   auto-creates pushed repos as private); without the secrets the mirror
-  push is skipped with a warning, never a failure.
+  push is skipped with a warning, never a failure. The robot login's
+  namespace part must be `halcyon-linux` — the baked signature policy is
+  written against `quay.io/halcyon-linux/halcyon` exactly.
 - files/system/ still misses the wider-overlay extras: wallpaper/plymouth
   theme assets and etc/issue/motd.
 - No display manager (greetd + noctalia-greeter removed with the bazzite
