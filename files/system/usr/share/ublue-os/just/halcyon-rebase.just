@@ -1,15 +1,12 @@
 # vim: set ft=make :
 
 # Rebase the current system to the published halcyon image
-# (README: Install / rebase — unsigned first, signed tag after reboot).
-# registry= accepts the docker.io mirror (same tags, second push in
-# build.yml) when ghcr.io is slow:
-#   ujust rebase-to-custom latest docker.io/halcyonlinux/halcyon
+# (README: Install / rebase — unsigned first, signed tag after reboot)
 [group("system")]
-rebase-to-custom tag="latest" registry="ghcr.io/halcyon-linux/halcyon":
+rebase-to-custom tag="latest":
     #!/usr/bin/env bash
     set -euo pipefail
-    IMAGE="{{registry}}:{{tag}}"
+    IMAGE="ghcr.io/halcyon-linux/halcyon:{{tag}}"
     echo "Rebasing system to ${IMAGE}..."
     if command -v bootc >/dev/null 2>&1; then
         sudo bootc switch "${IMAGE}"
@@ -22,5 +19,5 @@ rebase-to-custom tag="latest" registry="ghcr.io/halcyon-linux/halcyon":
     echo "Rebase prepared successfully!"
     echo "Reboot into the new deployment:  systemctl reboot"
     echo "After reboot, switch to the signed tag (README: Install / rebase):"
-    echo "  sudo bootc switch --enforce-container-sigpolicy ostree-image-signed:docker://{{registry}}:{{tag}}"
+    echo "  sudo bootc switch --enforce-container-sigpolicy ostree-image-signed:docker://ghcr.io/halcyon-linux/halcyon:{{tag}}"
     echo "  (the image ships /etc/pki/containers/halcyon.pub + a sigstore policy entry — verification is enforced by policy.json)"

@@ -30,14 +30,6 @@ Rebase an existing Fedora atomic system (bootc or rpm-ostree):
 sudo bootc switch ghcr.io/halcyon-linux/halcyon:latest
 ```
 
-If ghcr.io is slow from your network, the `latest` and date tags are
-mirrored to Docker Hub (`docker.io/halcyonlinux/halcyon`, pushed by the
-same workflow in zstd:chunked form for smaller delta pulls):
-
-```bash
-sudo bootc switch docker.io/halcyonlinux/halcyon:latest
-```
-
 or, on an rpm-ostree system:
 
 ```bash
@@ -46,8 +38,7 @@ sudo rpm-ostree rebase ostree-unverified-registry:ghcr.io/halcyon-linux/halcyon:
 
 Reboot to apply. The image ships its own sigstore policy and public key, so
 `bootc switch --enforce-container-sigpolicy` verifies the signature baked into
-the image (`cosign.pub` at the repo root) from the first update on — from
-either registry, both are trusted by the baked policy. A
+the image (`cosign.pub` at the repo root) from the first update on. A
 `rebase-to-custom` ujust recipe wraps the same flow.
 
 ## Verification

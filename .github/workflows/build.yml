@@ -182,10 +182,6 @@ jobs:
           alias_tags="${TAGS[*]}"
           ok "tags: ${alias_tags}"
           echo "alias_tags=${alias_tags}" >> "${GITHUB_OUTPUT}"
-          # The docker.io mirror pushes only latest + date: every tag push
-          # there re-uploads the full ~5 GB instead of HEAD-skipping blobs,
-          # so the 7-tag set blew the 180-minute job budget.
-          echo "hub_tags=${DEFAULT_TAG} ${DATE}" >> "${GITHUB_OUTPUT}"
 
       - name: Tag image
         run: |
@@ -271,92 +267,6 @@ jobs:
           cosign verify --key cosign.pub --new-bundle-format=false \
             "${IMAGE_REGISTRY}/${IMAGE_NAME}@${DIGEST}"
           ok "signature verified where bootc looks for it"
-
-      - name: Docker Hub mirror enabled?
-        id: hub-config
-        if: steps.publish.outputs.publish == 'true'
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
-        run: |
-          source .github/log-helpers.sh
-          # Free mirror for slow-ghcr regions: Docker Hub Personal is free
-          # (email signup, no card), and — unlike ghcr.io — supports
-          # zstd:chunked, so clients can delta-pull once bootc's chunked
-          # pulls stabilize. Skipped (never failed) when the secrets are
-          # absent so the main publish path cannot break on their absence.
-          # Pull rate limits apply (100/6h per IP anonymous, 200/6h on the
-          # free plan) — fine for a personal machine, the reason this stays
-          # a mirror beside ghcr rather than replacing it.
-          if [ -n "${DOCKERHUB_USERNAME}" ] && [ -n "${DOCKERHUB_TOKEN}" ]; then
-            ok "Docker Hub mirror enabled (${DOCKERHUB_USERNAME})"
-            echo "enabled=true" >> "${GITHUB_OUTPUT}"
-          else
-            warn "DOCKERHUB_USERNAME/DOCKERHUB_TOKEN secrets not set — Docker Hub mirror skipped"
-            echo "enabled=false" >> "${GITHUB_OUTPUT}"
-          fi
-
-      - name: Login to Docker Hub
-        # docker/login-action writes ~/.docker/config.json — the file BOTH
-        # podman (fallback read) and cosign (only read) use — with the
-        # legacy https://index.docker.io/v1/ entry cosign requires for
-        # Docker Hub (sigstore/cosign#587).
-        if: steps.publish.outputs.publish == 'true' && steps.hub-config.outputs.enabled == 'true'
-        uses: docker/login-action@v4
-        with:
-          registry: docker.io
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Push to Docker Hub mirror (zstd:chunked)
-        id: push-hub
-        if: steps.publish.outputs.publish == 'true' && steps.hub-config.outputs.enabled == 'true'
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-        run: |
-          source .github/log-helpers.sh
-          HUB_NS="${DOCKERHUB_USERNAME}"
-          echo "::group::podman push ${HUB_NS}/${IMAGE_NAME} (Docker Hub mirror)"
-          for tag in ${{ steps.gen-build-tags.outputs.hub_tags }}; do
-            podman push --quiet --compression-format zstd:chunked --digestfile=/tmp/hub-digestfile \
-              "${IMAGE_NAME}:${tag}" "docker.io/${HUB_NS}/${IMAGE_NAME}:${tag}"
-            step "pushed docker.io/${HUB_NS}/${IMAGE_NAME}:${tag}"
-          done
-          echo "::endgroup::"
-          HUB_DIGEST="$(cat /tmp/hub-digestfile)"
-          ok "docker.io digest: ${HUB_DIGEST}"
-          echo "hub_namespace=${HUB_NS}" >> "${GITHUB_OUTPUT}"
-          echo "hub_digest=${HUB_DIGEST}" >> "${GITHUB_OUTPUT}"
-          {
-            echo ""
-            echo "Docker Hub mirror (zstd:chunked, latest + date):"
-            for tag in ${{ steps.gen-build-tags.outputs.hub_tags }}; do
-              echo "- \`docker.io/${HUB_NS}/${IMAGE_NAME}:${tag}\`"
-            done
-          } >> "${GITHUB_STEP_SUMMARY}"
-
-      - name: Sign + verify the Docker Hub mirror
-        if: steps.publish.outputs.publish == 'true' && steps.push-hub.outputs.hub_digest != ''
-        env:
-          COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
-          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD || '' }}
-          HUB_DIGEST: ${{ steps.push-hub.outputs.hub_digest }}
-          HUB_NAMESPACE: ${{ steps.push-hub.outputs.hub_namespace }}
-        run: |
-          source .github/log-helpers.sh
-          # Same legacy attachment scheme as the ghcr signature; the chunked
-          # push has its own manifest digest, so docker.io is signed
-          # separately. matchRepository in the baked policy ignores the
-          # registry part, so index.docker.io normalization is absorbed.
-          cosign sign --yes \
-            --new-bundle-format=false \
-            --use-signing-config=false \
-            --registry-referrers-mode=legacy \
-            --key env://COSIGN_PRIVATE_KEY \
-            "docker.io/${HUB_NAMESPACE}/${IMAGE_NAME}@${HUB_DIGEST}"
-          cosign verify --key cosign.pub --new-bundle-format=false \
-            "docker.io/${HUB_NAMESPACE}/${IMAGE_NAME}@${HUB_DIGEST}"
-          ok "Docker Hub mirror signed and verified (legacy attachment format)"
 
       - name: Done
         if: always()

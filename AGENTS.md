@@ -57,10 +57,7 @@ cosign.pub                # CLI stages it to /etc/pki/containers before any modu
 .containerignore          # keeps .github etc. out of the build context
 .github/                  # workflows: build (PUBLISH_BRANCH=main gate, CLI pin
                           #   v0.9.37, cosign 2.6.5 legacy sign, COPR wait loop,
-                          #   package census, ubuntu-24.04, docker.io zstd:chunked
-                          #   mirror push (latest+date tags — docker.io re-uploads
-                          #   the full image per tag — gated on the DOCKERHUB_*
-                          #   secrets), lint,
+                          #   package census, ubuntu-24.04), lint,
                           #   clean, semantic-pr; renovate.json5 (digest-pins
                           #   everything, tracks the CLI pin, automerges pin PRs)
 AGENTS.md / README.md / TODO.md / LICENSE / .gitignore
@@ -72,9 +69,7 @@ module; CI steps are inlined (no Justfile).
 
 ## 3. Module inventory (the _why_ per module, in recipe order)
 
-- `signing`: image signing; the following `mirror-signing.sh` mirrors its
-  policy.json + registries.d scope to the docker.io mirror ref (same key,
-  same matchRepository rule — the module itself scopes to one repo only).
+- `signing`: image signing.
 - `files`: `system → /` first, so overlay files precede installs. A
   regular file at an RPM-owned path is silently overwritten by the RPM; a
   `%config(noreplace)` path KEEPS the overlaid file and the RPM's copy
@@ -298,15 +293,7 @@ module; CI steps are inlined (no Justfile).
 - CI prerequisites (repo side done): the SIGNING_SECRET secret must hold
   the cosign private key matching cosign.pub, and the Renovate App must
   be installed — without them the publish-gated sign/verify steps fail on
-  the publish branch. The docker.io mirror additionally needs the
-  DOCKERHUB_USERNAME/DOCKERHUB_TOKEN secrets (a Docker Hub personal access
-  token — the free Personal plan is email signup, no credit card); without
-  the secrets the mirror push is skipped with a warning, never a failure.
-  Docker Hub auto-creates personal-account repos as PUBLIC, so no manual
-  repo step is needed (org namespaces may default private — pre-create the
-  repo as public there). The Docker ID must be `halcyonlinux` — Docker IDs
-  are lowercase letters/digits only, and the baked signature policy is
-  written against `docker.io/halcyonlinux/halcyon` exactly.
+  the publish branch.
 - files/system/ still misses the wider-overlay extras: wallpaper/plymouth
   theme assets and etc/issue/motd.
 - No display manager (greetd + noctalia-greeter removed with the bazzite

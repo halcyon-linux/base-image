@@ -20,14 +20,6 @@ labels:
 modules:
   - type: signing
 
-  # The signing module scopes policy.json + registries.d to the single ghcr
-  # ref; the docker.io mirror (build.yml, same key, its own digest) gets the
-  # same two entries here so the enforced rebase path works from either
-  # registry. Must run AFTER signing — the module rewrites policy.json.
-  - type: script
-    scripts:
-      - mirror-signing.sh
-
   - type: files
     files:
       - source: system
