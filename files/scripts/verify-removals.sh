@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# halcyon verify — removals: the base's KDE Plasma stack, the packages.md
-# checked set, nano and the input-method frameworks are really gone after the
-# dnf remove block + guarded-removals + fonts-cleanup. Runs BEFORE any module
-# installs, so there are deliberately no "keeper installed" gates here —
-# final-verify.sh owns the keeper set at end state. Mutates nothing.
+# halcyon verify — removals: the explicitly removed set is really gone after
+# the dnf remove block + guarded-removals + fonts-cleanup. Only names that
+# verifiably existed in the base before the sweep are asserted — nothing that
+# was never shipped is checked, and the base inventory file is not consulted
+# (the gate list mirrors the removals module, not the inventory). The media
+# stack must REMAIN (see the exclusion in erase-noscripts-on.sh). Mutates
+# nothing.
 set -uo pipefail
 
 echo "████ verify · removals ████"
@@ -29,15 +31,13 @@ all_absent() {
 
 echo "::group::verify-removals"
 gate "KDE Plasma stack gone" all_absent plasma-workspace plasma-desktop kwin konsole dolphin kate kwrite spectacle kscreenlocker ksshaskpass kwalletmanager5 polkit-kde powerdevil breeze-icon-theme plasma-login-manager steamdeck-kde-presets-desktop xdg-desktop-portal-kde
-gate "GNOME stack gone" all_absent gnome-shell gdm mutter gnome-session ptyxis gnome-control-center gnome-settings-daemon gjs xdg-desktop-portal-gnome
-gate "firefox + langpacks gone" all_absent firefox firefox-langpacks
 gate "nano gone" all_absent nano nano-default-editor
-gate "steam-deck leftovers gone" all_absent inputplumber steamos-manager-powerstation jupiter-fan-control jupiter-hw-support-btrfs galileo-mura steamdeck-dsp powerbuttond vpower sdgyrodsu steamdeck-backgrounds steamdeck-gnome-presets
-gate "waydroid gone" all_absent waydroid waydroid-nvidia
-gate "packages.md checked set gone" all_absent rom-properties ryzen_smu ryzenadj signon system76-driver system76-io twitter-twemoji-fonts urw-base35-fonts vlc-libs zenergy
+gate "waydroid-nvidia gone" all_absent waydroid-nvidia
+gate "explicit removals gone" all_absent rom-properties ryzen_smu ryzenadj signon system76-driver system76-io twitter-twemoji-fonts vlc-libs zenergy
 # tesseract-libs/-common/-langpack-eng/-tessdata-doc are exempt from that
 # gate: the protected ffmpeg (libavfilter) hard-requires libtesseract, so
 # the minimal tesseract closure stays with the media stack (user decision).
+# urw-base35-fonts stays too (kept by decision, no longer removed).
 gate "input-method frameworks gone" all_absent ibus fcitx5 fcitx5-configtool
 # Fonts pulled back in by later packages as deps are ACCEPTED (user decision)
 # — the sweep is best-effort, so there is deliberately no font-absence gate.
