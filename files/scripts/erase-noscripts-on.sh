@@ -31,7 +31,10 @@ cat > "$CONF" <<'EOF'
 # staged by erase-noscripts-on.sh for the removals stage; erased again by
 # erase-noscripts-off.sh — must never be active during install stages
 tsflags=noscripts
-excludepkgs=mesa-*,libglvnd*,gstreamer1*,pipewire*,wireplumber*,ffmpeg*,libav*,libva*,libvdpau*,x264*,x265*,dav1d*,svt-*,aom-libs*,intel-mediasdk*,intel-media*,onevpl*,vulkan-*,openh264*,gamescope*,mangohud*,lutris*,scx-*,umu-*
+# ffmpeg/libav use lookalike-proof globs: `ffmpeg*` also matches ffmpegthumbs
+# (explicitly removed — dnf5 refuses to remove an excluded name) and `libav*`
+# matches libavc1394 (firewire).
+excludepkgs=mesa-*,libglvnd*,gstreamer1*,pipewire*,wireplumber*,ffmpeg,ffmpeg-*,libavcodec*,libavdevice*,libavfilter*,libavformat*,libavutil*,libswresample*,libswscale*,libva*,libvdpau*,x264*,x265*,dav1d*,svt-*,aom-libs*,intel-mediasdk*,intel-media*,onevpl*,vulkan-*,openh264*,gamescope*,mangohud*,lutris*,scx-*,umu-*
 EOF
 
 if ! grep -q '^tsflags=noscripts$' "$CONF" || ! grep -q '^excludepkgs=.*mesa' "$CONF"; then

@@ -44,7 +44,7 @@ echo "::group::final-verify — gaming keeper set (final state)"
 gate "base gaming keepers" rpm -q scx-scheds scx-tools umu-launcher umu-wrapper bazaar bazzite-portal lutris terra-gamescope terra-mangohud input-remapper usbip uupd
 # media stack must remain (user decision) — end-state insurance for the
 # removals-stage protection
-gate "media stack kept" rpm -q mesa-libEGL libglvnd-egl gstreamer1-plugins-base ffmpeg-libs libavcodec
+gate "media stack kept" rpm -q mesa-libEGL libglvnd-egl gstreamer1-plugins-base ffmpeg-libs libavcodec tesseract-libs tesseract-common
 gate "steam installed" rpm -q steam
 gate "module gaming installs" rpm -q gamemode heroic-games-launcher
 gate "bazzite-steam wrapper" test -x /usr/bin/bazzite-steam

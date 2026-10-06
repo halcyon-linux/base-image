@@ -182,10 +182,10 @@ modules:
         - signon-ui
         - system76-driver
         - system76-io
-        - tesseract-common
+        # tesseract-libs/-common/-langpack-eng/-tessdata-doc stay: the
+        # protected ffmpeg (libavfilter) hard-requires libtesseract — the
+        # minimal closure of the media stack must remain with it
         - tesseract-devel
-        - tesseract-libs
-        - tesseract-tessdata-doc
         - tesseract-langpack-ces
         - tesseract-langpack-chi_sim
         - tesseract-langpack-chi_sim_vert
@@ -193,7 +193,6 @@ modules:
         - tesseract-langpack-chi_tra_vert
         - tesseract-langpack-deu
         - tesseract-langpack-ell
-        - tesseract-langpack-eng
         - tesseract-langpack-fra
         - tesseract-langpack-ita
         - tesseract-langpack-jpn

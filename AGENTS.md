@@ -197,8 +197,13 @@ the workflows (no Justfile).
   Plasma/KDE top-level package verified present in the base inventory
   (packages.md — dnf5 aborts the transaction on one absent name) PLUS the
   checked `[x]` set from packages.md (rom-properties*, ryzen_smu*, ryzenadj,
-  signon*, system76-*, tesseract*, twitter-twemoji-fonts, urw-base35-*,
-  vlc-*, xdg-desktop-portal-kde, zenergy*) → `guarded-removals.sh` (pass 1:
+  signon*, system76-*, most tesseract langpacks + tesseract-devel,
+  twitter-twemoji-fonts, urw-base35-*,
+  vlc-*, xdg-desktop-portal-kde, zenergy*) — EXCEPT the tesseract closure
+  (tesseract-libs/-common/-langpack-eng/-tessdata-doc), which stays because
+  the protected ffmpeg hard-requires libtesseract; exclusion globs are
+  lookalike-proof (`ffmpeg`/`ffmpeg-*`, never `ffmpeg*` — ffmpegthumbs is
+  removed and dnf5 refuses to remove an excluded name) → `guarded-removals.sh` (pass 1:
   tolerant only-if-present candidates — old GNOME stack, steamdeck variance,
   ibus/fcitx5 application packages; pass 2: reverse-dep-gated cores sddm/
   cage/ibus/ibus-libs/fcitx5/fcitx5-libs removed only when nothing installed

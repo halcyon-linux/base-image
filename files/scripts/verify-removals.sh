@@ -34,7 +34,10 @@ gate "firefox + langpacks gone" all_absent firefox firefox-langpacks
 gate "nano gone" all_absent nano nano-default-editor
 gate "steam-deck leftovers gone" all_absent inputplumber steamos-manager-powerstation jupiter-fan-control jupiter-hw-support-btrfs galileo-mura steamdeck-dsp powerbuttond vpower sdgyrodsu steamdeck-backgrounds steamdeck-gnome-presets
 gate "waydroid gone" all_absent waydroid waydroid-nvidia
-gate "packages.md checked set gone" all_absent rom-properties ryzen_smu ryzenadj signon system76-driver system76-io tesseract-libs twitter-twemoji-fonts urw-base35-fonts vlc-libs zenergy
+gate "packages.md checked set gone" all_absent rom-properties ryzen_smu ryzenadj signon system76-driver system76-io twitter-twemoji-fonts urw-base35-fonts vlc-libs zenergy
+# tesseract-libs/-common/-langpack-eng/-tessdata-doc are exempt from that
+# gate: the protected ffmpeg (libavfilter) hard-requires libtesseract, so
+# the minimal tesseract closure stays with the media stack (user decision).
 gate "input-method frameworks gone" all_absent ibus fcitx5 fcitx5-configtool
 # Fonts pulled back in by later packages as deps are ACCEPTED (user decision)
 # — the sweep is best-effort, so there is deliberately no font-absence gate.
