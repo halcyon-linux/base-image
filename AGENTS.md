@@ -301,9 +301,9 @@ module; CI steps are inlined (no Justfile).
   the secrets the mirror push is skipped with a warning, never a failure.
   Docker Hub auto-creates personal-account repos as PUBLIC, so no manual
   repo step is needed (org namespaces may default private — pre-create the
-  repo as public there). The username's namespace must be
-  `halcyon-linux` — the baked signature policy is written against
-  `docker.io/halcyon-linux/halcyon` exactly.
+  repo as public there). The Docker ID must be `halcyonlinux` — Docker IDs
+  are lowercase letters/digits only, and the baked signature policy is
+  written against `docker.io/halcyonlinux/halcyon` exactly.
 - files/system/ still misses the wider-overlay extras: wallpaper/plymouth
   theme assets and etc/issue/motd.
 - No display manager (greetd + noctalia-greeter removed with the bazzite

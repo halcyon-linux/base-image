@@ -14,7 +14,7 @@
 # part, so Docker Hub's index.docker.io normalization is absorbed.
 set -euo pipefail
 
-MIRROR_REF="docker.io/halcyon-linux/halcyon"
+MIRROR_REF="docker.io/halcyonlinux/halcyon"
 KEY="/etc/pki/containers/halcyon.pub"
 POLICY=/etc/containers/policy.json
 REG_D=/etc/containers/registries.d/docker-io-halcyon.yaml
