@@ -164,11 +164,10 @@ modules:
         - desktop-backgrounds-kde
         - f44-backgrounds-kde
         - fedora-chromium-config-kde
-        # --- packages.md checked set (user-marked removals) ---
         - rom-properties
         - rom-properties-common
         - rom-properties-kf6
-        - rom-properties-utils # drags tesseract (OCR) in as a dep
+        - rom-properties-utils
         - ryzen_smu
         - ryzen_smu-akmod-modules
         - ryzenadj
@@ -202,18 +201,18 @@ modules:
         - tesseract-langpack-spa
         - tesseract-langpack-tur
         - twitter-twemoji-fonts
-        - urw-base35-bookman-fonts
-        - urw-base35-c059-fonts
-        - urw-base35-d050000l-fonts
-        - urw-base35-fonts
-        - urw-base35-fonts-common
-        - urw-base35-gothic-fonts
-        - urw-base35-nimbus-mono-ps-fonts
-        - urw-base35-nimbus-roman-fonts
-        - urw-base35-nimbus-sans-fonts
-        - urw-base35-p052-fonts
-        - urw-base35-standard-symbols-ps-fonts
-        - urw-base35-z003-fonts
+        # - urw-base35-bookman-fonts
+        # - urw-base35-c059-fonts
+        # - urw-base35-d050000l-fonts
+        # - urw-base35-fonts
+        # - urw-base35-fonts-common
+        # - urw-base35-gothic-fonts
+        # - urw-base35-nimbus-mono-ps-fonts
+        # - urw-base35-nimbus-roman-fonts
+        # - urw-base35-nimbus-sans-fonts
+        # - urw-base35-p052-fonts
+        # - urw-base35-standard-symbols-ps-fonts
+        # - urw-base35-z003-fonts
         - vlc-libs
         - vlc-plugin-ffmpeg
         - vlc-plugin-gstreamer
