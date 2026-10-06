@@ -2,8 +2,9 @@
 
 # Rebase the current system to the published halcyon image
 # (README: Install / rebase — unsigned first, signed tag after reboot).
-# registry= accepts the quay.io mirror (same tags, second push in build.yml)
-# when ghcr.io is slow:  ujust rebase-to-custom latest quay.io/<user>/halcyon
+# registry= accepts the docker.io mirror (same tags, second push in
+# build.yml) when ghcr.io is slow:
+#   ujust rebase-to-custom latest docker.io/halcyon-linux/halcyon
 [group("system")]
 rebase-to-custom tag="latest" registry="ghcr.io/halcyon-linux/halcyon":
     #!/usr/bin/env bash

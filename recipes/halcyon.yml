@@ -21,12 +21,12 @@ modules:
   - type: signing
 
   # The signing module scopes policy.json + registries.d to the single ghcr
-  # ref; the quay.io mirror (build.yml, same key, its own digest) gets the
+  # ref; the docker.io mirror (build.yml, same key, its own digest) gets the
   # same two entries here so the enforced rebase path works from either
   # registry. Must run AFTER signing — the module rewrites policy.json.
   - type: script
     scripts:
-      - quay-signing.sh
+      - mirror-signing.sh
 
   - type: files
     files:

@@ -31,11 +31,11 @@ sudo bootc switch ghcr.io/halcyon-linux/halcyon:latest
 ```
 
 If ghcr.io is slow from your network, the same tags are mirrored to
-Quay.io (`quay.io/<quay-username>/halcyon`, pushed by the same workflow in
+Docker Hub (`docker.io/halcyon-linux/halcyon`, pushed by the same workflow in
 zstd:chunked form for smaller delta pulls):
 
 ```bash
-sudo bootc switch quay.io/<quay-username>/halcyon:latest
+sudo bootc switch docker.io/halcyon-linux/halcyon:latest
 ```
 
 or, on an rpm-ostree system:

@@ -268,89 +268,91 @@ jobs:
             "${IMAGE_REGISTRY}/${IMAGE_NAME}@${DIGEST}"
           ok "signature verified where bootc looks for it"
 
-      - name: Quay mirror enabled?
-        id: quay-config
+      - name: Docker Hub mirror enabled?
+        id: hub-config
         if: steps.publish.outputs.publish == 'true'
         env:
-          QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
-          QUAY_PASSWORD: ${{ secrets.QUAY_PASSWORD }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
           source .github/log-helpers.sh
-          # Free mirror for slow-ghcr regions: quay.io is free for public
-          # repos, needs no credit card, and — unlike ghcr.io — supports
+          # Free mirror for slow-ghcr regions: Docker Hub Personal is free
+          # (email signup, no card), and — unlike ghcr.io — supports
           # zstd:chunked, so clients can delta-pull once bootc's chunked
           # pulls stabilize. Skipped (never failed) when the secrets are
           # absent so the main publish path cannot break on their absence.
-          # quay.io auto-creates pushed repos as PRIVATE — the repo must be
-          # flipped to public once in the web UI or pulls need credentials.
-          if [ -n "${QUAY_USERNAME}" ] && [ -n "${QUAY_PASSWORD}" ]; then
-            ok "quay mirror enabled (robot ${QUAY_USERNAME})"
+          # Pull rate limits apply (100/6h per IP anonymous, 200/6h on the
+          # free plan) — fine for a personal machine, the reason this stays
+          # a mirror beside ghcr rather than replacing it.
+          if [ -n "${DOCKERHUB_USERNAME}" ] && [ -n "${DOCKERHUB_TOKEN}" ]; then
+            ok "Docker Hub mirror enabled (${DOCKERHUB_USERNAME})"
             echo "enabled=true" >> "${GITHUB_OUTPUT}"
           else
-            warn "QUAY_USERNAME/QUAY_PASSWORD secrets not set — quay.io mirror skipped"
+            warn "DOCKERHUB_USERNAME/DOCKERHUB_TOKEN secrets not set — Docker Hub mirror skipped"
             echo "enabled=false" >> "${GITHUB_OUTPUT}"
           fi
 
-      - name: Login to Quay.io
+      - name: Login to Docker Hub
         # docker/login-action writes ~/.docker/config.json — the file BOTH
-        # podman (fallback read) and cosign (only read) use. podman login
-        # writes podman's own authfile, which cosign never sees, so the
-        # signature push would 401 (sigstore/cosign#587).
-        if: steps.publish.outputs.publish == 'true' && steps.quay-config.outputs.enabled == 'true'
+        # podman (fallback read) and cosign (only read) use — with the
+        # legacy https://index.docker.io/v1/ entry cosign requires for
+        # Docker Hub (sigstore/cosign#587).
+        if: steps.publish.outputs.publish == 'true' && steps.hub-config.outputs.enabled == 'true'
         uses: docker/login-action@v4
         with:
-          registry: quay.io
-          username: ${{ secrets.QUAY_USERNAME }}
-          password: ${{ secrets.QUAY_PASSWORD }}
+          registry: docker.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Push to Quay.io mirror (zstd:chunked)
-        id: push-quay
-        if: steps.publish.outputs.publish == 'true' && steps.quay-config.outputs.enabled == 'true'
+      - name: Push to Docker Hub mirror (zstd:chunked)
+        id: push-hub
+        if: steps.publish.outputs.publish == 'true' && steps.hub-config.outputs.enabled == 'true'
         env:
-          QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         run: |
           source .github/log-helpers.sh
-          # robot accounts log in as user+robot; the repo namespace is the user part
-          QUAY_NS="${QUAY_USERNAME%%+*}"
-          echo "::group::podman push ${QUAY_NS}/${IMAGE_NAME} (quay.io mirror)"
+          HUB_NS="${DOCKERHUB_USERNAME}"
+          echo "::group::podman push ${HUB_NS}/${IMAGE_NAME} (Docker Hub mirror)"
           for tag in ${{ steps.gen-build-tags.outputs.alias_tags }}; do
-            podman push --quiet --compression-format zstd:chunked --digestfile=/tmp/quay-digestfile \
-              "${IMAGE_NAME}:${tag}" "quay.io/${QUAY_NS}/${IMAGE_NAME}:${tag}"
-            step "pushed quay.io/${QUAY_NS}/${IMAGE_NAME}:${tag}"
+            podman push --quiet --compression-format zstd:chunked --digestfile=/tmp/hub-digestfile \
+              "${IMAGE_NAME}:${tag}" "docker.io/${HUB_NS}/${IMAGE_NAME}:${tag}"
+            step "pushed docker.io/${HUB_NS}/${IMAGE_NAME}:${tag}"
           done
           echo "::endgroup::"
-          QUAY_DIGEST="$(cat /tmp/quay-digestfile)"
-          ok "quay digest: ${QUAY_DIGEST}"
-          echo "quay_namespace=${QUAY_NS}" >> "${GITHUB_OUTPUT}"
-          echo "quay_digest=${QUAY_DIGEST}" >> "${GITHUB_OUTPUT}"
+          HUB_DIGEST="$(cat /tmp/hub-digestfile)"
+          ok "docker.io digest: ${HUB_DIGEST}"
+          echo "hub_namespace=${HUB_NS}" >> "${GITHUB_OUTPUT}"
+          echo "hub_digest=${HUB_DIGEST}" >> "${GITHUB_OUTPUT}"
           {
             echo ""
-            echo "Quay.io mirror (zstd:chunked):"
+            echo "Docker Hub mirror (zstd:chunked):"
             for tag in ${{ steps.gen-build-tags.outputs.alias_tags }}; do
-              echo "- \`quay.io/${QUAY_NS}/${IMAGE_NAME}:${tag}\`"
+              echo "- \`docker.io/${HUB_NS}/${IMAGE_NAME}:${tag}\`"
             done
           } >> "${GITHUB_STEP_SUMMARY}"
 
-      - name: Sign + verify the Quay mirror
-        if: steps.publish.outputs.publish == 'true' && steps.push-quay.outputs.quay_digest != ''
+      - name: Sign + verify the Docker Hub mirror
+        if: steps.publish.outputs.publish == 'true' && steps.push-hub.outputs.hub_digest != ''
         env:
           COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
           COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD || '' }}
-          QUAY_DIGEST: ${{ steps.push-quay.outputs.quay_digest }}
-          QUAY_NAMESPACE: ${{ steps.push-quay.outputs.quay_namespace }}
+          HUB_DIGEST: ${{ steps.push-hub.outputs.hub_digest }}
+          HUB_NAMESPACE: ${{ steps.push-hub.outputs.hub_namespace }}
         run: |
           source .github/log-helpers.sh
           # Same legacy attachment scheme as the ghcr signature; the chunked
-          # push has its own manifest digest, so quay is signed separately.
+          # push has its own manifest digest, so docker.io is signed
+          # separately. matchRepository in the baked policy ignores the
+          # registry part, so index.docker.io normalization is absorbed.
           cosign sign --yes \
             --new-bundle-format=false \
             --use-signing-config=false \
             --registry-referrers-mode=legacy \
             --key env://COSIGN_PRIVATE_KEY \
-            "quay.io/${QUAY_NAMESPACE}/${IMAGE_NAME}@${QUAY_DIGEST}"
+            "docker.io/${HUB_NAMESPACE}/${IMAGE_NAME}@${HUB_DIGEST}"
           cosign verify --key cosign.pub --new-bundle-format=false \
-            "quay.io/${QUAY_NAMESPACE}/${IMAGE_NAME}@${QUAY_DIGEST}"
-          ok "quay mirror signed and verified (legacy attachment format)"
+            "docker.io/${HUB_NAMESPACE}/${IMAGE_NAME}@${HUB_DIGEST}"
+          ok "Docker Hub mirror signed and verified (legacy attachment format)"
 
       - name: Done
         if: always()
