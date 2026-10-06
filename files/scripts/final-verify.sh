@@ -81,6 +81,40 @@ gate "texlive installed" rpm -q texlive-bin texlive-basic
 gate "texlive tree + formats" test -s /etc/profile.d/texlive.sh && find /usr/lib/texlive/*/texmf-var/web2c -name 'pdflatex.fmt' 2>/dev/null | grep -q .
 echo "::endgroup::"
 
+echo "::group::final-verify — flatpaks"
+# Zero-flatpak end state: the module ships the boot-enforced remove list and
+# every bazzite flatpak service stays masked. The removals themselves run on
+# the booted system (system-flatpak-setup.timer) — not assertable here.
+FLATPAK_REMOVE_LIST=/usr/share/bluebuild/default-flatpaks/system/remove
+flatpak_remove_list_has_all() {
+  local id
+  for id in com.github.Matoking.protontricks com.github.tchx84.Flatseal \
+    com.obsproject.Studio.Plugin.GStreamerVaapi com.obsproject.Studio.Plugin.GStreamer \
+    com.obsproject.Studio.Plugin.OBSVkCapture com.vysp3r.ProtonPlus \
+    io.github.DenysMb.Kontainer io.github.flattool.Warehouse \
+    org.gnome.Firmware org.kde.gwenview org.kde.haruna org.kde.kcalc \
+    org.kde.okular org.mozilla.firefox org.freedesktop.Platform \
+    org.freedesktop.Platform.Compat.i386 org.freedesktop.Platform.GL.default \
+    org.freedesktop.Platform.GL32.default org.freedesktop.Platform.VulkanLayer.MangoHud \
+    org.freedesktop.Platform.VulkanLayer.OBSVkCapture org.freedesktop.Platform.VulkanLayer.vkBasalt \
+    org.freedesktop.Platform.codecs-extra org.gnome.Platform \
+    org.kde.KStyle.Adwaita org.kde.Platform; do
+    grep -Fxq "$id" "$FLATPAK_REMOVE_LIST" || return 1
+  done
+}
+gate "default-flatpaks remove list ships the full set" flatpak_remove_list_has_all
+gate "no flatpak repo forced (remote-add skipped at boot)" \
+  grep -q '"repo-url": "null"' /usr/share/bluebuild/default-flatpaks/system/repo-info.json
+gate "flatpak boot notifications disabled" grep -qx false /usr/share/bluebuild/default-flatpaks/notifications
+for unit in \
+  bazzite-flatpak-manager.service \
+  ublue-nvidia-flatpak-runtime-sync.service \
+  ublue-nvidia-flatpak-runtime-verify.service \
+  flatpak-add-fedora-repos.service; do
+  gate "$unit masked (bazzite flatpak integration)" test "$(systemctl is-enabled "$unit" 2>/dev/null)" = masked
+done
+echo "::endgroup::"
+
 echo "::group::final-verify — chezmoi"
 gate "chezmoi binary present" test -x /usr/bin/chezmoi
 gate "chezmoi not RPM-managed" sh -c '! rpm -q chezmoi'

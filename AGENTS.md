@@ -37,12 +37,13 @@ recipes/halcyon.yml       # THE build definition. Module order is load-bearing:
                           #   signing → files (system → /) → files (dnf-libdnf5 →
                           #   /etc/dnf) → removals → core → programming → fonts →
                           #   gaming → desktop → devtools → nix → texlive →
-                          #   apps → python-packages → chezmoi → ujust →
+                          #   apps → python-packages → flatpaks → chezmoi →
+                          #   ujust →
                           #   finish → final-verify →
                           #   bootc-lint (bootc-lint must stay last)
 recipes/modules/*.yml     # present: apps, chezmoi, core, desktop, devtools,
-                          #   gaming, nix, programming, python-packages,
-                          #   removals, texlive,
+                          #   flatpaks, gaming, nix, programming,
+                          #   python-packages, removals, texlive,
                           #   ujust (terra/ublue-pkgs/hardware were deleted —
                           #   the bazzite base provides all three payloads)
 packages.md               # rpm -qa of the base image; source of truth for
@@ -129,7 +130,7 @@ files/                    # mounted at /tmp/files in every module RUN; never bak
                                #   deliberately untouched) + /usr/etc sweep
                                #   (ublue-os-signing's policy.json) + hygiene
   scripts/final-verify.sh      # Stage 10 no-cache cross-cutting backstop
-  scripts/verify-<module>.sh   # per-module gates (12 files — one per module
+  scripts/verify-<module>.sh   # per-module gates (13 files — one per module
                                #   with a payload; wired as trailing script
                                #   blocks)
   scripts/lib/cleanup.sh       # end-of-module hygiene; every MUTATING stage
@@ -229,6 +230,30 @@ the workflows (no Justfile).
   browsers, VPNs, office apps. `zed` is a DELIBERATE install, not pulled by
   `emacs-pgtk` (verified against both COPR specs — emacs-pgtk has no
   zed-related dep at all).
+- `python-packages.yml`: halcyon's own Python helper tools (dump-to-markdown,
+  fconf, fe, ff, fkill, fp, fssh, rmi, rmtmp, screenshot, se) from COPR
+  `aahsnr-work/python-packages` (via `python-packages.repo`, priority=1 +
+  includepkgs, `cleanup: true`), wired right after apps.yml.
+- `flatpaks.yml`: the zero-flatpak policy via bluebuild's `default-flatpaks@v1`
+  module (pinned: v2 dropped remove support) — `system.remove` carries the
+  full 25-ID set from the bazzite flatpak list (14 apps + runtime/extension
+  refs). Bazzite does NOT bake flatpaks into the image — it ships them via
+  boot-time services (bazzite-flatpak-manager,
+  ublue-nvidia-flatpak-runtime-{sync,verify}, flatpak-add-fedora-repos — all
+  RPM-unowned, masked in ujust.yml), so the module is the single source of
+  flatpak truth and its remove list is enforced on every boot by
+  system-flatpak-setup.timer (covers rebasing machines whose
+  /var/lib/flatpak survives the rebase). No repo fields are set → the boot
+  script adds no remote, deletes the fedora flatpak remotes it finds and
+  leaves the base's disabled flathub untouched; the module's Flathub
+  build-time ID validation is skipped for the same reason, and `user: {}`
+  neutralizes the unconditional --global user timer (without user/repo-info.json
+  it errors on an empty repo name every boot). Upstream v1 matches its remove
+  list against installed APPS only — the runtime refs are declarations; a
+  rebased machine clears orphaned runtimes with `flatpak uninstall --unused`,
+  fresh installs never get any. `verify-flatpaks.sh` gates the shipped config
+  + the masks (build-time only — the removals themselves are not assertable
+  in a container).
 - `core.yml`: the utilities the base lacks (grim/slurp/swappy/imv/zathura,
   file-roller, zsh, brightnessctl, fail2ban/lynis/bleachbit, setroubleshoot…),
   wired right after removals.yml. Everything the old list carried that
@@ -334,7 +359,10 @@ the workflows (no Justfile).
   `uupd.timer`, `getty@tty2.service` (the login path until ly lands);
   `system.masked` = sddm/gdm/plasma-login-manager/bazzite-autologin/
   nvidia-persistenced/nvidia-powerd/systemd-oomd (oomd stays masked — this
-  is a gaming box; masking needs no unit file); `user.enabled` = pyprland
+  is a gaming box; masking needs no unit file) plus the flatpak quartet
+  bazzite-flatpak-manager/ublue-nvidia-flatpak-runtime-{sync,verify}/
+  flatpak-add-fedora-repos (RPM-unowned bazzite flatpak integration —
+  flatpaks.yml owns flatpak state); `user.enabled` = pyprland
   (`--global` → symlinks under `/etc/systemd/user/*.wants/`; the chezmoi
   units enable themselves --global in chezmoi.yml) → `script`
   `ujust-system.sh` (Stage 08): only what no module covers — the ujust
@@ -378,6 +406,8 @@ the workflows (no Justfile).
   broad `negativo|fedora-nvidia` pattern false-positived on the base's own
   negativo17 repos), identity files
   (os-release/image-info.json/texlive tree), grub timing, zsh default shell,
+  the flatpaks end state (shipped remove list + the masked bazzite flatpak
+  quartet — the removals run on the booted system, not in the build),
   chezmoi wiring, and the package census baked to
   `/usr/share/halcyon/package-count` (kernel + nvidia driver version).
 - `bootc-lint.yml`: `type: containerfile`, **`no-cache: true`**, hermetic

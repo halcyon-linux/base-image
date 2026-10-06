@@ -25,6 +25,16 @@ modules:
         # gaming box: oomd kills games prematurely or freezes the session —
         # keep it masked as on the previous build
         - systemd-oomd.service
+        # flatpak state is owned by default-flatpaks (flatpaks.yml): bazzite's
+        # manager re-enables flathub, re-applies flatpak overrides and sweeps
+        # per its own policy; the nvidia sync/verify pair installs NVIDIA
+        # flatpak GL runtimes and nags at boot; the ublue repos service
+        # re-adds the fedora flatpak remotes — none of it belongs on a
+        # zero-flatpak image
+        - bazzite-flatpak-manager.service
+        - ublue-nvidia-flatpak-runtime-sync.service
+        - ublue-nvidia-flatpak-runtime-verify.service
+        - flatpak-add-fedora-repos.service
     user:
       enabled:
         - pyprland.service
