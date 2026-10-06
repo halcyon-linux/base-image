@@ -238,7 +238,7 @@ jobs:
         if: steps.publish.outputs.publish == 'true'
         env:
           COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
-          COSIGN_PASSWORD: ""
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD || '' }}
           DIGEST: ${{ steps.push-image.outputs.digest }}
         run: |
           source .github/log-helpers.sh
@@ -268,8 +268,8 @@ jobs:
             "${IMAGE_REGISTRY}/${IMAGE_NAME}@${DIGEST}"
           ok "signature verified where bootc looks for it"
 
-      - name: Push to Quay.io mirror (zstd:chunked)
-        id: push-quay
+      - name: Quay mirror enabled?
+        id: quay-config
         if: steps.publish.outputs.publish == 'true'
         env:
           QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
@@ -283,13 +283,35 @@ jobs:
           # absent so the main publish path cannot break on their absence.
           # quay.io auto-creates pushed repos as PRIVATE — the repo must be
           # flipped to public once in the web UI or pulls need credentials.
-          if [ -z "${QUAY_USERNAME}" ] || [ -z "${QUAY_PASSWORD}" ]; then
+          if [ -n "${QUAY_USERNAME}" ] && [ -n "${QUAY_PASSWORD}" ]; then
+            ok "quay mirror enabled (robot ${QUAY_USERNAME})"
+            echo "enabled=true" >> "${GITHUB_OUTPUT}"
+          else
             warn "QUAY_USERNAME/QUAY_PASSWORD secrets not set — quay.io mirror skipped"
-            exit 0
+            echo "enabled=false" >> "${GITHUB_OUTPUT}"
           fi
+
+      - name: Login to Quay.io
+        # docker/login-action writes ~/.docker/config.json — the file BOTH
+        # podman (fallback read) and cosign (only read) use. podman login
+        # writes podman's own authfile, which cosign never sees, so the
+        # signature push would 401 (sigstore/cosign#587).
+        if: steps.publish.outputs.publish == 'true' && steps.quay-config.outputs.enabled == 'true'
+        uses: docker/login-action@v4
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_PASSWORD }}
+
+      - name: Push to Quay.io mirror (zstd:chunked)
+        id: push-quay
+        if: steps.publish.outputs.publish == 'true' && steps.quay-config.outputs.enabled == 'true'
+        env:
+          QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
+        run: |
+          source .github/log-helpers.sh
           # robot accounts log in as user+robot; the repo namespace is the user part
           QUAY_NS="${QUAY_USERNAME%%+*}"
-          echo "$QUAY_PASSWORD" | podman login -u "$QUAY_USERNAME" --password-stdin quay.io
           echo "::group::podman push ${QUAY_NS}/${IMAGE_NAME} (quay.io mirror)"
           for tag in ${{ steps.gen-build-tags.outputs.alias_tags }}; do
             podman push --quiet --compression-format zstd:chunked --digestfile=/tmp/quay-digestfile \
@@ -313,7 +335,7 @@ jobs:
         if: steps.publish.outputs.publish == 'true' && steps.push-quay.outputs.quay_digest != ''
         env:
           COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
-          COSIGN_PASSWORD: ""
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD || '' }}
           QUAY_DIGEST: ${{ steps.push-quay.outputs.quay_digest }}
           QUAY_NAMESPACE: ${{ steps.push-quay.outputs.quay_namespace }}
         run: |
