@@ -27,15 +27,6 @@ all_absent() {
   return 0
 }
 
-# Succeeds only when NO installed package matches any of the rpm globs.
-all_globs_absent() {
-  local g
-  for g in "$@"; do
-    rpm -qa "$g" 2>/dev/null | grep -q . && return 1
-  done
-  return 0
-}
-
 echo "::group::verify-removals"
 gate "KDE Plasma stack gone" all_absent plasma-workspace plasma-desktop kwin konsole dolphin kate kwrite spectacle kscreenlocker ksshaskpass kwalletmanager5 polkit-kde powerdevil breeze-icon-theme plasma-login-manager steamdeck-kde-presets-desktop xdg-desktop-portal-kde
 gate "GNOME stack gone" all_absent gnome-shell gdm mutter gnome-session ptyxis gnome-control-center gnome-settings-daemon gjs xdg-desktop-portal-gnome
@@ -45,7 +36,8 @@ gate "steam-deck leftovers gone" all_absent inputplumber steamos-manager-powerst
 gate "waydroid gone" all_absent waydroid waydroid-nvidia
 gate "packages.md checked set gone" all_absent rom-properties ryzen_smu ryzenadj signon system76-driver system76-io tesseract-libs twitter-twemoji-fonts urw-base35-fonts vlc-libs zenergy
 gate "input-method frameworks gone" all_absent ibus fcitx5 fcitx5-configtool
-gate "base font packages swept" all_globs_absent 'default-fonts-*' 'google-noto-*fonts' 'liberation-*-fonts'
+# Fonts pulled back in by later packages as deps are ACCEPTED (user decision)
+# — the sweep is best-effort, so there is deliberately no font-absence gate.
 gate "greetd + noctalia-greeter gone" all_absent greetd noctalia-greeter-git
 gate "Thunar suite gone" all_absent Thunar thunar-archive-plugin thunar-media-tags-plugin thunar-vcs-plugin thunar-volman
 gate "noscripts drop-in unstaged (install stages need %post)" test ! -e /etc/dnf/libdnf5.conf.d/99-halcyon-erase-noscripts.conf

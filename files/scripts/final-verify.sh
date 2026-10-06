@@ -59,16 +59,20 @@ gate "qt pinentry not resurrected" sh -c '! rpm -q pinentry-qt'
 gate "openssh clients present" rpm -q openssh-clients
 gate "retired desktop pieces absent" sh -c '! rpm -q kwin konsole dolphin greetd noctalia-greeter-git Thunar'
 gate "curated font set" rpm -q jetbrains-mono-fonts-all nerd-fonts-jetbrainsmono nerd-fonts-symbols-only google-noto-color-emoji-fonts
-gate "base font packages swept" sh -c '! rpm -qa "default-fonts-*" | grep -q .'
+# Fonts later packages pull back in as deps are ACCEPTED (user decision) —
+# no gate on the absence of base font packages; the curated set is what counts.
 gate "zsh is the default shell" grep -q 'SHELL=/bin/zsh' /etc/default/useradd
 gate "grub menu visible for 10s" sh -c 'grep -q "^GRUB_TIMEOUT=10$" /etc/default/grub && grep -q "^GRUB_TIMEOUT_STYLE=menu$" /etc/default/grub'
 echo "::endgroup::"
 
 echo "::group::final-verify — repo end state"
 # finalize.sh deletes only the repo files THIS recipe stages; the bazzite
-# base's own repo set (fedora, terra, rpmfusion, ublue) is deliberately kept.
-# This gate is the property that survives: no halcyon-staged repo file leaks.
-gate "no halcyon-staged repo files remain" sh -c '! ls /etc/yum.repos.d/ | grep -Eqi "copr|vscode|brave|negativo|fedora-nvidia|halcyon|base-pkgs|cli-tools|texlive-packages|applications|fonts.repo"'
+# base's own repo set (fedora, terra, negativo17, tailscale,
+# nvidia-container-toolkit) is deliberately kept. The gate anchors on the
+# STAGED FILENAMES — the old broad "negativo|fedora-nvidia|..." pattern
+# false-positived on the base's own negativo17 repos (first bazzite build,
+# 2026-10-06).
+gate "no halcyon-staged repo files remain" sh -c '! ls /etc/yum.repos.d/ | grep -Eq "^(_copr[:.]|brave-browser|applications\.repo|base-pkgs\.repo|cli-tools\.repo|fonts\.repo|texlive-packages\.repo|vscode\.repo|terra-gaming\.repo)"'
 # the removals-stage noscripts drop-in must never survive into the shipped image
 gate "no erase-noscripts drop-in remains" test ! -e /etc/dnf/libdnf5.conf.d/99-halcyon-erase-noscripts.conf
 echo "::endgroup::"

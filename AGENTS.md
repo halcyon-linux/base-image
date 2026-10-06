@@ -92,9 +92,13 @@ files/                    # mounted at /tmp/files in every module RUN; never bak
                                #   transaction when any erase scriptlet fails
                                #   (akonadi %postun killed a completed
                                #   413-package erase); file triggers unaffected
-  scripts/fonts-cleanup.sh     # reverse-dep-gated base font sweep (*fonts*
-                               #   glob; dejavu-sans comes back as a noctalia
-                               #   hard dep, curated set installs in fonts.yml)
+  scripts/fonts-cleanup.sh     # base font sweep: dnf pass to a fixpoint
+                               #   first (removing a requirer frees its deps
+                               #   for the next pass), then reverse-dep-gated
+                               #   rpm -e mop-up (*fonts* glob; dejavu-sans
+                               #   comes back as a noctalia hard dep, curated
+                               #   set installs in fonts.yml; fonts later
+                               #   packages pull back as deps are accepted)
   scripts/grub-config.sh       # key-preserving /etc/default/grub update:
                                #   GRUB_TIMEOUT=10 + GRUB_TIMEOUT_STYLE=menu
   scripts/texlive-formats.sh   # bakes updmap maps + fmtutil formats after the
@@ -175,10 +179,12 @@ the workflows (no Justfile).
   ibus/fcitx5 application packages; pass 2: reverse-dep-gated cores sddm/
   cage/ibus/ibus-libs/fcitx5/fcitx5-libs removed only when nothing installed
   requires them; must-be-gone hard-fail loop) → `fonts-cleanup.sh`
-  (reverse-dep-gated sweep of EVERY `*fonts*` package; keep-regex protects
-  fontconfig/fonts-filesystem/fontpackages/dejavu-sans{,-mono}; the curated
-  set installs in core.yml, and dejavu-sans-fonts returns as a hard dep of
-  noctalia-git) → `verify-removals.sh`. Never pattern-match keepers:
+  (fonts go via dnf FIRST — pass loops to a fixpoint so removing a requirer
+  frees its deps for the next pass — then a reverse-dep-gated `rpm -e`
+  mop-up; keep-regex protects fontconfig/fonts-filesystem/fontpackages/
+  dejavu-sans{,-mono}; the curated set installs in fonts.yml; fonts that
+  later packages pull back in as deps are ACCEPTED and NOT gated — user
+  decision 2026-10-06) → `verify-removals.sh`. Never pattern-match keepers:
   kernel*/kmod-* (base kernel + NVIDIA akmods + gaming kmods), kbd*,
   kpartx (multipath), kvazaar-libs (codec). Keepers are NOT gated here —
   nothing is installed yet this early; `final-verify.sh` owns the keeper set
@@ -321,8 +327,9 @@ the workflows (no Justfile).
   `GRUB_TIMEOUT_STYLE=menu` in /etc/default/grub (the base hides the menu
   with ~1s; fresh installs read it at grub.cfg generation, deployed machines
   use the shipped `ujust regenerate-grub`). `finalize.sh` sweeps ONLY the
-  repo files this recipe stages (the base's terra/rpmfusion/ublue repos are
-  deliberately untouched — deleting them breaks the base's update path) and
+  repo files this recipe stages (the base's own repo set — fedora, terra,
+  negativo17, tailscale, nvidia-container-toolkit — is
+  deliberately untouched: deleting them breaks the base's update path) and
   runs the end-of-build hygiene (keepcache=0, log//boot/cache wipes, the
   /usr/etc sweep that keeps the bootc etc-usretc lint green). No `initramfs`
   module anymore: the base ships a valid initrd for its kernel and this
@@ -332,9 +339,12 @@ the workflows (no Justfile).
   — the end-state backstop: bazzite kernel + kmod-nvidia gates (incl. the
   modinfo-vs-rpm version match and `kernel-p03` absent), gaming + desktop
   keeper sets (incl. heroic-games-launcher/gamemode, nautilus/file-roller,
-  pinentry-gnome3 wiring (and pinentry-qt absent), curated fonts, no
-  `default-fonts-*`), the
-  no-halcyon-staged-repos gate, identity files
+  pinentry-gnome3 wiring (and pinentry-qt absent), curated fonts — with NO
+  gate on base font packages, which later installs may legitimately pull
+  back as deps), the
+  no-halcyon-staged-repos gate (anchored on the staged FILENAMES — the old
+  broad `negativo|fedora-nvidia` pattern false-positived on the base's own
+  negativo17 repos), identity files
   (os-release/image-info.json/texlive tree), grub timing, zsh default shell,
   chezmoi wiring, and the package census baked to
   `/usr/share/halcyon/package-count` (kernel + nvidia driver version).

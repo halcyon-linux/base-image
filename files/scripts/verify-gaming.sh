@@ -25,6 +25,7 @@ gate "module installs" rpm -q gamemode heroic-games-launcher
 gate "steam binary" test -x /usr/bin/steam
 gate "bazzite-steam wrapper present" test -x /usr/bin/bazzite-steam
 gate "steam.desktop launched via bazzite-steam" grep -q "bazzite-steam" /usr/share/applications/steam.desktop
+gate "terra-gaming repo cleaned" test ! -e /etc/yum.repos.d/terra-gaming.repo
 echo "::endgroup::"
 
 [ "$fail" = 0 ] || {

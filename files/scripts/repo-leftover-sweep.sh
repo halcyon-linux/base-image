@@ -18,6 +18,7 @@ leftovers=(
   /etc/yum.repos.d/base-pkgs.repo
   /etc/yum.repos.d/cli-tools.repo
   /etc/yum.repos.d/fonts.repo
+  /etc/yum.repos.d/terra-gaming.repo
   /etc/yum.repos.d/texlive-packages.repo
   /etc/yum.repos.d/vscode.repo
   /etc/yum.repos.d/brave-browser*.repo
