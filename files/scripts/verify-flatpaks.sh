@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # halcyon verify — flatpaks: the default-flatpaks state is shipped in the
-# image and bazzite's own flatpak integration is fully masked. The flatpak
-# removals themselves are enforced on the BOOTED system by
+# image. The flatpak removals themselves are enforced on the BOOTED system by
 # system-flatpak-setup.timer — a build container cannot assert
 # /var/lib/flatpak end state, so these gates check the image-shipped
-# configuration instead. Mutates nothing.
+# configuration instead. The bazzite-service MASKS are NOT gated here: they
+# are created by the ujust systemd module later in the build, so
+# final-verify.sh owns them at end state. Mutates nothing.
 set -uo pipefail
 
 echo "████ verify · flatpaks ████"
@@ -50,11 +51,6 @@ remove_list_has_all() {
   done
 }
 
-# bazzite's flatpak machinery must never run (flatpaks.yml owns the state).
-mask_unit() {
-  test "$(readlink "/etc/systemd/system/$1")" = /dev/null
-}
-
 echo "::group::verify-flatpaks"
 gate "default-flatpaks remove list exists" test -f "$REMOVE_LIST"
 gate "remove list carries the full set" remove_list_has_all "${FLATPAK_IDS[@]}"
@@ -66,13 +62,9 @@ gate "boot notifications disabled" grep -qx false /usr/share/bluebuild/default-f
 gate "system-flatpak-setup.timer enabled" systemctl is-enabled system-flatpak-setup.timer
 gate "user-flatpak-setup.timer enabled (--global)" \
   systemctl --global is-enabled user-flatpak-setup.timer
-for unit in \
-  bazzite-flatpak-manager.service \
-  ublue-nvidia-flatpak-runtime-sync.service \
-  ublue-nvidia-flatpak-runtime-verify.service \
-  flatpak-add-fedora-repos.service; do
-  gate "$unit masked" mask_unit "$unit"
-done
+# The four bazzite flatpak-service masks are end-state checks — the ujust
+# systemd module creates them AFTER this module runs; final-verify.sh gates
+# them.
 echo "::endgroup::"
 
 [ "$fail" = 0 ] || {

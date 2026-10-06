@@ -182,8 +182,9 @@ module; CI steps are inlined (no Justfile).
   remove list against installed APPS only — the runtime refs are
   declarations; a rebased machine clears orphaned runtimes with
   `flatpak uninstall --unused`, fresh installs never get any.
-  verify-flatpaks.sh gates the shipped config + the masks (build-time
-  only — the removals themselves are not assertable in a container).
+  verify-flatpaks.sh gates the shipped config; the masks are ujust-stage
+  state, so final-verify.sh gates them at end state (the removals
+  themselves are not assertable in a container).
 - `chezmoi.yml`: the official blue-build chezmoi module — writes
   chezmoi-init.service + chezmoi-update.{service,timer} and enables them
   --global; repository aahsnr-configs/dotfiles (public HTTPS — no keys
