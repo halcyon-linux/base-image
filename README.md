@@ -41,6 +41,28 @@ Reboot to apply. The image ships its own sigstore policy and public key, so
 the image (`cosign.pub` at the repo root) from the first update on. A
 `rebase-to-custom` ujust recipe wraps the same flow.
 
+## Updating
+
+The image is rebuilt on every push to `main` plus a daily schedule (see
+`.github/workflows/build.yml`) and published to
+`ghcr.io/halcyon-linux/halcyon:latest`. Once you are booted into halcyon,
+updates are automatic: the image ships `uupd` with its timer enabled, which
+stages a new deployment in the background whenever a newer image is
+published and prompts you to reboot.
+
+To update manually:
+
+```bash
+sudo bootc upgrade          # fetch + stage the new deployment (alias: bootc update)
+sudo systemctl reboot       # boot into it
+```
+
+or let bootc do both: `sudo bootc upgrade --apply`. Only the changed layers
+are downloaded, and every update is signature-verified by the baked
+`policy.json` — no extra flags needed. `bootc status` shows the running and
+staged deployments. On a machine that was rebased from rpm-ostree, the
+equivalent is `rpm-ostree upgrade` followed by a reboot.
+
 ## Verification
 
 Images are signed with [cosign](https://github.com/sigstore/cosign) in the
