@@ -57,9 +57,10 @@ cosign.pub                # CLI stages it to /etc/pki/containers before any modu
 .containerignore          # keeps .github etc. out of the build context
 .github/                  # workflows: build (PUBLISH_BRANCH=main gate, CLI pin
                           #   v0.9.37, cosign 2.6.5 legacy sign, COPR wait loop,
-                          #   package census, ubuntu-24.04), lint, clean,
-                          #   semantic-pr; renovate.json5 (digest-pins everything,
-                          #   tracks the CLI pin, automerges pin PRs)
+                          #   package census, ubuntu-24.04, quay.io zstd:chunked
+                          #   mirror push gated on the QUAY_* secrets), lint,
+                          #   clean, semantic-pr; renovate.json5 (digest-pins
+                          #   everything, tracks the CLI pin, automerges pin PRs)
 AGENTS.md / README.md / TODO.md / LICENSE / .gitignore
 ```
 
@@ -292,7 +293,11 @@ module; CI steps are inlined (no Justfile).
 - CI prerequisites (repo side done): the SIGNING_SECRET secret must hold
   the cosign private key matching cosign.pub, and the Renovate App must
   be installed — without them the publish-gated sign/verify steps fail on
-  the publish branch.
+  the publish branch. The quay.io mirror additionally needs the
+  QUAY_USERNAME/QUAY_PASSWORD secrets (a quay.io robot account — free, no
+  credit card) and its repo flipped to PUBLIC once in the web UI (quay
+  auto-creates pushed repos as private); without the secrets the mirror
+  push is skipped with a warning, never a failure.
 - files/system/ still misses the wider-overlay extras: wallpaper/plymouth
   theme assets and etc/issue/motd.
 - No display manager (greetd + noctalia-greeter removed with the bazzite

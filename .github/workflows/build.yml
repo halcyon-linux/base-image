@@ -268,6 +268,68 @@ jobs:
             "${IMAGE_REGISTRY}/${IMAGE_NAME}@${DIGEST}"
           ok "signature verified where bootc looks for it"
 
+      - name: Push to Quay.io mirror (zstd:chunked)
+        id: push-quay
+        if: steps.publish.outputs.publish == 'true'
+        env:
+          QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
+          QUAY_PASSWORD: ${{ secrets.QUAY_PASSWORD }}
+        run: |
+          source .github/log-helpers.sh
+          # Free mirror for slow-ghcr regions: quay.io is free for public
+          # repos, needs no credit card, and — unlike ghcr.io — supports
+          # zstd:chunked, so clients can delta-pull once bootc's chunked
+          # pulls stabilize. Skipped (never failed) when the secrets are
+          # absent so the main publish path cannot break on their absence.
+          # quay.io auto-creates pushed repos as PRIVATE — the repo must be
+          # flipped to public once in the web UI or pulls need credentials.
+          if [ -z "${QUAY_USERNAME}" ] || [ -z "${QUAY_PASSWORD}" ]; then
+            warn "QUAY_USERNAME/QUAY_PASSWORD secrets not set — quay.io mirror skipped"
+            exit 0
+          fi
+          # robot accounts log in as user+robot; the repo namespace is the user part
+          QUAY_NS="${QUAY_USERNAME%%+*}"
+          echo "$QUAY_PASSWORD" | podman login -u "$QUAY_USERNAME" --password-stdin quay.io
+          echo "::group::podman push ${QUAY_NS}/${IMAGE_NAME} (quay.io mirror)"
+          for tag in ${{ steps.gen-build-tags.outputs.alias_tags }}; do
+            podman push --quiet --compression-format zstd:chunked --digestfile=/tmp/quay-digestfile \
+              "${IMAGE_NAME}:${tag}" "quay.io/${QUAY_NS}/${IMAGE_NAME}:${tag}"
+            step "pushed quay.io/${QUAY_NS}/${IMAGE_NAME}:${tag}"
+          done
+          echo "::endgroup::"
+          QUAY_DIGEST="$(cat /tmp/quay-digestfile)"
+          ok "quay digest: ${QUAY_DIGEST}"
+          echo "quay_namespace=${QUAY_NS}" >> "${GITHUB_OUTPUT}"
+          echo "quay_digest=${QUAY_DIGEST}" >> "${GITHUB_OUTPUT}"
+          {
+            echo ""
+            echo "Quay.io mirror (zstd:chunked):"
+            for tag in ${{ steps.gen-build-tags.outputs.alias_tags }}; do
+              echo "- \`quay.io/${QUAY_NS}/${IMAGE_NAME}:${tag}\`"
+            done
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Sign + verify the Quay mirror
+        if: steps.publish.outputs.publish == 'true' && steps.push-quay.outputs.quay_digest != ''
+        env:
+          COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
+          COSIGN_PASSWORD: ""
+          QUAY_DIGEST: ${{ steps.push-quay.outputs.quay_digest }}
+          QUAY_NAMESPACE: ${{ steps.push-quay.outputs.quay_namespace }}
+        run: |
+          source .github/log-helpers.sh
+          # Same legacy attachment scheme as the ghcr signature; the chunked
+          # push has its own manifest digest, so quay is signed separately.
+          cosign sign --yes \
+            --new-bundle-format=false \
+            --use-signing-config=false \
+            --registry-referrers-mode=legacy \
+            --key env://COSIGN_PRIVATE_KEY \
+            "quay.io/${QUAY_NAMESPACE}/${IMAGE_NAME}@${QUAY_DIGEST}"
+          cosign verify --key cosign.pub --new-bundle-format=false \
+            "quay.io/${QUAY_NAMESPACE}/${IMAGE_NAME}@${QUAY_DIGEST}"
+          ok "quay mirror signed and verified (legacy attachment format)"
+
       - name: Done
         if: always()
         env:
