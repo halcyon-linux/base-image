@@ -19,6 +19,14 @@
 # maintenance (ldconfig, glib schemas) is unaffected; the drop-in is removed
 # before the first install stage.
 modules:
+  # The base's terra-release-mesa masks Fedora mesa with a global dnf
+  # excludepkgs; terra's mesa is neither installed nor installable here, so
+  # the exclusion only blocks core's GL-stack reinstall. Strip it before any
+  # transaction runs.
+  - type: script
+    scripts:
+      - strip-mesa-exclusion.sh
+
   - type: script
     scripts:
       - erase-noscripts-on.sh
