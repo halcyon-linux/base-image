@@ -19,13 +19,20 @@
 # maintenance (ldconfig, glib schemas) is unaffected; the drop-in is removed
 # before the first install stage.
 modules:
-  # The base's terra-release-mesa masks Fedora mesa with a global dnf
-  # excludepkgs; terra's mesa is neither installed nor installable here, so
-  # the exclusion only blocks core's GL-stack reinstall. Strip it before any
-  # transaction runs.
+  # Bazzite's own build writes exclude=mesa-* into the fedora repo files
+  # (protecting its negativo/terra mesa from Fedora's). The media stack stays
+  # installed here (see protect-media-stack.sh) and any mesa INSTALL (e.g. an
+  # i686 variant) must remain possible — strip the mesa tokens first.
   - type: script
     scripts:
       - strip-mesa-exclusion.sh
+
+  # Mark the whole gaming/media library stack user-installed BEFORE the
+  # cascade runs: auto-remove only takes dependency-reasoned orphans, so the
+  # stack survives the KDE sweep intact (user decision: it must remain).
+  - type: script
+    scripts:
+      - protect-media-stack.sh
 
   - type: script
     scripts:

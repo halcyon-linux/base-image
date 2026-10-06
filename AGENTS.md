@@ -84,12 +84,18 @@ files/                    # mounted at /tmp/files in every module RUN; never bak
   dnf-libdnf5/libdnf5.conf.d/99-halcyon-retries.conf  # → /etc/dnf (retries=20)
   scripts/ujust-system.sh      # Stage 08: ujust gates + base steam wiring
                                #   no-op gates + ujust/system verify tail
-  scripts/strip-mesa-exclusion.sh  # strips terra-release-mesa's global dnf
-                               #   excludepkgs for mesa from the base config —
-                               #   terra's mesa is neither installed nor
-                               #   installable here, and core must reinstall
-                               #   the GL stack (mesa-libEGL/libglvnd-egl)
-                               #   from fedora after the removals cascade
+  scripts/strip-mesa-exclusion.sh  # strips the mesa TOKENS from the exclude=
+                               #   lines bazzite's own build wrote into the
+                               #   fedora repo files (kernel/steam tokens
+                               #   stay); any mesa INSTALL (i686) must remain
+                               #   possible
+  scripts/protect-media-stack.sh  # dnf5 mark user over the gaming/media
+                               #   globs (mesa/libglvnd/gstreamer/pipewire/
+                               #   ffmpeg-libav/libva/codecs/steam/lutris/…)
+                               #   BEFORE the cascade — auto-remove only
+                               #   takes dependency-reasoned orphans, so the
+                               #   stack survives the KDE sweep (user
+                               #   decision: it must remain)
   scripts/guarded-removals.sh  # compose-variance sweep (two passes: blind
                                #   candidates, then reverse-dep-gated cores:
                                #   sddm/cage/ibus/fcitx5) + must-be-gone gates
@@ -166,10 +172,15 @@ the workflows (no Justfile).
   overlaid file and the RPM's copy lands as `.rpmnew` — verified 2026-09-30
   against `greetd` on `fedora-bootc:44`. `dnf-libdnf5 → /etc/dnf` second.
 - `removals.yml`: the bazzite de-Plasmaing. Opens with `strip-mesa-exclusion.sh`
-  (the base's terra-release-mesa masks Fedora mesa via a global dnf
-  `excludepkgs`; terra's mesa is neither installed nor installable in this
-  image — terra repos ship disabled — so the exclusion only blocks core's
-  GL-stack reinstall and gets stripped). The rest of the stage runs under a
+  (bazzite's own build wrote `exclude=mesa-* …` lines into the fedora repo
+  files to protect its negativo/terra mesa; the mesa TOKENS are stripped so
+  any mesa install stays possible while bazzite's kernel/steam protection
+  remains) and `protect-media-stack.sh` (`dnf5 mark user` over the whole
+  gaming/media glob set — mesa/libglvnd/gstreamer/pipewire/ffmpeg-libav/
+  libva/codecs/steam/lutris/… — BEFORE the cascade: auto-remove only takes
+  dependency-reasoned orphans, and the user decision is that the stack must
+  remain; verify-removals and final-verify gate the canaries). The rest of
+  the stage runs under a
   staged `tsflags=noscripts` drop-in (`erase-noscripts-on.sh` first,
   `erase-noscripts-off.sh` before the verify gate): rpm records ANY scriptlet
   failure — even "non-critical" `%postun` — in a transaction-global flag and
@@ -403,11 +414,14 @@ the workflows (no Justfile).
   terra + rpmfusion repo files DISABLED — any Terra/RPM Fusion payload
   needs a scoped `.repo` file staged in the consuming module
   (see terra-gaming.repo), never a bare package name.
-- The base can also carry dnf `excludepkgs` config that fights the build
-  (terra-release-mesa masks Fedora mesa globally). `strip-mesa-exclusion.sh`
-  strips mesa exclusions at the start of the removals stage — check for new
+- The base can also carry dnf `exclude` config that fights the build
+  (bazzite's own build writes `exclude=mesa-* …` into the fedora repo files
+  via config-manager setopt). `strip-mesa-exclusion.sh` strips mesa tokens
+  from those values at the start of the removals stage — check for new
   exclusions whenever the `:latest` base moves and a transaction starts
-  failing with "filtered out by exclude filtering".
+  failing with "filtered out by exclude filtering". And the auto-remove
+  cascade eats dependency-reasoned orphans: anything the image must KEEP
+  (gaming/media stack) gets `dnf5 mark user` first (protect-media-stack.sh).
 - Declarative first: do with bluebuild modules (`files`, `dnf`, `systemd`)
   whatever a module can express; the `script` module is only for what no
   module covers (verify gates, key-preserving file edits like grub-config).

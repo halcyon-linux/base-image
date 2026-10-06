@@ -38,6 +38,10 @@ gate "packages.md checked set gone" all_absent rom-properties ryzen_smu ryzenadj
 gate "input-method frameworks gone" all_absent ibus fcitx5 fcitx5-configtool
 # Fonts pulled back in by later packages as deps are ACCEPTED (user decision)
 # — the sweep is best-effort, so there is deliberately no font-absence gate.
+# The gaming/media stack is the opposite: it must REMAIN (user decision) —
+# protect-media-stack.sh marks it user-installed so the cascade cannot take
+# it; these are the canaries the broken runs actually lost.
+gate "media stack kept" rpm -q mesa-libEGL libglvnd-egl mesa-libGL gstreamer1-plugins-base gstreamer1-plugins-good ffmpeg-libs libavcodec pipewire-libs
 gate "greetd + noctalia-greeter gone" all_absent greetd noctalia-greeter-git
 gate "Thunar suite gone" all_absent Thunar thunar-archive-plugin thunar-media-tags-plugin thunar-vcs-plugin thunar-volman
 gate "noscripts drop-in unstaged (install stages need %post)" test ! -e /etc/dnf/libdnf5.conf.d/99-halcyon-erase-noscripts.conf
