@@ -7,15 +7,8 @@ set -uo pipefail
 
 echo "████ verify · fonts ████"
 
-fail=0
-gate() {
-  local desc="$1"
-  shift
-  if "$@" >/dev/null 2>&1; then echo "  PASS  $desc"; else
-    echo "  FAIL  $desc"
-    fail=1
-  fi
-}
+# shellcheck source=files/scripts/lib/verify.sh
+source /tmp/files/scripts/lib/verify.sh
 
 echo "::group::verify-fonts"
 gate "curated font set" rpm -q google-noto-color-emoji-fonts jetbrains-mono-fonts-all nerd-fonts-jetbrainsmono nerd-fonts-symbols-only nerd-fonts-ubuntu nerd-fonts-ubuntu-mono

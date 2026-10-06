@@ -10,15 +10,8 @@ set -uo pipefail
 
 echo "████ verify · removals ████"
 
-fail=0
-gate() {
-  local desc="$1"
-  shift
-  if "$@" >/dev/null 2>&1; then echo "  PASS  $desc"; else
-    echo "  FAIL  $desc"
-    fail=1
-  fi
-}
+# shellcheck source=files/scripts/lib/verify.sh
+source /tmp/files/scripts/lib/verify.sh
 
 # Succeeds only when EVERY named package is absent.
 all_absent() {

@@ -56,7 +56,7 @@ jobs:
             echo "publish=false" >> "${GITHUB_OUTPUT}"
           fi
 
-      - name: Wait for consumed COPR metadata (5 repos)
+      - name: Wait for consumed COPR metadata (6 repos)
         run: |
           source .github/log-helpers.sh
           # COPR's CDN serves 504s right after a build; every repo the recipe
@@ -68,6 +68,7 @@ jobs:
             "https://download.copr.fedorainfracloud.org/results/aahsnr-work/base-pkgs/fedora-44-x86_64/repodata/repomd.xml"
             "https://download.copr.fedorainfracloud.org/results/aahsnr-work/cli-tools/fedora-44-x86_64/repodata/repomd.xml"
             "https://download.copr.fedorainfracloud.org/results/aahsnr-work/fonts/fedora-44-x86_64/repodata/repomd.xml"
+            "https://download.copr.fedorainfracloud.org/results/aahsnr-work/python-packages/fedora-44-x86_64/repodata/repomd.xml"
             "https://download.copr.fedorainfracloud.org/results/aahsnr-work/texlive-packages/fedora-44-x86_64/repodata/repomd.xml"
           )
           attempts=0

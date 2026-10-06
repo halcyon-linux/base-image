@@ -45,6 +45,7 @@ modules:
   - from-file: modules/nix.yml
   - from-file: modules/texlive.yml
   - from-file: modules/apps.yml
+  - from-file: modules/python-packages.yml
   - from-file: modules/chezmoi.yml
   - from-file: modules/ujust.yml
   - from-file: modules/finish.yml

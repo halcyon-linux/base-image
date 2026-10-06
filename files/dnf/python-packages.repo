@@ -1,0 +1,17 @@
+# python-packages Copr repo (aahsnr-work) — halcyon's own Python helper
+# tools, scoped with includepkgs. priority=1 makes those packages win over
+# Fedora, while includepkgs confines the repo to exactly the names
+# python-packages.yml installs. Keep the list in sync with that module.
+
+[copr:copr.fedorainfracloud.org:aahsnr-work:python-packages]
+name=Copr repo for python-packages (aahsnr-work) — priority 1
+baseurl=https://download.copr.fedorainfracloud.org/results/aahsnr-work/python-packages/fedora-$releasever-$basearch/
+type=rpm-md
+skip_if_unavailable=False
+gpgcheck=1
+gpgkey=https://download.copr.fedorainfracloud.org/results/aahsnr-work/python-packages/pubkey.gpg
+repo_gpgcheck=0
+enabled=1
+enabled_metadata=1
+priority=1
+includepkgs=dump-to-markdown,fconf,fe,ff,fkill,fp,fssh,rmi,rmtmp,screenshot,se

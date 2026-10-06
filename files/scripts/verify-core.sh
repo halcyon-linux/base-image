@@ -9,15 +9,8 @@ set -uo pipefail
 
 echo "████ verify · core ████"
 
-fail=0
-gate() {
-  local desc="$1"
-  shift
-  if "$@" >/dev/null 2>&1; then echo "  PASS  $desc"; else
-    echo "  FAIL  $desc"
-    fail=1
-  fi
-}
+# shellcheck source=files/scripts/lib/verify.sh
+source /tmp/files/scripts/lib/verify.sh
 
 echo "::group::verify-core"
 gate "core utilities" rpm -q git zsh fastfetch file-roller grim slurp swappy imv zathura brightnessctl cronie fail2ban bleachbit lynis ninja-build pipx pymol transmission-gtk udiskie inotify-tools igt-gpu-tools setools-console setroubleshoot bluez-tools

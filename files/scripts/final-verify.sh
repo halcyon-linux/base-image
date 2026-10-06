@@ -12,15 +12,8 @@ KVER="$(rpm -q --qf '%{VERSION}-%{RELEASE}.%{ARCH}' kernel)"
 NV_KO="$(find "/usr/lib/modules/${KVER}" -name 'nvidia.ko*' 2>/dev/null | head -1)"
 NV_MOD_VER="$(modinfo -F version "${NV_KO}" 2>/dev/null || true)"
 
-fail=0
-gate() {
-  local desc="$1"
-  shift
-  if "$@" >/dev/null 2>&1; then echo "  PASS  $desc"; else
-    echo "  FAIL  $desc"
-    fail=1
-  fi
-}
+# shellcheck source=files/scripts/lib/verify.sh
+source /tmp/files/scripts/lib/verify.sh
 
 echo "::group::final-verify — bazzite kernel + NVIDIA end state"
 gate "bazzite kernel installed" rpm -q kernel kernel-modules

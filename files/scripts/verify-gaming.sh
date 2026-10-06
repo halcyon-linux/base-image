@@ -8,15 +8,8 @@ set -uo pipefail
 
 echo "████ verify · gaming ████"
 
-fail=0
-gate() {
-  local desc="$1"
-  shift
-  if "$@" >/dev/null 2>&1; then echo "  PASS  $desc"; else
-    echo "  FAIL  $desc"
-    fail=1
-  fi
-}
+# shellcheck source=files/scripts/lib/verify.sh
+source /tmp/files/scripts/lib/verify.sh
 
 echo "::group::verify-gaming"
 gate "base gaming stack" rpm -q steam steam-devices lutris terra-gamescope terra-mangohud zenity input-remapper evtest usbip ydotool

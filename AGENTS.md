@@ -37,10 +37,12 @@ recipes/halcyon.yml       # THE build definition. Module order is load-bearing:
                           #   signing → files (system → /) → files (dnf-libdnf5 →
                           #   /etc/dnf) → removals → core → programming → fonts →
                           #   gaming → desktop → devtools → nix → texlive →
-                          #   apps → chezmoi → ujust → finish → final-verify →
+                          #   apps → python-packages → chezmoi → ujust →
+                          #   finish → final-verify →
                           #   bootc-lint (bootc-lint must stay last)
 recipes/modules/*.yml     # present: apps, chezmoi, core, desktop, devtools,
-                          #   gaming, nix, programming, removals, texlive,
+                          #   gaming, nix, programming, python-packages,
+                          #   removals, texlive,
                           #   ujust (terra/ublue-pkgs/hardware were deleted —
                           #   the bazzite base provides all three payloads)
 packages.md               # rpm -qa of the base image; source of truth for
@@ -78,9 +80,10 @@ files/                    # mounted at /tmp/files in every module RUN; never bak
                           #     recipes shared with bazzite are bazzite's)
   dnf/*.repo              # local .repo files consumed by the dnf module (the
                           #   scoped COPR repos, see §4; fonts.repo +
-                          #   terra-gaming.repo — the scoped Terra repo for
-                          #   heroic-games-launcher, since the base ships
-                          #   terra's own repo files disabled)
+                          #   python-packages.repo — halcyon's own helper
+                          #   tools; terra-gaming.repo — the scoped Terra
+                          #   repo for heroic-games-launcher, since the base
+                          #   ships terra's own repo files disabled)
   dnf-libdnf5/libdnf5.conf.d/99-halcyon-retries.conf  # → /etc/dnf (retries=20)
   scripts/ujust-system.sh      # Stage 08: ujust gates + base steam wiring
                                #   no-op gates + ujust/system verify tail
@@ -126,7 +129,7 @@ files/                    # mounted at /tmp/files in every module RUN; never bak
                                #   deliberately untouched) + /usr/etc sweep
                                #   (ublue-os-signing's policy.json) + hygiene
   scripts/final-verify.sh      # Stage 10 no-cache cross-cutting backstop
-  scripts/verify-<module>.sh   # per-module gates (11 files — one per module
+  scripts/verify-<module>.sh   # per-module gates (12 files — one per module
                                #   with a payload; wired as trailing script
                                #   blocks)
   scripts/lib/cleanup.sh       # end-of-module hygiene; every MUTATING stage
@@ -142,7 +145,7 @@ cosign.pub                 # repo-root public key — the bluebuild CLI stages i
 .github/                   # CI (no Justfile — steps are inlined):
                            #   workflows/build.yml (schedule/push/PR/dispatch;
                            #     PUBLISH_BRANCH=main; ubuntu-24.04; COPR wait
-                           #     loop over the 5 aahsnr-work repos; pinned CLI
+                           #     loop over the 6 aahsnr-work repos; pinned CLI
                            #     ghcr.io/blue-build/cli:v0.9.37-installer;
                            #     generate + podman build; census (kernel +
                            #     nvidia driver version); tags; cosign 2.6.5
@@ -159,8 +162,8 @@ cosign.pub                 # repo-root public key — the bluebuild CLI stages i
 AGENTS.md / README.md / TODO.md / LICENSE / .gitignore
 ```
 
-NOT in this repo: `Justfile`, `files/packages.json`, `verify/`, `halcyon.env`,
-`files/python-packages/`. Package installs go through the `dnf` module
+NOT in this repo: `Justfile`, `files/packages.json`, `verify/`, `halcyon.env`.
+Package installs go through the `dnf` module
 (never a package catalog — do not reintroduce one); CI steps are inlined in
 the workflows (no Justfile).
 
