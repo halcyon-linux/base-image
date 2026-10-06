@@ -1,32 +1,18 @@
 ---
 # yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
 # The bazzite-nvidia-open base ships KDE Plasma; halcyon is a minimal Hyprland
-# desktop, so the whole Plasma stack goes here. Every name in this block was
-# verified present in the base inventory (packages.md) — dnf5 aborts the
-# transaction on one absent name, so anything that may or may not exist
-# belongs in guarded-removals.sh instead.
+# desktop, so the whole Plasma stack goes here. Every name was verified
+# present in the base image — dnf5 aborts the transaction on one absent name,
+# so may-or-may-not names belong in guarded-removals.sh instead.
 #
-# Never list here (lookalike names that are NOT KDE and must survive):
-#   kernel*/kmod-* (base kernel + NVIDIA akmods + gaming kmods), kbd*
-#   (console keymaps), kpartx (multipath), kvazaar-libs (video codec).
-# Orphaned kf5-/kf6-/qt5- libraries close via auto-remove: true.
-#
-# The whole stage runs under a staged tsflags=noscripts drop-in
-# (erase-noscripts-on/off.sh): rpm fails the ENTIRE transaction when any
-# %preun/%postun scriptlet fails, and erase scriptlets shell out to systemctl,
-# which cannot work in a build chroot (akonadi-server's %postun aborts the
-# transaction even after all 413 erases completed). The same drop-in carries
-# excludepkgs protecting bazzite's gaming/media stack (mesa/libglvnd/
-# gstreamer/pipewire/ffmpeg-libav/libva/codecs) — the auto-remove closure
-# cannot select excluded packages, and dnf5's remove-time cleanup ignores
-# install reasons, so exclusion is the only reliable guard. File-trigger
-# cache maintenance (ldconfig, glib schemas) is unaffected; the drop-in is
-# removed before the first install stage.
+# Never list here (surviving lookalikes): kernel*/kmod-* (base kernel + NVIDIA
+# akmods + gaming kmods), kbd* (console keymaps), kpartx (multipath),
+# kvazaar-libs (video codec). Orphaned kf5-/kf6-/qt5- libraries close via
+# auto-remove: true. The staged tsflags=noscripts + excludepkgs drop-in is
+# documented on erase-noscripts-on.sh and in AGENTS.md §3.
 modules:
-  # Bazzite's own build writes exclude=mesa-* into the fedora repo files
-  # (protecting its negativo/terra mesa from Fedora's). The media stack stays
-  # installed here and any mesa INSTALL (e.g. an i686 variant) must remain
-  # possible — strip the mesa tokens first.
+  # bazzite's build wrote exclude=mesa-* into the fedora repo files; the
+  # mesa tokens go so any mesa INSTALL stays possible (kernel/steam stay).
   - type: script
     scripts:
       - strip-mesa-exclusion.sh
@@ -204,18 +190,6 @@ modules:
         - tesseract-langpack-spa
         - tesseract-langpack-tur
         - twitter-twemoji-fonts
-        # - urw-base35-bookman-fonts
-        # - urw-base35-c059-fonts
-        # - urw-base35-d050000l-fonts
-        # - urw-base35-fonts
-        # - urw-base35-fonts-common
-        # - urw-base35-gothic-fonts
-        # - urw-base35-nimbus-mono-ps-fonts
-        # - urw-base35-nimbus-roman-fonts
-        # - urw-base35-nimbus-sans-fonts
-        # - urw-base35-p052-fonts
-        # - urw-base35-standard-symbols-ps-fonts
-        # - urw-base35-z003-fonts
         - vlc-libs
         - vlc-plugin-ffmpeg
         - vlc-plugin-gstreamer

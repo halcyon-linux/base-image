@@ -1,20 +1,10 @@
 ---
 # yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
-# Only what the bazzite-nvidia-open base does NOT already ship: every name
-# here was checked against the base inventory (packages.md) — the base brings
-# cockpit, podman, distrobox, gnupg2, openssh, plymouth, the xorg servers,
-# hunspell, ImageMagick, fastfetch's deps and the rest of the old list, so
-# re-installing them is pure redundancy.
-#
-# Deliberately ABSENT after the first bazzite-based CI build proved them
-# fatal (2026-10-05): libinput-utils (the base ships the same name — dnf5
-# errors on install-of-installed), ddcutil (the base ships terra-ddcutil,
-# which conflicts with Fedora's ddcutil), and mpv (Fedora's mpv needs
-# libavfilter-free, which the base's epoch-1 RPM Fusion ffmpeg obsoletes;
-# RPM Fusion ships no mpv and Terra only mpv-nightly — dropped by user
-# decision). The curated font set lives in fonts.yml, wired after
-# programming.yml; desktop.yml drops xdg-desktop-portal-gtk/wl-clipboard for
-# the same already-installed reason.
+# Only what the bazzite base does NOT already ship (every name checked
+# against the base image — dnf5 errors on install-of-installed, and
+# terra-name twins conflict). Deliberately absent: libinput-utils (base
+# ships the name), ddcutil (base ships terra-ddcutil), mpv (Fedora's needs
+# libavfilter-free, obsoleted by the base's epoch-1 rpmfusion ffmpeg).
 modules:
   - type: dnf
     install:

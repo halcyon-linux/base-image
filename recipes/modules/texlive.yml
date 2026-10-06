@@ -1,11 +1,10 @@
 ---
 # yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
 modules:
-  # Rolling TeX Live from aahsnr-work/texlive-packages: the texmf-dist data
-  # groups plus texlive-bin (upstream's engine bundle) all install under one
-  # self-contained /usr/lib/texlive/<year> root, so nothing resolves from
-  # Fedora's fixed-release texlive packaging. texlive-formats.sh bakes the
-  # format files after the transaction; verify-texlive.sh gates the result.
+  # Rolling TeX Live from aahsnr-work/texlive-packages: one self-contained
+  # /usr/lib/texlive/<year> root (kpathsea resolves it via SELFAUTOPARENT),
+  # so Fedora's fixed-release texlive is never touched. texlive-formats.sh
+  # bakes the formats; verify-texlive.sh gates the result.
   - type: dnf
     repos:
       cleanup: true

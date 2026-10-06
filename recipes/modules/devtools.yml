@@ -1,12 +1,7 @@
 ---
 # yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
-# CLI tools from the personal cli-tools COPR. Only btop and fpaste are
-# base-provided (kept, gated as keepers) — the earlier claim that bat/cava/
-# chafa/cliphist/dust/eza/fd-find/fzf/gnuplot/opencode/pandoc were
-# base-provided was wrong (verify-devtools caught it on the first bazzite
-# build: packages.md never listed them). fzf IS in the base but the COPR
-# builds it too, so removals strips the base copy and the COPR version
-# replaces it (same name — install-of-installed would error otherwise).
+# CLI tools from the personal cli-tools COPR. btop + fpaste are
+# base-provided keepers (the COPR doesn't build them).
 modules:
   - type: dnf
     repos:

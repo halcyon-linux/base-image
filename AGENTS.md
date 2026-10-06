@@ -28,8 +28,6 @@ placement follows this repo's overlay rule.
 recipes/halcyon.yml       # build definition; order load-bearing, bootc-lint last
 recipes/modules/*.yml     # one module group per file (terra/ublue-pkgs/hardware
                           #   were deleted — the bazzite base provides all three)
-packages.md               # rpm -qa of the base image; dedupe + removals source
-                          #   of truth
 files/                    # mounted at /tmp/files in every module RUN; never baked in
   system/                 # overlay copied to / BEFORE every package install:
                           #   etc/default/useradd (SHELL=zsh)
@@ -92,8 +90,8 @@ module; CI steps are inlined (no Justfile).
   explicitly). The drop-in is removed before the first install stage
   (both verify scripts gate on its absence). `dnf remove`
   (`auto-remove: true` — closes the orphaned kf5/kf6/qt5 closure) lists
-  only names verified present in packages.md (dnf5 aborts on one absent
-  name) plus the checked `[x]` set — EXCEPT the tesseract closure
+  only names verified present in the base image (dnf5 aborts on one absent
+  name) plus the user-marked removal set — EXCEPT the tesseract closure
   (tesseract-libs/-common/-langpack-eng/-tessdata-doc): the protected
   ffmpeg hard-requires libtesseract. Exclusion globs are lookalike-proof
   (`ffmpeg`/`ffmpeg-*`, never `ffmpeg*` — dnf5 refuses to remove an
@@ -110,8 +108,8 @@ module; CI steps are inlined (no Justfile).
   NVIDIA akmods + gaming kmods), kbd*, kpartx (multipath), kvazaar-libs
   (codec). Keepers are NOT gated here — nothing is installed yet this
   early; `final-verify.sh` owns the keeper set at end state.
-- `core.yml`: utilities the base lacks; everything packages.md shows in
-  the base is dropped — dnf5 ERRORS on install-of-installed. Deliberately
+- `core.yml`: utilities the base lacks; everything the base inventory shows
+  is dropped — dnf5 ERRORS on install-of-installed. Deliberately
   absent: libinput-utils (base ships the same name), ddcutil (base ships
   terra-ddcutil, which conflicts with Fedora's), mpv (needs
   libavfilter-free, obsoleted by the base's epoch-1 RPM Fusion ffmpeg; RPM
@@ -257,11 +255,12 @@ module; CI steps are inlined (no Justfile).
   race — its repo-info resolution can come back empty and remove
   nothing — so repo-leftover-sweep.sh runs before every repos-module
   verify gate.
-- `dnf remove` lists only names verified in packages.md; may-or-may-not
-  names go through guarded-removals.sh's only-if-present sweeps. Install
-  lists get the reverse treatment: dnf5 errors on already-installed
-  names, and same-name/terra-name twins conflict (ddcutil vs
-  terra-ddcutil) — check packages.md AND twins before adding any name.
+- `dnf remove` lists only names verified present in the base inventory;
+  may-or-may-not names go through guarded-removals.sh's only-if-present
+  sweeps. Install lists get the reverse treatment: dnf5 errors on
+  already-installed names, and same-name/terra-name twins conflict
+  (ddcutil vs terra-ddcutil) — check the base inventory AND twins before
+  adding any name.
 - The base carries dnf `exclude` config that fights the build (bazzite
   writes `exclude=mesa-* …` into the fedora repo files). If a
   transaction starts failing with "filtered out by exclude filtering"
@@ -330,8 +329,8 @@ the no-local-build rule.
       trailing script block; every new gate has been inverted once and
       confirmed to fail.
 - [ ] New `dnf install` sets install-weak-deps: false; third-party repos
-      set cleanup: true; no added package name is unverified (packages.md
-      is the dedupe source of truth).
+      set cleanup: true; no added package name is unverified against the
+      base image.
 - [ ] Nothing new lands in /var, /usr/local, /boot, or /usr/etc.
 - [ ] _Why_ comments are preserved — they are the design docs.
 - [ ] Workflow changes: no ubuntu-latest, no branch pins on `uses:`, the

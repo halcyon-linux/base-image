@@ -1,21 +1,12 @@
 ---
 # yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
-# Zero-flatpak policy, owned by bluebuild's default-flatpaks module. Bazzite
-# does NOT bake flatpaks into the image — it ships them via boot-time services
-# (bazzite-flatpak-manager, ublue-nvidia-flatpak-runtime-{sync,verify},
-# flatpak-add-fedora-repos — all masked in ujust.yml), so this module is the
-# image's single source of flatpak truth: the remove list is enforced on every
-# boot by system-flatpak-setup.timer against the system installation, which
-# also covers machines rebasing from bazzite (their /var/lib/flatpak survives
-# the rebase). Pinned to @v1 deliberately: v2 dropped remove support. No repo
-# is configured (repo-* fields left unset) — the boot script then adds no
-# remote, re-deletes the fedora remotes it finds and leaves the base's
-# (disabled) flathub untouched; Flathub's build-time ID validation is skipped
-# for the same reason. NOTE on runtimes: upstream v1 matches its remove list
-# against installed APPS only, so the runtime/extension entries are
-# declarations — a rebased machine clears the orphaned runtimes with one
-# `flatpak uninstall --unused`; fresh installs never get any (the base bakes
-# none and every installer is masked).
+# Zero-flatpak policy, owned by bluebuild's default-flatpaks module (pinned
+# @v1: v2 dropped remove support). Bazzite bakes NO flatpaks into the image —
+# four boot-time services deliver them (all masked in ujust.yml) — so the
+# remove list is enforced on every boot by system-flatpak-setup.timer, which
+# is what covers machines rebasing from bazzite (/var/lib/flatpak survives).
+# No repo fields set → no remote added, fedora flatpak remotes deleted, the
+# base's disabled flathub untouched; full story in AGENTS.md §3.
 modules:
   - type: default-flatpaks@v1
     system:

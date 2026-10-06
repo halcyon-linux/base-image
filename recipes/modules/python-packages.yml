@@ -1,10 +1,7 @@
 ---
 # yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
 # halcyon's own Python helper tools from COPR aahsnr-work/python-packages
-# (dump-to-markdown, the fuzzy * family, rmi/rmtmp, screenshot, se). Wired
-# after apps.yml: the tools wrap fd/fzf/rg at runtime and their specs
-# require them. verify-python-packages.sh gates the set, the binaries and
-# the repo cleanup.
+# (they wrap fd/fzf/rg at runtime — their specs require the devtools).
 modules:
   - type: dnf
     repos:

@@ -1,15 +1,11 @@
 ---
 # yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
 # Declarative unit state only — no dnf block: glow, jq, just and stress-ng
-# ship in the base (packages.md) and grubby was dropped with the halcyon
-# grub recipes (bazzite's own grub recipes neither need nor ship it).
+# ship in the base, and grubby went with the halcyon grub recipes.
 modules:
-  # Unit state is declarative bluebuild (systemd module), not script logic.
-  # greetd/noctalia-greeter are removed — login is getty@tty2 and the user
-  # starts Hyprland from the TTY (ly is planned, not landed). uupd ships in
-  # the base; getty@.service is base systemd. var-nix.service + nix.mount are
-  # enabled by nix.yml; the chezmoi units enable themselves --global in
-  # chezmoi.yml.
+  # Declarative bluebuild (systemd module), not script logic: login is
+  # getty@tty2 (ly planned); var-nix.service/nix.mount are enabled by
+  # nix.yml, the chezmoi units enable themselves --global in chezmoi.yml.
   - type: systemd
     system:
       enabled:

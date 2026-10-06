@@ -1,16 +1,10 @@
 ---
 # yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
-# Native gaming stack (RakuOS model: Steam/Lutris/Heroic as native RPMs, no
-# Flatpak). The bazzite base already ships steam, steam-devices, lutris,
-# gamescope, mangohud (+i686), zenity, evtest, input-remapper, usbip and
-# ydotool — only the gaps install here, from Fedora and Terra. The base
-# ships its terra/rpmfusion repo files DISABLED (proven by CI 2026-10-05:
-# only the fedora/updates/updates-archive repos load during dnf
-# transactions), so heroic-games-launcher needs terra-gaming.repo staged
-# here — scoped with includepkgs so Terra can never serve anything else.
-# The NVIDIA excludes stay as belt-and-suspenders so no transaction can
-# ever clobber the base's kmod-nvidia/nvidia-driver userland with an
-# rpmfusion akmod chain.
+# Native gaming stack (RakuOS model — RPMs, no Flatpak); the base already
+# ships the steam/lutris/gamescope/mangohud stack. The base's terra/rpmfusion
+# repo files are SHIPPED DISABLED, so heroic-games-launcher needs the scoped
+# terra-gaming.repo staged here. The NVIDIA excludes keep any transaction
+# off the base's kmod-nvidia/nvidia-driver chain.
 modules:
   - type: dnf
     repos:

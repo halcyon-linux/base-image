@@ -6,7 +6,7 @@
 # keeper sets, the repo sweep, identity files and the package census.
 set -uo pipefail
 
-echo "████ STAGE 10/13 · final-verify · cross-cutting gates ████"
+echo "████ STAGE 10 · final-verify · cross-cutting gates ████"
 
 KVER="$(rpm -q --qf '%{VERSION}-%{RELEASE}.%{ARCH}' kernel)"
 NV_KO="$(find "/usr/lib/modules/${KVER}" -name 'nvidia.ko*' 2>/dev/null | head -1)"
@@ -84,25 +84,12 @@ echo "::endgroup::"
 echo "::group::final-verify — flatpaks"
 # Zero-flatpak end state: the module ships the boot-enforced remove list and
 # every bazzite flatpak service stays masked. The removals themselves run on
-# the booted system (system-flatpak-setup.timer) — not assertable here.
+# the booted system (system-flatpak-setup.timer) — not assertable here. The
+# full 25-ID list is gated per-module by verify-flatpaks.sh; the config is
+# static between layers, so two canaries are the no-cache backstop.
 FLATPAK_REMOVE_LIST=/usr/share/bluebuild/default-flatpaks/system/remove
-flatpak_remove_list_has_all() {
-  local id
-  for id in com.github.Matoking.protontricks com.github.tchx84.Flatseal \
-    com.obsproject.Studio.Plugin.GStreamerVaapi com.obsproject.Studio.Plugin.GStreamer \
-    com.obsproject.Studio.Plugin.OBSVkCapture com.vysp3r.ProtonPlus \
-    io.github.DenysMb.Kontainer io.github.flattool.Warehouse \
-    org.gnome.Firmware org.kde.gwenview org.kde.haruna org.kde.kcalc \
-    org.kde.okular org.mozilla.firefox org.freedesktop.Platform \
-    org.freedesktop.Platform.Compat.i386 org.freedesktop.Platform.GL.default \
-    org.freedesktop.Platform.GL32.default org.freedesktop.Platform.VulkanLayer.MangoHud \
-    org.freedesktop.Platform.VulkanLayer.OBSVkCapture org.freedesktop.Platform.VulkanLayer.vkBasalt \
-    org.freedesktop.Platform.codecs-extra org.gnome.Platform \
-    org.kde.KStyle.Adwaita org.kde.Platform; do
-    grep -Fxq "$id" "$FLATPAK_REMOVE_LIST" || return 1
-  done
-}
-gate "default-flatpaks remove list ships the full set" flatpak_remove_list_has_all
+gate "default-flatpaks remove list ships (canaries)" \
+  sh -c "grep -Fxq org.mozilla.firefox '$FLATPAK_REMOVE_LIST' && grep -Fxq org.kde.Platform '$FLATPAK_REMOVE_LIST'"
 gate "no flatpak repo forced (remote-add skipped at boot)" \
   grep -q '"repo-url": "null"' /usr/share/bluebuild/default-flatpaks/system/repo-info.json
 gate "flatpak boot notifications disabled" grep -qx false /usr/share/bluebuild/default-flatpaks/notifications

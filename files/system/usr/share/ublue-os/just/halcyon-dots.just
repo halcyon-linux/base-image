@@ -2,7 +2,7 @@
 
 # Round-trip edits to the dotfiles repo cloned by the chezmoi module at
 # ~/.local/share/chezmoi (https://github.com/aahsnr-configs/dotfiles — remote
-# uses the github.com-halcyon-configs SSH host alias created by git-setup)
+# uses the github.com-halcyon-configs SSH host alias from the dotfiles' git-setup)
 
 # Flip the dotfiles origin to SSH (needed after a fresh HTTPS-only clone)
 [group("dotfiles")]

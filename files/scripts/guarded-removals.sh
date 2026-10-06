@@ -113,7 +113,7 @@ MUST_BE_GONE=(
     plasma-login-manager
     # KDE desktop closure
     kwin konsole dolphin plasma-workspace ksshaskpass kwalletmanager5
-    # packages.md checked set (tesseract-libs/-common/-langpack-eng/
+    # explicitly-removed set (tesseract-libs/-common/-langpack-eng/
     # -tessdata-doc exempt: the protected ffmpeg hard-requires libtesseract)
     signon vlc-libs xdg-desktop-portal-kde rom-properties
     ryzenadj zenergy

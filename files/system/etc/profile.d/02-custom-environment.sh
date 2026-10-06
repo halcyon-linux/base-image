@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# System-wide environment variables for /etc/profile.d/
-# This script is sourced by /etc/profile and must be POSIX-compliant
 
 # XDG Base Directory Specification
 export XDG_BIN_HOME="${HOME}/.local/bin"
@@ -17,7 +15,7 @@ export TERMINAL="kitty"
 export BROWSER="brave-browser" # Brave RPM ships /usr/bin/brave-browser, not brave
 export EDITOR="nvim"
 export VISUAL="emacsclient -c -a emacs"
-# bat is an RPM (the cli-tools group / Stage 05 devtools.sh); fall back to less if it is ever absent
+# bat is an RPM (modules/devtools.yml); fall back to less if it is ever absent
 if command -v bat >/dev/null 2>&1; then
   export PAGER="bat --paging=always --style=plain"
 else

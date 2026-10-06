@@ -29,11 +29,8 @@ dnf5 config-manager setopt skip_if_unavailable=1
 # No /tmp wipe here: bluebuild binds the module runtime into /tmp during this
 # very RUN — wiping it fails the module after the scripts succeed, and
 # post_build wipes /tmp/* + /var/* after the last module regardless.
-rm -f /var/log/dnf5.log /var/log/dnf5.log.* || true
-# find(1) instead of `rm -rf /boot/*` globs: identical end state (empty /boot),
-# no dotted-glob edge cases, and shellcheck-clean
-find /boot -mindepth 1 -delete 2>/dev/null || true
-rm -rf /var/cache/libdnf5/* || true
+# The dnf-log//boot//var-cache trio is lib/cleanup.sh's job.
+/tmp/files/scripts/lib/cleanup.sh
 rm -rf /var/tmp/* || true
 # ublue-os-signing installs its policy.json under /usr/etc/containers — an
 # ostree-internal location bootc forbids in container images (the bootc

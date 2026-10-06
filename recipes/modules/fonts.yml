@@ -1,10 +1,7 @@
 ---
 # yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
-# The curated font set from the aahsnr-work/fonts COPR, replacing every base
-# font package swept by removals' fonts-cleanup.sh (dejavu-sans-fonts returns
-# on its own as a noctalia-git hard dep). Sits right after programming.yml:
-# the core system and toolchains assemble first, fonts are cosmetic and can
-# land last before the desktop stack.
+# The curated font set from the aahsnr-work/fonts COPR, over the base fonts
+# swept by removals' fonts-cleanup.sh (dejavu-sans returns as a noctalia dep).
 modules:
   - type: dnf
     repos:

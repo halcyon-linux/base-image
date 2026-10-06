@@ -1,7 +1,7 @@
 ---
 # yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
 # Toolchains the bazzite base does not ship (python3, perl and gcc-c++ are
-# already in the base — verified against packages.md).
+# already in the base).
 modules:
   - type: dnf
     install:

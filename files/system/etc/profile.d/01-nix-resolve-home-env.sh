@@ -10,7 +10,3 @@ if _real=$(cd -P -- "${HOME:-/}" 2>/dev/null && pwd -P 2>/dev/null) && [ -n "${_
 fi
 unset _real
 export HOME
-
-# Make sure XDG_DATA_HOME and XDG_CONFIG_HOME set, needed for CI
-[ -z "$XDG_DATA_HOME" ] && export XDG_DATA_HOME="$HOME/.local/share"
-[ -z "$XDG_CONFIG_HOME" ] && export XDG_CONFIG_HOME="$HOME/.config"

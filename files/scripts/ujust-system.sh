@@ -1,15 +1,13 @@
 #!/usr/bin/env bash
-# halcyon build step — ujust-system (Stage 08): ujust presence gates and the
+# halcyon build step — ujust-system: ujust presence gates and the
 # ujust+system verify tail. Everything declarative is owned by bluebuild
-# modules: the ujust modules register via the static 60-custom.just overlay
-# file, unit enable/mask state lives in the systemd block of
-# modules/ujust.yml, /nix units in modules/nix.yml, dotfiles units in
-# modules/ujust.yml, /nix units in modules/nix.yml, dotfiles units in
-# modules/chezmoi.yml. The steam/lutris desktop-entry wiring ships in the
+# modules: ujust registration via the static 60-custom.just overlay, unit
+# state in modules/ujust.yml, nix units in modules/nix.yml, dotfiles units
+# in modules/chezmoi.yml. The steam/lutris desktop-entry wiring ships in the
 # bazzite base itself.
 set -euo pipefail
 
-echo "████ STAGE 08/13 · ujust-system · gates + system verify ████"
+echo "████ STAGE 08 · ujust-system · gates + system verify ████"
 
 echo "::group::ujust-system — ujust presence"
 test -x /usr/bin/ujust || {

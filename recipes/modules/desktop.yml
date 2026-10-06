@@ -1,10 +1,8 @@
 ---
 # yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
-# The Hyprland + Noctalia stack from the personal base-pkgs COPR, on top of
-# the bazzite base. greetd/noctalia-greeter are gone (login is getty@tty2;
-# ly is planned but not landed) and the Thunar suite is replaced by
-# nautilus (file-roller installs in core.yml). Noctalia ships its own polkit
-# agent, so the KDE removal in removals.yml does not strand GUI auth prompts.
+# The Hyprland + Noctalia stack from the personal base-pkgs COPR. greetd/
+# noctalia-greeter are gone (login is getty@tty2; ly is planned) and the
+# Thunar suite is replaced by nautilus (file-roller installs in core.yml).
 modules:
   - type: dnf
     repos:
