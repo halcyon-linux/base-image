@@ -6,7 +6,8 @@
 # /etc/yum.repos.d/fedora*.repo (repo-scoped, dnf4-compat key — NOT
 # excludepkgs), plus equivalents on the staging and negativo17 repos. It
 # masks Fedora mesa so the base's negativo/terra mesa wins. In halcyon the
-# media stack stays installed (protect-media-stack.sh), but any transaction
+# media stack stays installed (excluded from the removals cascade via the
+# staged drop-in), but any transaction
 # that ever needs a mesa INSTALL (e.g. an i686 variant) would die with
 # "filtered out by exclude filtering" — so remove ONLY the mesa tokens from
 # every exclude value, keeping bazzite's kernel/steam/noopenh264/scx

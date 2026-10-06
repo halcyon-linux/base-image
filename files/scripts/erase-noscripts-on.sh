@@ -1,19 +1,28 @@
 #!/usr/bin/env bash
-# halcyon build step — stage tsflags=noscripts for the removals stage.
+# halcyon build step — stage the removals-transaction drop-in.
 #
-# _why_: rpm records EVERY scriptlet failure — including "non-critical"
-# %postun — in the transaction-global scriptError flag (runScript() in
-# rpm's transaction.cc), and rpmtsRun() then returns -1 no matter how
-# many elements already completed; dnf5 surfaces that as "Transaction
-# failed: Rpm transaction failed." and aborts (rpm 6.0+ behavior, dnf5
-# issue #2507). The de-Plasmaing erases ~400 packages whose %preun/%postun
-# shell out to `systemctl --global disable ...` — impossible in a build
-# chroot (no systemd bus; akonadi-server's %postun exit 2 killed the whole
-# 413-package transaction). Erase-side scriptlets are noise in an image
-# build, so skip them for this stage only. Cache maintenance (ldconfig,
-# glib schemas) runs via rpm FILE TRIGGERS, which NOSCRIPTS does not
-# disable. erase-noscripts-off.sh removes the drop-in before any install
-# stage, where %post scriptlets do real work.
+# _why_: two transaction-scoped settings for the removals stage in one file:
+#
+# 1. tsflags=noscripts — rpm records EVERY scriptlet failure — including
+#    "non-critical" %postun — in the transaction-global scriptError flag and
+#    then fails the whole transaction (rpm 6.0+, dnf5 #2507), and erase
+#    scriptlets shell out to `systemctl`, which cannot work in a build chroot
+#    (akonadi-server's %postun aborted a completed 413-package erase).
+#    File-trigger cache maintenance (ldconfig, glib schemas) is unaffected.
+#
+# 2. excludepkgs — bazzite's gaming/media library stack must REMAIN (user
+#    decision), but the auto-remove closure of the KDE sweep orphans and
+#    erases it (mesa/libglvnd/gstreamer/pipewire/ffmpeg-libav/libva/codecs
+#    all fell in the broken runs — dnf5's remove-time cleanup ignores
+#    install reasons). Excluded packages are invisible to the solver, so
+#    auto-remove cannot select them. `steam*` is deliberately NOT protected:
+#    guarded-removals explicitly removes steamdeck-* candidates and an
+#    excluded name would make that transaction fail with "No match"; steam
+#    itself is top-level and never orphaned.
+#
+# erase-noscripts-off.sh removes this drop-in before the first install
+# stage; verify-removals.sh and final-verify.sh gate on its absence and on
+# the media-stack canaries.
 set -euo pipefail
 
 CONF=/etc/dnf/libdnf5.conf.d/99-halcyon-erase-noscripts.conf
@@ -22,10 +31,11 @@ cat > "$CONF" <<'EOF'
 # staged by erase-noscripts-on.sh for the removals stage; erased again by
 # erase-noscripts-off.sh — must never be active during install stages
 tsflags=noscripts
+excludepkgs=mesa-*,libglvnd*,gstreamer1*,pipewire*,wireplumber*,ffmpeg*,libav*,libva*,libvdpau*,x264*,x265*,dav1d*,svt-*,aom-libs*,intel-mediasdk*,intel-media*,onevpl*,vulkan-*,openh264*,gamescope*,mangohud*,lutris*,scx-*,umu-*
 EOF
 
-if ! grep -q '^tsflags=noscripts$' "$CONF"; then
-  echo "FAIL: tsflags=noscripts not staged in $CONF" >&2
+if ! grep -q '^tsflags=noscripts$' "$CONF" || ! grep -q '^excludepkgs=.*mesa' "$CONF"; then
+  echo "FAIL: drop-in content incomplete at $CONF" >&2
   exit 1
 fi
-echo "OK: tsflags=noscripts staged at $CONF"
+echo "OK: removals drop-in staged at $CONF (noscripts + media-stack protection)"

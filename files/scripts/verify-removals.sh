@@ -39,8 +39,9 @@ gate "input-method frameworks gone" all_absent ibus fcitx5 fcitx5-configtool
 # Fonts pulled back in by later packages as deps are ACCEPTED (user decision)
 # — the sweep is best-effort, so there is deliberately no font-absence gate.
 # The gaming/media stack is the opposite: it must REMAIN (user decision) —
-# protect-media-stack.sh marks it user-installed so the cascade cannot take
-# it; these are the canaries the broken runs actually lost.
+# the staged removals drop-in excludes it so the auto-remove closure cannot
+# select it (dnf5's remove-time cleanup ignores install reasons); these are
+# the canaries the broken runs actually lost.
 gate "media stack kept" rpm -q mesa-libEGL libglvnd-egl mesa-libGL gstreamer1-plugins-base gstreamer1-plugins-good ffmpeg-libs libavcodec pipewire-libs
 gate "greetd + noctalia-greeter gone" all_absent greetd noctalia-greeter-git
 gate "Thunar suite gone" all_absent Thunar thunar-archive-plugin thunar-media-tags-plugin thunar-vcs-plugin thunar-volman

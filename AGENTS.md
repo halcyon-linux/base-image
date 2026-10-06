@@ -89,21 +89,22 @@ files/                    # mounted at /tmp/files in every module RUN; never bak
                                #   fedora repo files (kernel/steam tokens
                                #   stay); any mesa INSTALL (i686) must remain
                                #   possible
-  scripts/protect-media-stack.sh  # dnf5 mark user over the gaming/media
-                               #   globs (mesa/libglvnd/gstreamer/pipewire/
-                               #   ffmpeg-libav/libva/codecs/steam/lutris/…)
-                               #   BEFORE the cascade — auto-remove only
-                               #   takes dependency-reasoned orphans, so the
-                               #   stack survives the KDE sweep (user
-                               #   decision: it must remain)
   scripts/guarded-removals.sh  # compose-variance sweep (two passes: blind
                                #   candidates, then reverse-dep-gated cores:
                                #   sddm/cage/ibus/fcitx5) + must-be-gone gates
-  scripts/erase-noscripts-{on,off}.sh  # stage/unstage tsflags=noscripts for
-                               #   the removals stage: rpm fails the WHOLE
+  scripts/erase-noscripts-{on,off}.sh  # stage/unstage the removals drop-in:
+                               #   tsflags=noscripts (rpm fails the WHOLE
                                #   transaction when any erase scriptlet fails
-                               #   (akonadi %postun killed a completed
-                               #   413-package erase); file triggers unaffected
+                               #   — akonadi %postun killed a completed
+                               #   413-package erase; file triggers
+                               #   unaffected) AND excludepkgs protecting
+                               #   bazzite's gaming/media stack (mesa/
+                               #   libglvnd/gstreamer/pipewire/ffmpeg-libav/
+                               #   libva/codecs): the auto-remove closure
+                               #   ignores install reasons, so exclusion is
+                               #   the only reliable guard; `steam*` stays
+                               #   unprotected on purpose (guarded-removals
+                               #   removes steamdeck-* explicitly)
   scripts/fonts-cleanup.sh     # base font sweep: dnf pass to a fixpoint
                                #   first (removing a requirer frees its deps
                                #   for the next pass), then reverse-dep-gated
@@ -175,19 +176,21 @@ the workflows (no Justfile).
   (bazzite's own build wrote `exclude=mesa-* …` lines into the fedora repo
   files to protect its negativo/terra mesa; the mesa TOKENS are stripped so
   any mesa install stays possible while bazzite's kernel/steam protection
-  remains) and `protect-media-stack.sh` (`dnf5 mark user` over the whole
-  gaming/media glob set — mesa/libglvnd/gstreamer/pipewire/ffmpeg-libav/
-  libva/codecs/steam/lutris/… — BEFORE the cascade: auto-remove only takes
-  dependency-reasoned orphans, and the user decision is that the stack must
-  remain; verify-removals and final-verify gate the canaries). The rest of
+  remains). The rest of
   the stage runs under a
-  staged `tsflags=noscripts` drop-in (`erase-noscripts-on.sh` first,
-  `erase-noscripts-off.sh` before the verify gate): rpm records ANY scriptlet
+  staged `tsflags=noscripts` + `excludepkgs` drop-in (`erase-noscripts-on.sh`
+  first, `erase-noscripts-off.sh` before the verify gate): rpm records ANY
+  scriptlet
   failure — even "non-critical" `%postun` — in a transaction-global flag and
   then fails the whole transaction (rpm 6.0+, dnf5 #2507), and erase
   scriptlets shell out to `systemctl`, which cannot work in a build chroot —
   akonadi-server's `%postun` aborted the transaction after all 413 erases had
-  completed. File-trigger cache maintenance (ldconfig, glib schemas) is
+  completed; and the excludepkgs protects bazzite's gaming/media stack
+  (mesa/libglvnd/gstreamer/pipewire/ffmpeg-libav/libva/codecs — user
+  decision: it must remain; dnf5's remove-time cleanup ignores install
+  reasons, so exclusion is the only reliable guard; verify-removals and
+  final-verify gate the canaries). File-trigger cache maintenance (ldconfig,
+  glib schemas) is
   unaffected, and the drop-in is removed before the first install stage (both
   verify scripts gate on its absence). Then `dnf remove` with
   `auto-remove: true` (closes the orphaned kf5/kf6/qt5 closure) of every
@@ -420,8 +423,10 @@ the workflows (no Justfile).
   from those values at the start of the removals stage — check for new
   exclusions whenever the `:latest` base moves and a transaction starts
   failing with "filtered out by exclude filtering". And the auto-remove
-  cascade eats dependency-reasoned orphans: anything the image must KEEP
-  (gaming/media stack) gets `dnf5 mark user` first (protect-media-stack.sh).
+  cascade eats dependency-reasoned orphans AND IGNORES `dnf5 mark user`
+  (bluebuild's `dnf5 remove` runs without --no-autoremove): anything the
+  image must KEEP (gaming/media stack) is made invisible to the solver via
+  the staged `excludepkgs` in the removals drop-in instead.
 - Declarative first: do with bluebuild modules (`files`, `dnf`, `systemd`)
   whatever a module can express; the `script` module is only for what no
   module covers (verify gates, key-preserving file edits like grub-config).
