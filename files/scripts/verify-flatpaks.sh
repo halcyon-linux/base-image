@@ -35,7 +35,10 @@ FLATPAK_IDS=(
 remove_list_has_all() {
   local id
   for id in "$@"; do
-    grep -Fxq "${id}" "${SCRIPT}" || return 1
+    # the IDs live indented inside the script's FLATPAK_IDS array — strip
+    # leading whitespace before the exact-line match (grep -x anchors to
+    # the whole line, so an indented line never matches a bare ID)
+    sed 's/^[[:space:]]*//' "${SCRIPT}" | grep -Fxq "${id}" || return 1
   done
 }
 

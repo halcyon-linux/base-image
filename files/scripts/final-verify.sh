@@ -89,7 +89,7 @@ echo "::group::final-verify — flatpaks"
 # canaries plus the sweep flag are the no-cache backstop.
 FLATPAK_SETUP=/usr/libexec/halcyon-image/flatpak-setup
 gate "flatpak-setup enforcement shipped (canaries)" \
-  sh -c "grep -Fxq org.mozilla.firefox '$FLATPAK_SETUP' && grep -Fxq org.kde.gwenview '$FLATPAK_SETUP' && grep -qF -- '--unused' '$FLATPAK_SETUP'"
+  sh -c "sed 's/^[[:space:]]*//' '$FLATPAK_SETUP' | grep -Fxq org.mozilla.firefox && sed 's/^[[:space:]]*//' '$FLATPAK_SETUP' | grep -Fxq org.kde.gwenview && grep -qF -- '--unused' '$FLATPAK_SETUP'"
 gate "flatpak-setup.service enabled" test "$(systemctl is-enabled halcyon-flatpak-setup.service 2>/dev/null)" = enabled
 for unit in \
   bazzite-flatpak-manager.service \
