@@ -171,10 +171,13 @@ module; CI steps are inlined (no Justfile).
   installed APPS only, so it never removes runtimes — and in the field it
   left the whole bazzite flatpak payload in place after a rebase).
   `halcyon-flatpak-setup.service` (oneshot, shipped via files/system,
-  enabled in ujust.yml) uninstalls every app in the baked list one-by-one
-  and sweeps unused runtimes/extensions (`flatpak uninstall --unused`) on
-  every boot — no network, idempotent, user-installed APPS are never
-  touched. verify-flatpaks.sh gates the shipped script + enablement; the
+  enabled in ujust.yml) uninstalls every ref in the baked 25-ID list
+  one-by-one — apps AND runtime-type extensions (the OBS plugins and
+  VulkanLayers never appear in `flatpak list --app`), clears flatpak's
+  auto-pins (explicitly-installed refs are pinned and invisible to
+  --unused), then sweeps unused runtimes/extensions (`flatpak uninstall
+  --unused`) on every boot — no network, idempotent, user-installed APPS
+  are never touched. verify-flatpaks.sh gates the shipped script + enablement; the
   masks are ujust-stage state, so final-verify.sh gates them at end state
   (the removals themselves are not assertable in a container).
 - `chezmoi.yml`: the official blue-build chezmoi module — writes

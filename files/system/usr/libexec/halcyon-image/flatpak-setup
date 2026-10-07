@@ -3,19 +3,20 @@
 # installation.
 #
 # _why_: flatpaks live in /var (machine-local), so a machine rebased from
-# bazzite boots with bazzite's whole flatpak payload, and the bluebuild
-# default-flatpaks v1 boot script could not be trusted to deliver its
-# uninstall (an early failure silently no-ops the whole boot pass) — nor
-# could it EVER remove runtimes, because it matches its remove list against
-# installed APPS only. This oneshot deterministically uninstalls every app
-# in the baked removal list — one invocation per app, so a single bad
-# removal cannot abort the rest — and then sweeps whatever runtimes and
-# extensions became unused (including bazzite's EOL leftovers). No network
-# needed; a no-op once the machine is clean; user-installed APPS are never
-# touched (only orphaned runtimes are swept).
+# bazzite boots with bazzite's whole flatpak payload. Two flatpak behaviors
+# make naive cleanup incomplete: (1) refs like the OBS plugins and the
+# VulkanLayers are RUNTIME-type extensions — they never appear in
+# `flatpak list --app`, so an app-only match never touches them; (2) refs
+# installed explicitly (everything bazzite installed by name) are
+# AUTO-PINNED, and pinned refs are invisible to `flatpak uninstall
+# --unused`. So: match the baked list against ALL system refs, clear every
+# pin, then sweep. Individual uninstalls so one failure can't abort the
+# batch; no network; idempotent; user-installed APPS are never touched
+# (only orphaned runtimes/extensions are swept).
 set -uo pipefail
 
 FLATPAK_IDS=(
+  # apps
   com.github.Matoking.protontricks
   com.github.tchx84.Flatseal
   com.obsproject.Studio.Plugin.GStreamerVaapi
@@ -30,6 +31,18 @@ FLATPAK_IDS=(
   org.kde.kcalc
   org.kde.okular
   org.mozilla.firefox
+  # runtime-type extensions (explicitly installed by bazzite → auto-pinned)
+  org.freedesktop.Platform
+  org.freedesktop.Platform.Compat.i386
+  org.freedesktop.Platform.GL.default
+  org.freedesktop.Platform.GL32.default
+  org.freedesktop.Platform.VulkanLayer.MangoHud
+  org.freedesktop.Platform.VulkanLayer.OBSVkCapture
+  org.freedesktop.Platform.VulkanLayer.vkBasalt
+  org.freedesktop.Platform.codecs-extra
+  org.gnome.Platform
+  org.kde.KStyle.Adwaita
+  org.kde.Platform
 )
 
 echo "::group::flatpak-setup — enforce the removal list"
@@ -39,12 +52,13 @@ if ! command -v flatpak >/dev/null 2>&1; then
   exit 0 # opportunistic: skip rather than fail the boot unit
 fi
 
-installed_apps() {
-  flatpak list --system --app --columns=application 2>/dev/null || true
+installed_refs() {
+  # NO --app: the list must include runtime-type extensions too
+  flatpak list --system --columns=application 2>/dev/null || true
 }
 
 for id in "${FLATPAK_IDS[@]}"; do
-  if installed_apps | grep -Fxq "${id}"; then
+  if installed_refs | grep -Fxq "${id}"; then
     if flatpak uninstall --system --noninteractive --assumeyes "${id}"; then
       echo "  OK    removed ${id}"
     else
@@ -52,6 +66,14 @@ for id in "${FLATPAK_IDS[@]}"; do
     fi
   fi
 done
+
+echo "--- clearing auto-pins (pinned refs survive --unused) ---"
+while IFS= read -r ref; do
+  [ -n "${ref}" ] || continue
+  if flatpak pin --system --remove "${ref}" >/dev/null 2>&1; then
+    echo "  OK    unpinned ${ref}"
+  fi
+done < <(flatpak pin --system 2>/dev/null | grep -E '^(app|runtime)/')
 
 echo "--- sweeping orphaned runtimes/extensions ---"
 if flatpak uninstall --system --unused --noninteractive --assumeyes; then

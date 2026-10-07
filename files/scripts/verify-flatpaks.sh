@@ -14,7 +14,9 @@ source /tmp/files/scripts/lib/verify.sh
 
 SCRIPT=/usr/libexec/halcyon-image/flatpak-setup
 
-# Every app the baked removal list must carry.
+# Every ref the baked removal list must carry — apps AND runtime-type
+# extensions (the OBS plugins and VulkanLayers are runtime-type; an
+# --app-only match never sees them).
 FLATPAK_IDS=(
   com.github.Matoking.protontricks
   com.github.tchx84.Flatseal
@@ -30,6 +32,17 @@ FLATPAK_IDS=(
   org.kde.kcalc
   org.kde.okular
   org.mozilla.firefox
+  org.freedesktop.Platform
+  org.freedesktop.Platform.Compat.i386
+  org.freedesktop.Platform.GL.default
+  org.freedesktop.Platform.GL32.default
+  org.freedesktop.Platform.VulkanLayer.MangoHud
+  org.freedesktop.Platform.VulkanLayer.OBSVkCapture
+  org.freedesktop.Platform.VulkanLayer.vkBasalt
+  org.freedesktop.Platform.codecs-extra
+  org.gnome.Platform
+  org.kde.KStyle.Adwaita
+  org.kde.Platform
 )
 
 remove_list_has_all() {
@@ -47,6 +60,8 @@ gate "flatpak-setup script shipped" test -x "${SCRIPT}"
 gate "unit shipped" test -f /usr/lib/systemd/system/halcyon-flatpak-setup.service
 gate "removal list carries the full app set" remove_list_has_all "${FLATPAK_IDS[@]}"
 gate "unused-runtime sweep wired" grep -qF -- '--unused' "${SCRIPT}"
+gate "auto-pin cleanup wired (pinned refs survive --unused)" \
+  grep -qF 'flatpak pin --system --remove' "${SCRIPT}"
 # Enablement is NOT gated here: halcyon-flatpak-setup.service is enabled by
 # the ujust systemd module, which runs AFTER this module — final-verify.sh
 # owns the is-enabled check at end state.
