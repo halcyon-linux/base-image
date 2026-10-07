@@ -3,8 +3,8 @@
 # image (halcyon-flatpak-setup.service + the libexec script with the baked
 # app list and the unused-runtime sweep). The removals themselves run on the
 # BOOTED system — a build container cannot assert /var/lib/flatpak end
-# state. The bazzite-service masks are ujust-stage state; final-verify.sh
-# owns them at end state. Mutates nothing.
+# state. The bazzite-service masks AND the unit enablement are ujust-stage
+# state; final-verify.sh owns them at end state. Mutates nothing.
 set -uo pipefail
 
 echo "████ verify · flatpaks ████"
@@ -44,7 +44,9 @@ gate "flatpak-setup script shipped" test -x "${SCRIPT}"
 gate "unit shipped" test -f /usr/lib/systemd/system/halcyon-flatpak-setup.service
 gate "removal list carries the full app set" remove_list_has_all "${FLATPAK_IDS[@]}"
 gate "unused-runtime sweep wired" grep -qF -- '--unused' "${SCRIPT}"
-gate "flatpak-setup.service enabled" systemctl is-enabled halcyon-flatpak-setup.service
+# Enablement is NOT gated here: halcyon-flatpak-setup.service is enabled by
+# the ujust systemd module, which runs AFTER this module — final-verify.sh
+# owns the is-enabled check at end state.
 echo "::endgroup::"
 
 [ "$fail" = 0 ] || {
