@@ -1,0 +1,15 @@
+[Unit]
+# Adopt existing bash accounts into zsh (see shell-migration script). Runs
+# before systemd-user-sessions so the first getty login of every boot lands
+# on zsh — getty@ is ordered after systemd-user-sessions.service.
+Description=Migrate regular bash accounts to zsh
+After=local-fs.target
+Before=systemd-user-sessions.service
+ConditionPathExists=/usr/bin/zsh
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/halcyon-image/shell-migration
+
+[Install]
+WantedBy=multi-user.target

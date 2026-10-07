@@ -4,7 +4,9 @@ A lean Hyprland gaming-desktop OCI image built with [BlueBuild](https://blue-bui
 on `ghcr.io/ublue-os/bazzite-nvidia-open:latest`.
 
 - Hyprland + Noctalia on the Bazzite base (KDE Plasma removed), zsh as the
-  default shell, login via getty@tty2 (a display manager — ly — is planned)
+  default shell (`/etc/default/useradd` for new accounts; accounts rebased
+  from an older OS are adopted into zsh automatically at first boot), login
+  via getty@tty2 (a display manager — ly — is planned)
 - Bazzite's kernel and NVIDIA open driver stack, inherited untouched
 - Native gaming stack, no Flatpak: Steam, Lutris and Heroic Launcher install
   as RPMs for maximum Proton/Wine compatibility (RakuOS model), plus

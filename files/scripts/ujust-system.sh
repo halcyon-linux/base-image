@@ -130,6 +130,26 @@ grep -q '/usr/libexec/halcyon-image' /etc/profile.d/image-path.sh || {
   echo "  FAIL  image-path.sh hook missing" >&2
   exit 1
 }
+# shell adoption: /etc/default/useradd covers only NEW users — existing
+# (rebased) accounts are adopted into zsh at boot (unit runs before
+# systemd-user-sessions, so getty's first login prompt is already zsh)
+test -f /usr/lib/systemd/system/halcyon-shell-migration.service || {
+  echo "  FAIL  shell-migration unit missing" >&2
+  exit 1
+}
+test -x /usr/libexec/halcyon-image/shell-migration || {
+  echo "  FAIL  shell-migration script missing" >&2
+  exit 1
+}
+systemctl is-enabled halcyon-shell-migration.service >/dev/null 2>&1 || {
+  echo "  FAIL  halcyon-shell-migration.service not enabled" >&2
+  exit 1
+}
+# shellcheck disable=SC2016  # greps the literal assignment in the overlay script
+grep -q 'PWD="${HOME}"' /etc/profile.d/01-nix-resolve-home-env.sh || {
+  echo "  FAIL  01-nix-resolve-home-env.sh does not normalize the login PWD" >&2
+  exit 1
+}
 env -i PATH= HOME=/root /bin/bash -lc 'command -v grep' >/dev/null 2>&1 || {
   echo "  FAIL  empty-PATH regression" >&2
   exit 1

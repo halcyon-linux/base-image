@@ -38,7 +38,8 @@ files/                    # mounted at /tmp/files in every module RUN; never bak
                           #     02-custom-environment,03-gnupg-ssh,image-path}.sh —
                           #     run in that order; image-path.sh (755) puts
                           #     usr/libexec/halcyon-image/* on PATH
-                          #   usr/lib/systemd/system/{var-nix.service,nix.mount}
+                          #   usr/lib/systemd/system/{var-nix.service,nix.mount,
+                          #     halcyon-shell-migration.service}
                           #   usr/lib/systemd/user/pyprland.service (+ .d/ drop-in;
                           #     pyprland's RPM ships no unit)
                           #   usr/lib/systemd/user/chezmoi-init.service.d/10-halcyon.conf
@@ -198,7 +199,11 @@ module; CI steps are inlined (no Justfile).
   TimeoutStartSec=600 (a cold clone+apply outruns the ~90s default).
 - `ujust.yml`: no dnf block (base ships glow/jq/just/stress-ng) →
   `systemd` module, declarative unit state: enabled = uupd.timer,
-  getty@tty2.service (login path until ly lands); masked =
+  getty@tty2.service (login path until ly lands),
+  halcyon-shell-migration.service (boot-time adoption of existing bash
+  accounts into zsh — /etc/default/useradd only covers user CREATION,
+  /etc/passwd survives a rebase; ordered before systemd-user-sessions so
+  the first getty login is already zsh); masked =
   sddm/gdm/plasma-login-manager/bazzite-autologin/nvidia-persistenced/
   nvidia-powerd/systemd-oomd (gaming box) plus the flatpak quartet
   (flatpaks.yml owns flatpak state); user.enabled = pyprland. → `script

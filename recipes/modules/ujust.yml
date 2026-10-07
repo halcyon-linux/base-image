@@ -11,6 +11,11 @@ modules:
       enabled:
         - uupd.timer
         - getty@tty2.service
+        # /etc/default/useradd only covers user CREATION — an account made
+        # under bazzite keeps /bin/bash across a rebase. This oneshot adopts
+        # regular bash accounts into zsh every boot (no-op once done) and
+        # completes before systemd-user-sessions, i.e. before getty spawns.
+        - halcyon-shell-migration.service
       masked:
         - sddm.service
         - gdm.service

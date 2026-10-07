@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# halcyon boot step — adopt existing bash accounts into zsh.
+#
+# _why_: /etc/default/useradd only sets the shell for accounts created AFTER
+# install — /etc/passwd is machine-local state that survives a rebase, so an
+# account created under bazzite keeps /bin/bash forever. halcyon's promise
+# (TODO.md) is zero manual steps after login, so every boot this walks the
+# passwd database and switches regular human accounts (UID 1000-60000) whose
+# shell is still bash over to zsh. Deliberately narrow: bash only, no system
+# accounts, no other shells — adopting, not conquering. Idempotent: a no-op
+# once every account is on zsh. Best-effort by design: a usermod failure is
+# logged and the next account is tried; this must never block multi-user.
+set -uo pipefail
+
+ZSH=/usr/bin/zsh
+
+echo "::group::shell-migration — adopt bash accounts into zsh"
+
+if [ ! -x "${ZSH}" ]; then
+  echo "  FAIL  ${ZSH} missing — nothing to migrate to" >&2
+  exit 0 # opportunistic: skip rather than fail the boot unit
+fi
+
+migrated=0
+while IFS=: read -r user _ uid _ _ _ shell; do
+  if [ "${uid}" -ge 1000 ] && [ "${uid}" -lt 60000 ] \
+    && { [ "${shell}" = /bin/bash ] || [ "${shell}" = /usr/bin/bash ]; }; then
+    if usermod -s "${ZSH}" "${user}"; then
+      echo "  OK    adopted ${user}: ${shell} -> ${ZSH}"
+      migrated=$((migrated + 1))
+    else
+      echo "  WARN  usermod failed for ${user} — left on ${shell}" >&2
+    fi
+  fi
+done < <(getent passwd)
+
+echo "  INFO  ${migrated} account(s) migrated to zsh"
+echo "::endgroup::"
+exit 0
