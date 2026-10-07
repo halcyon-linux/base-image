@@ -5,7 +5,4 @@
 ---
 
 - [x] Add separate build-time verification scripts for all modules in the whole project (verify-<module>.sh per module, wired as trailing script blocks; final-verify.sh + bootc-lint.yml are the no-cache backstop)
-- [ ] Disable zram and tmpfs
-- [ ] Replace the TTY login path with the `ly` display manager (greetd + the
-      noctalia greeter were removed with the bazzite migration; getty@tty2 +
-      a manual Hyprland start is the interim login path)
+- [ ] There should not a texlive-update ujust script since I install all my texlive packages from my personal fedora copr repo.
