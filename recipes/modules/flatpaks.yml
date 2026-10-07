@@ -1,51 +1,16 @@
 ---
 # yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
-# Zero-flatpak policy, owned by bluebuild's default-flatpaks module (pinned
-# @v1: v2 dropped remove support). Bazzite bakes NO flatpaks into the image —
-# four boot-time services deliver them (all masked in ujust.yml) — so the
-# remove list is enforced on every boot by system-flatpak-setup.timer, which
-# is what covers machines rebasing from bazzite (/var/lib/flatpak survives).
-# No repo fields set → no remote added, fedora flatpak remotes deleted, the
-# base's disabled flathub untouched; full story in AGENTS.md §3.
+# Zero-flatpak policy. The enforcement is NOT the bluebuild default-flatpaks
+# module anymore: its v1 boot script no-ops silently on any early failure and
+# matches its remove list against installed APPS only (it could never remove
+# runtimes) — and in the field it left the whole bazzite flatpak payload in
+# place after a rebase. The overlay owns it now: halcyon-flatpak-setup.service
+# (shipped by files/system, enabled in ujust.yml) uninstalls every app in the
+# baked list and sweeps unused runtimes/extensions on every boot — no
+# network, idempotent, no-op on a clean machine. This module only gates the
+# shipped enforcement at build time (the masks are ujust-stage state, gated
+# by final-verify at end state).
 modules:
-  - type: default-flatpaks@v1
-    system:
-      remove:
-        # apps — enforced at boot by system-flatpak-setup
-        - com.github.Matoking.protontricks
-        - com.github.tchx84.Flatseal
-        - com.obsproject.Studio.Plugin.GStreamerVaapi
-        - com.obsproject.Studio.Plugin.GStreamer
-        - com.obsproject.Studio.Plugin.OBSVkCapture
-        - com.vysp3r.ProtonPlus
-        - io.github.DenysMb.Kontainer
-        - io.github.flattool.Warehouse
-        - org.gnome.Firmware
-        - org.kde.gwenview
-        - org.kde.haruna
-        - org.kde.kcalc
-        - org.kde.okular
-        - org.mozilla.firefox
-        # runtimes/extensions — declarations, see NOTE above
-        - org.freedesktop.Platform
-        - org.freedesktop.Platform.Compat.i386
-        - org.freedesktop.Platform.GL.default
-        - org.freedesktop.Platform.GL32.default
-        - org.freedesktop.Platform.VulkanLayer.MangoHud
-        - org.freedesktop.Platform.VulkanLayer.OBSVkCapture
-        - org.freedesktop.Platform.VulkanLayer.vkBasalt
-        - org.freedesktop.Platform.codecs-extra
-        - org.gnome.Platform
-        - org.kde.KStyle.Adwaita
-        - org.kde.Platform
-    # The module enables user-flatpak-setup.timer --global unconditionally;
-    # an empty user config writes user/repo-info.json so the boot script's
-    # remote-add is skipped cleanly instead of erroring on an empty repo
-    # name every boot.
-    user: {}
-
-  # Build-time gates only: the shipped configuration and the masks (the
-  # removals themselves run on the booted system — see NOTE above).
   - type: script
     scripts:
       - verify-flatpaks.sh

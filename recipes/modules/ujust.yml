@@ -16,6 +16,12 @@ modules:
         # regular bash accounts into zsh every boot (no-op once done) and
         # completes before systemd-user-sessions, i.e. before getty spawns.
         - halcyon-shell-migration.service
+        # zero-flatpak enforcement (flatpaks.yml): the bluebuild
+        # default-flatpaks v1 boot script left the whole bazzite payload in
+        # place after a rebase and can never remove runtimes — the overlay
+        # oneshot uninstalls the baked app list and sweeps unused runtimes
+        # every boot instead.
+        - halcyon-flatpak-setup.service
       masked:
         - sddm.service
         - gdm.service
@@ -26,7 +32,8 @@ modules:
         # gaming box: oomd kills games prematurely or freezes the session —
         # keep it masked as on the previous build
         - systemd-oomd.service
-        # flatpak state is owned by default-flatpaks (flatpaks.yml): bazzite's
+        # flatpak state is owned by halcyon-flatpak-setup (flatpaks.yml):
+        # bazzite's
         # manager re-enables flathub, re-applies flatpak overrides and sweeps
         # per its own policy; the nvidia sync/verify pair installs NVIDIA
         # flatpak GL runtimes and nags at boot; the ublue repos service

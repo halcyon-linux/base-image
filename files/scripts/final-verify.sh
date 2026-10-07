@@ -82,17 +82,15 @@ gate "texlive tree + formats" test -s /etc/profile.d/texlive.sh && find /usr/lib
 echo "::endgroup::"
 
 echo "::group::final-verify — flatpaks"
-# Zero-flatpak end state: the module ships the boot-enforced remove list and
-# every bazzite flatpak service stays masked. The removals themselves run on
-# the booted system (system-flatpak-setup.timer) — not assertable here. The
-# full 25-ID list is gated per-module by verify-flatpaks.sh; the config is
-# static between layers, so two canaries are the no-cache backstop.
-FLATPAK_REMOVE_LIST=/usr/share/bluebuild/default-flatpaks/system/remove
-gate "default-flatpaks remove list ships (canaries)" \
-  sh -c "grep -Fxq org.mozilla.firefox '$FLATPAK_REMOVE_LIST' && grep -Fxq org.kde.Platform '$FLATPAK_REMOVE_LIST'"
-gate "no flatpak repo forced (remote-add skipped at boot)" \
-  grep -q '"repo-url": "null"' /usr/share/bluebuild/default-flatpaks/system/repo-info.json
-gate "flatpak boot notifications disabled" grep -qx false /usr/share/bluebuild/default-flatpaks/notifications
+# Zero-flatpak end state: the overlay oneshot (halcyon-flatpak-setup) ships
+# the boot-enforced removal list and every bazzite flatpak service stays
+# masked. The removals themselves run on the booted system — not assertable
+# in the build; the module verify gates the script's full app set, so two
+# canaries plus the sweep flag are the no-cache backstop.
+FLATPAK_SETUP=/usr/libexec/halcyon-image/flatpak-setup
+gate "flatpak-setup enforcement shipped (canaries)" \
+  sh -c "grep -Fxq org.mozilla.firefox '$FLATPAK_SETUP' && grep -Fxq org.kde.gwenview '$FLATPAK_SETUP' && grep -qF -- '--unused' '$FLATPAK_SETUP'"
+gate "flatpak-setup.service enabled" test "$(systemctl is-enabled halcyon-flatpak-setup.service 2>/dev/null)" = enabled
 for unit in \
   bazzite-flatpak-manager.service \
   ublue-nvidia-flatpak-runtime-sync.service \

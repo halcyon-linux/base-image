@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+# halcyon boot step — enforce the zero-flatpak policy on the system
+# installation.
+#
+# _why_: flatpaks live in /var (machine-local), so a machine rebased from
+# bazzite boots with bazzite's whole flatpak payload, and the bluebuild
+# default-flatpaks v1 boot script could not be trusted to deliver its
+# uninstall (an early failure silently no-ops the whole boot pass) — nor
+# could it EVER remove runtimes, because it matches its remove list against
+# installed APPS only. This oneshot deterministically uninstalls every app
+# in the baked removal list — one invocation per app, so a single bad
+# removal cannot abort the rest — and then sweeps whatever runtimes and
+# extensions became unused (including bazzite's EOL leftovers). No network
+# needed; a no-op once the machine is clean; user-installed APPS are never
+# touched (only orphaned runtimes are swept).
+set -uo pipefail
+
+FLATPAK_IDS=(
+  com.github.Matoking.protontricks
+  com.github.tchx84.Flatseal
+  com.obsproject.Studio.Plugin.GStreamerVaapi
+  com.obsproject.Studio.Plugin.GStreamer
+  com.obsproject.Studio.Plugin.OBSVkCapture
+  com.vysp3r.ProtonPlus
+  io.github.DenysMb.Kontainer
+  io.github.flattool.Warehouse
+  org.gnome.Firmware
+  org.kde.gwenview
+  org.kde.haruna
+  org.kde.kcalc
+  org.kde.okular
+  org.mozilla.firefox
+)
+
+echo "::group::flatpak-setup — enforce the removal list"
+
+if ! command -v flatpak >/dev/null 2>&1; then
+  echo "  FAIL  flatpak CLI missing" >&2
+  exit 0 # opportunistic: skip rather than fail the boot unit
+fi
+
+installed_apps() {
+  flatpak list --system --app --columns=application 2>/dev/null || true
+}
+
+for id in "${FLATPAK_IDS[@]}"; do
+  if installed_apps | grep -Fxq "${id}"; then
+    if flatpak uninstall --system --noninteractive --assumeyes "${id}"; then
+      echo "  OK    removed ${id}"
+    else
+      echo "  WARN  uninstall failed for ${id} — retried next boot" >&2
+    fi
+  fi
+done
+
+echo "--- sweeping orphaned runtimes/extensions ---"
+if flatpak uninstall --system --unused --noninteractive --assumeyes; then
+  echo "  OK    unused-runtime sweep complete (system refs left: $(flatpak list --system --columns=application | wc -l))"
+else
+  echo "  WARN  unused-runtime sweep failed — retried next boot" >&2
+fi
+echo "::endgroup::"
+exit 0

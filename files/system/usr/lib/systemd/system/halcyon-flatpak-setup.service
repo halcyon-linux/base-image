@@ -1,0 +1,13 @@
+[Unit]
+# Enforce the zero-flatpak policy on the system installation (see the
+# flatpak-setup script): remove the baked app list, sweep unused runtimes.
+Description=Remove baked flatpak list and sweep unused runtimes
+After=local-fs.target
+ConditionPathExists=/usr/bin/flatpak
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/halcyon-image/flatpak-setup
+
+[Install]
+WantedBy=multi-user.target

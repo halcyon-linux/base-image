@@ -39,7 +39,8 @@ files/                    # mounted at /tmp/files in every module RUN; never bak
                           #     run in that order; image-path.sh (755) puts
                           #     usr/libexec/halcyon-image/* on PATH
                           #   usr/lib/systemd/system/{var-nix.service,nix.mount,
-                          #     halcyon-shell-migration.service}
+                          #     halcyon-shell-migration.service,
+                          #     halcyon-flatpak-setup.service}
                           #   usr/lib/systemd/user/pyprland.service (+ .d/ drop-in;
                           #     pyprland's RPM ships no unit)
                           #   usr/lib/systemd/user/chezmoi-init.service.d/10-halcyon.conf
@@ -164,25 +165,18 @@ module; CI steps are inlined (no Justfile).
   COPR specs).
 - `python-packages.yml`: halcyon's own Python helper tools from COPR
   aahsnr-work/python-packages.
-- `flatpaks.yml`: the zero-flatpak policy via bluebuild's
-  `default-flatpaks@v1` (pinned: v2 dropped remove support). Bazzite bakes
-  NO flatpaks into the image — four boot-time services deliver them
-  (bazzite-flatpak-manager, ublue-nvidia-flatpak-runtime-{sync,verify},
-  flatpak-add-fedora-repos; all RPM-unowned, masked in ujust.yml). The
-  module's `system.remove` list (25 IDs) is enforced on every boot by
-  system-flatpak-setup.timer, which is what covers rebasing machines
-  whose /var/lib/flatpak survives the rebase. No repo fields set → the
-  boot script adds no remote, deletes the fedora flatpak remotes it
-  finds, and leaves the base's disabled flathub untouched (skipping
-  Flathub's build-time ID validation too). `user: {}` neutralizes the
-  unconditional --global user timer (without user/repo-info.json it
-  errors on an empty repo name every boot). Upstream v1 matches its
-  remove list against installed APPS only — the runtime refs are
-  declarations; a rebased machine clears orphaned runtimes with
-  `flatpak uninstall --unused`, fresh installs never get any.
-  verify-flatpaks.sh gates the shipped config; the masks are ujust-stage
-  state, so final-verify.sh gates them at end state (the removals
-  themselves are not assertable in a container).
+- `flatpaks.yml`: the zero-flatpak policy, enforced by the overlay — NOT
+  the bluebuild `default-flatpaks` module (dropped: its v1 boot script
+  no-ops silently on any early failure and matches its remove list against
+  installed APPS only, so it never removes runtimes — and in the field it
+  left the whole bazzite flatpak payload in place after a rebase).
+  `halcyon-flatpak-setup.service` (oneshot, shipped via files/system,
+  enabled in ujust.yml) uninstalls every app in the baked list one-by-one
+  and sweeps unused runtimes/extensions (`flatpak uninstall --unused`) on
+  every boot — no network, idempotent, user-installed APPS are never
+  touched. verify-flatpaks.sh gates the shipped script + enablement; the
+  masks are ujust-stage state, so final-verify.sh gates them at end state
+  (the removals themselves are not assertable in a container).
 - `chezmoi.yml`: the official blue-build chezmoi module — writes
   chezmoi-init.service + chezmoi-update.{service,timer} and enables them
   --global; repository aahsnr-configs/dotfiles (public HTTPS — no keys
