@@ -1,6 +1,0 @@
-# Stage 11 — bootc container lint under the hermetic flags (tmpfs /run,
-# no network). no-cache: the gate must run on every build.
-type: containerfile
-no-cache: true
-snippets:
-  - "RUN --mount=type=tmpfs,target=/run --network=none bootc container lint"

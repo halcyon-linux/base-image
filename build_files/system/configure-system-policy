@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+# Disable rpm-ostree automatic staging; updates are managed by uupd.
+if [[ -f /etc/rpm-ostreed.conf ]]; then
+    sed -i 's/stage/none/g' /etc/rpm-ostreed.conf
+fi
+
+# Disable external build repositories in the shipping image.
+repositories=(
+    fedora-cisco-openh264
+    tailscale
+    _copr_ublue-os-akmods
+    terra
+    terra-extras
+    negativo17-fedora-multimedia
+)
+for repo in "${repositories[@]}"; do
+    if [[ -f "/etc/yum.repos.d/${repo}.repo" ]]; then
+        sed -i 's@enabled=1@enabled=0@g' "/etc/yum.repos.d/${repo}.repo"
+    fi
+done
+
+coprs=(
+    ublue-os/bazzite
+    ublue-os/bazzite-multilib
+    ublue-os/staging
+    ublue-os/packages
+    aahsnr-work/python-packages
+    ycollet/audinux
+    che/nerd-fonts
+)
+for copr in "${coprs[@]}"; do
+    dnf5 -y copr disable "$copr" 2>/dev/null || true
+done
+unset -v copr
+
+    eval "$(/ctx/shared/dnf5-setopt setopt '*negativo17*' enabled=0 2>/dev/null || true)"
+
+# Patch setroubleshoot's SELinux configuration path.
+for util_file in /usr/lib/python3.*/site-packages/setroubleshoot/util.py; do
+    if [[ -f "$util_file" ]]; then
+        sed -i 's#/var/lib/selinux#/etc/selinux#g' "$util_file"
+    fi
+done
+
+# Configure Bazzite's Tuned power profile mappings.
+if [[ -f /etc/tuned/ppd.conf ]]; then
+    sed -i 's/power-saver=powersave$/power-saver=powersave-bazzite/' /etc/tuned/ppd.conf
+    sed -i 's/balanced=balanced$/balanced=balanced-bazzite/' /etc/tuned/ppd.conf
+    sed -i 's/performance=throughput-performance$/performance=throughput-performance-bazzite/' \
+        /etc/tuned/ppd.conf
+fi
+
+# Prevent applications from starting a separate PulseAudio server.
+ln -sfn /usr/bin/true /usr/bin/pulseaudio
+
+# Install Bazzite Firefox preferences for the RPM Firefox.
+firefox_config=/usr/share/ublue-os/firefox-config
+if [[ -d "$firefox_config" ]] && compgen -G "$firefox_config"/*.js >/dev/null; then
+    install -d /usr/lib64/firefox/defaults/pref
+    cp "$firefox_config"/*.js /usr/lib64/firefox/defaults/pref/
+fi

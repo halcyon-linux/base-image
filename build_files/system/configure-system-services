@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+system_services=(
+    brew-setup.service
+    input-remapper.service
+    uupd.timer
+    hardware-setup.service
+    dev-hugepages1G.mount
+    libvirtd.service
+    ds-inhibit.service
+    greenboot-healthcheck.service
+    greenboot-set-rollback-trigger.service
+    dmemcg-booster-system.service
+    cardwired.service
+)
+
+global_services=(
+    user-setup.service
+    podman.socket
+    systemd-tmpfiles-setup.service
+    dynamic-fixes.service
+    dmemcg-booster-user.service
+)
+
+disabled_services=(
+    scx_loader.service
+    rpm-ostreed-automatic.timer
+    tailscaled.service
+)
+
+for unit in "${system_services[@]}"; do
+    systemctl enable "$unit" || echo "Warning: failed to enable $unit" >&2
+done
+
+for unit in "${global_services[@]}"; do
+    systemctl --global enable "$unit" || echo "Warning: failed to enable global $unit" >&2
+done
+
+for unit in "${disabled_services[@]}"; do
+    systemctl disable "$unit" 2>/dev/null || true
+done

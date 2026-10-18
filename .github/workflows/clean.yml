@@ -1,26 +1,25 @@
-name: clean ghcr
-# GHCR housekeeping: prune image versions older than 90 days (keeping the
-# newest 7 tagged) and orphaned untagged layers.
+name: Cleanup Old Images
 on:
   schedule:
-    - cron: "15 0 * * 0" # 00:15 UTC, Sundays
+    - cron: "15 0 * * 0" # 0015 UTC on Sundays
   workflow_dispatch:
 
 permissions: {}
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
+
 jobs:
   delete-older-than-90:
-    name: Prune old GHCR versions
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    runs-on: ubuntu-latest
     permissions:
       packages: write
     steps:
-      - name: Delete images older than 90 days
-        uses: dataaxiom/ghcr-cleanup-action@v1
+      - name: Delete Images Older Than 90 Days
+        uses: dataaxiom/ghcr-cleanup-action@d52806a0dc70b430571a37da1fde39733ffd640f # v1.2.2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          packages: halcyon
+          packages: bazzfin-nvidia
           older-than: 90 days
           delete-orphaned-images: true
           keep-n-tagged: 7

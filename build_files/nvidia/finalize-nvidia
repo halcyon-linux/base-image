@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+if ! grep -q '/usr/share/ublue-os/just/95-bazzite-nvidia.just' /usr/share/ublue-os/justfile 2>/dev/null; then
+    cat >> /usr/share/ublue-os/justfile <<'EOF'
+import "/usr/share/ublue-os/just/95-bazzite-nvidia.just"
+EOF
+fi
+
+# Remove nvidia_peermem from Dracut config to avoid boot warnings.
+if [[ -f /usr/lib/dracut/dracut.conf.d/99-nvidia.conf ]]; then
+    sed -i 's/ nvidia_peermem\b//' /usr/lib/dracut/dracut.conf.d/99-nvidia.conf
+elif [[ -f /etc/dracut.conf.d/99-nvidia.conf ]]; then
+    sed -i 's/ nvidia_peermem\b//' /etc/dracut.conf.d/99-nvidia.conf
+fi
+
+# Install Bazzite's Firefox preferences when the base provides the RPM browser.
+firefox_config=/usr/share/ublue-os/firefox-config
+if [[ -d "$firefox_config" ]] && compgen -G "$firefox_config"/*.js >/dev/null; then
+    install -d /usr/lib64/firefox/defaults/pref
+    cp "$firefox_config"/*.js /usr/lib64/firefox/defaults/pref/
+fi
+
+systemctl enable nvidia-powerd.service || echo "Warning: failed to enable nvidia-powerd.service" >&2
+systemctl disable nvidia-persistenced.service 2>/dev/null || true
+systemctl enable nvidia-flatpak-runtime-sync.service || echo "Warning: failed to enable nvidia-flatpak-runtime-sync.service" >&2
+systemctl enable nvidia-flatpak-runtime-verify.service || echo "Warning: failed to enable nvidia-flatpak-runtime-verify.service" >&2
+# Keep Waydroid's container off until the user starts it.
+systemctl disable waydroid-container.service 2>/dev/null || true
+
+# Copy modesetting config into the immutable modprobe directory to enable early KMS.
+if [[ -f /etc/modprobe.d/nvidia-modeset.conf ]]; then
+    install -D -m 0644 /etc/modprobe.d/nvidia-modeset.conf \
+        /usr/lib/modprobe.d/nvidia-modeset.conf
+fi

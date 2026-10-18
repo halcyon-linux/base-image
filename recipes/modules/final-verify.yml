@@ -1,6 +1,0 @@
-# Stage 10 — final-verify: end-state backstop. no-cache: the gates must run
-# on every build, never be skipped by a cached layer.
-type: script
-no-cache: true
-scripts:
-  - final-verify.sh

@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+for pkg in pipewire-config-raop mesa-va-drivers; do
+    if rpm -q "$pkg" >/dev/null 2>&1; then
+        dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y remove "$pkg"
+    fi
+done
+
+declare -A package_swaps=(
+    ["copr:copr.fedorainfracloud.org:ublue-os:bazzite-multilib"]='bluez xorg-x11-server-Xwayland'
+    ["terra-mesa"]='mesa-filesystem'
+)
+
+dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y swap --allowerasing --repo terra-extras wireplumber terra-wireplumber
+
+for repo in "${!package_swaps[@]}"; do
+    read -r -a repo_packages <<<"${package_swaps[$repo]}"
+    for package in "${repo_packages[@]}"; do
+        dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y swap --from-repo="$repo" "$package" "$package"
+    done
+done
+
+versionlocked_packages=(
+    bluez
+    bluez-cups
+    bluez-libs
+    bluez-obexd
+    xorg-x11-server-Xwayland
+    mesa-dri-drivers
+    mesa-filesystem
+    mesa-libEGL
+    mesa-libGL
+    mesa-libgbm
+    mesa-vulkan-drivers
+    NetworkManager
+    NetworkManager-wifi
+    NetworkManager-libnm
+)
+dnf5 versionlock add "${versionlocked_packages[@]}"
+
+dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' --enable-repo=terra-mesa -y install \
+    mesa-libEGL.i686 \
+    intel-opencl \
+    clinfo
+dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y install libfreeaptx
+dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y install --enable-repo='*fedora-multimedia*' --allowerasing \
+    openh264.x86_64 \
+    openh264.i686

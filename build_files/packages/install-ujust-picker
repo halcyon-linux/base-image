@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+ujust_picker_url=$(
+    /ctx/shared/ghcurl https://api.github.com/repos/ublue-os/bazzite-ujust-picker/releases/latest |
+        jq -er '[.assets[] | select(.name | test("x86_64$"))][0].browser_download_url'
+)
+
+install -d /usr/bin
+/ctx/shared/ghcurl "$ujust_picker_url" -Lo /usr/bin/ujust-picker
+chmod +x /usr/bin/ujust-picker
+setfattr -n user.component -v ujust-picker /usr/bin/ujust-picker 2>/dev/null || true

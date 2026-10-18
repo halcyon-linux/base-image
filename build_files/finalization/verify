@@ -1,0 +1,363 @@
+#!/usr/bin/bash
+
+set -Eeuo pipefail
+
+# Build-time verification for the bazzfin-nvidia image.
+# Each group asserts the invariants of one build stage. The Containerfile
+# invokes it immediately after the stage it verifies, so failures point at
+# the step that broke them instead of surfacing in the final image (or worse,
+# on user machines).
+#
+# Usage: /ctx/finalization/verify <kernel|repos|packages|nvidia|final>
+
+group="${1:-}"
+case "$group" in
+kernel | repos | packages | nvidia | final) ;;
+*)
+    printf 'Usage: %s <kernel|repos|packages|nvidia|final>\n' "$0" >&2
+    exit 2
+    ;;
+esac
+
+echo "::group::Executing verify (${group})"
+trap 'echo "::endgroup::"' EXIT
+
+declare -a failures=()
+
+fail() {
+    printf 'FAIL: %s\n' "$*" >&2
+    failures+=("$*")
+}
+
+pass() {
+    printf 'OK: %s\n' "$*"
+}
+
+# Require every listed package to be installed.
+require_rpms() {
+    local pkg
+    for pkg in "$@"; do
+        if rpm -q "$pkg" >/dev/null 2>&1; then
+            pass "package installed: $pkg"
+        else
+            fail "package missing: $pkg"
+        fi
+    done
+}
+
+# Require every listed package to be absent (guard rails for things this
+# image must never ship).
+forbid_rpms() {
+    local pkg
+    for pkg in "$@"; do
+        if rpm -q "$pkg" >/dev/null 2>&1; then
+            fail "forbidden package installed: $pkg"
+        else
+            pass "package absent: $pkg"
+        fi
+    done
+}
+
+# Require every listed repo id to be known to dnf5.
+require_repos() {
+    local available id
+    available="$(dnf5 repo info --all --json | jq -r '.[].id' || true)"
+    if [[ -z "$available" ]]; then
+        fail "dnf5 repo query returned nothing; cannot verify repos"
+        return
+    fi
+    for id in "$@"; do
+        if grep -qxF "$id" <<<"$available"; then
+            pass "repo known: $id"
+        else
+            fail "repo not found: $id"
+        fi
+    done
+}
+
+verify_kernel() {
+    local -a dirs
+    local kver_dir actual expected
+
+    mapfile -t dirs < <(find /usr/lib/modules -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
+    if [[ ${#dirs[@]} -eq 1 ]]; then
+        kver_dir="${dirs[0]}"
+        pass "exactly one kernel modules dir: $kver_dir"
+        if [[ -n "$(find "$kver_dir" -type f -print -quit)" ]]; then
+            pass "kernel modules dir is populated"
+        else
+            fail "kernel modules dir is empty: $kver_dir"
+        fi
+    else
+        fail "expected exactly one kernel modules dir, found ${#dirs[@]}: ${dirs[*]:-none}"
+    fi
+
+    require_rpms kernel-core kernel-modules kernel-devel
+
+    # install-kmods only warns (exit 0) when no RPMs match, so a missing
+    # nct6687d payload is only detectable here.
+    require_rpms kmod-nct6687d nct6687d
+
+    actual="$(rpm -q kernel-core --qf '%{VERSION}-%{RELEASE}' 2>/dev/null || true)"
+    actual="${actual%.x86_64}"
+    actual="${actual%.aarch64}"
+    expected="${KERNEL_VERSION:-}"
+    if [[ -n "$expected" ]]; then
+        if [[ "$actual" == "$expected" ]]; then
+            pass "installed kernel matches KERNEL_VERSION: $actual"
+        else
+            fail "kernel mismatch: installed=${actual} expected=${expected}"
+        fi
+    else
+        pass "KERNEL_VERSION not provided; skipped version comparison (installed=${actual:-unknown})"
+    fi
+}
+
+verify_repos() {
+    require_repos \
+        fedora updates \
+        fedora-multimedia \
+        terra terra-extras terra-mesa \
+        tailscale-stable \
+        'copr:copr.fedorainfracloud.org:ublue-os:bazzite' \
+        'copr:copr.fedorainfracloud.org:ublue-os:bazzite-multilib' \
+        'copr:copr.fedorainfracloud.org:ublue-os:staging' \
+        'copr:copr.fedorainfracloud.org:ublue-os:packages' \
+        'copr:copr.fedorainfracloud.org:aahsnr-work:python-packages'
+}
+
+verify_packages() {
+    require_rpms \
+        steam lutris bazaar uupd btop fastfetch snapper bees \
+        brh bruh crh gameclass bbrew-helper ublue-motd uupd-update \
+        boot-remount dlss-swapper dynamic-fixes \
+        fetch-image hardware-setup nvidia-flatpak-runtime \
+        powersave snapper-config user-setup \
+        input-remapper tailscale cockpit-system yad btrfs-assistant kernel-tools kmod
+
+    # Virtualization is enabled by default; the full stack ships in the image.
+    require_rpms \
+        virt-manager virt-install libvirt-daemon libvirt-daemon-kvm \
+        libvirt-daemon-config-network swtpm-tools
+
+    # kmod-sleep-workaround@.service shells out to these on suspend/resume.
+    local modbin
+    for modbin in /usr/bin/rmmod /usr/bin/modprobe; do
+        if [[ -x "$modbin" ]]; then
+            pass "kmod binary present: $modbin"
+        else
+            fail "kmod binary missing: $modbin"
+        fi
+    done
+}
+
+verify_nvidia() {
+    require_rpms egl-wayland egl-wayland2
+    if [[ -n "$(find /usr/lib/modules -name 'nvidia.ko*' -print -quit 2>/dev/null)" ]]; then
+        pass "nvidia kernel module present"
+    else
+        fail "nvidia kernel module not found under /usr/lib/modules"
+    fi
+    if [[ -e /usr/lib64/libnvidia-ml.so && -e /usr/lib64/libnvidia-ml.so.1 ]]; then
+        pass "NVML library and symlink present"
+    else
+        fail "NVML library or symlink missing (/usr/lib64/libnvidia-ml.so[.1])"
+    fi
+}
+
+verify_final() {
+    local info kver
+
+    # Negative guards: fonts and waydroid must never reach the published image.
+    forbid_rpms \
+        nerd-fonts fira-code-fonts lato-fonts google-noto-sans-cjk-fonts twitter-twemoji-fonts \
+        google-roboto-fonts google-roboto-mono-fonts \
+        waydroid waydroid-nvidia obs-studio-plugin-vkcapture-hook-libs
+
+    # Device-specific trim: kernel modules for absent hardware must not reappear.
+    forbid_rpms \
+        kmod-zenergy kmod-ryzen_smu kmod-wl kmod-openrazer kmod-xone kmod-gcadapter_oc \
+        kmod-evdi kmod-kvmfr kmod-new-lg4ff kmod-hid-tmff2 kmod-t150-driver \
+        kmod-hid-fanatecff kmod-sc0710 kmod-system76-driver kmod-system76-io kmod-v4l2loopback
+
+    # The offline docs bundle was removed on purpose (it was the only carrier
+    # of the Roboto/Roboto Mono webfonts).
+    if [[ -e /usr/share/ublue-os/docs ]]; then
+        fail "offline docs bundle present: /usr/share/ublue-os/docs"
+    else
+        pass "offline docs bundle absent"
+    fi
+
+    info=/usr/share/ublue-os/image-info.json
+    if [[ -f "$info" ]] && jq -e '(."image-name" | strings | length > 0) and (."image-branch" | strings | length > 0) and (."image-ref" | strings | length > 0)' "$info" >/dev/null; then
+        pass "image-info.json populated: $info"
+    else
+        fail "image-info.json missing or incomplete: $info"
+    fi
+    if jq -e '."image-ref" | startswith("ostree-image-signed:docker://ghcr.io/")' "$info" >/dev/null 2>&1; then
+        pass "image-ref uses the signed ghcr.io scheme"
+    else
+        fail "image-ref is not the signed ghcr.io reference"
+    fi
+
+    # The initramfs must exist for the installed kernel.
+    kver="$(dnf5 repoquery --installed --queryformat='%{evr}.%{arch}' kernel 2>/dev/null | head -n1 || true)"
+    if [[ -n "$kver" && -s "/usr/lib/modules/$kver/initramfs.img" ]]; then
+        pass "initramfs present: /usr/lib/modules/$kver/initramfs.img"
+    else
+        fail "initramfs missing for kernel '${kver:-<none>}'"
+    fi
+
+    # Downloaded tooling binaries must be present and runnable.
+    if [[ -x /usr/bin/ujust-picker ]]; then
+        pass "ujust-picker is installed and executable"
+    else
+        fail "ujust-picker missing or not executable"
+    fi
+    if [[ -x /usr/bin/winetricks ]]; then
+        pass "winetricks is installed and executable"
+    else
+        fail "winetricks missing or not executable"
+    fi
+
+    # The generated justfile (ujust recipes) must parse with all imports.
+    if ! command -v just >/dev/null 2>&1; then
+        fail "just binary not found; cannot validate ujust justfile"
+    elif just --unstable --summary -f /usr/share/ublue-os/justfile >/dev/null 2>&1; then
+        pass "ujust justfile parses"
+    else
+        fail "ujust justfile failed to parse"
+    fi
+
+    # Virtualization is enabled by default: libvirtd must be enabled at build
+    # time, and the obsolete upstream one-shot must not come back.
+    if [[ -e /etc/systemd/system/multi-user.target.wants/libvirtd.service ]]; then
+        pass "libvirtd.service is enabled"
+    else
+        fail "libvirtd.service is not enabled"
+    fi
+    if [[ -e /usr/lib/systemd/system/bazzite-libvirtd-setup.service ]]; then
+        fail "obsolete bazzite-libvirtd-setup.service is present"
+    else
+        pass "obsolete bazzite-libvirtd-setup.service absent"
+    fi
+
+    # The image-owned shell helpers were replaced by the vendor-neutral Copr
+    # packages; the old libexec scripts, the short-lived halcyon-* names, and
+    # every old unit name must not come back. (/usr/bin/dlss-swapper and
+    # -dll moved from image files to RPM payload; they are expected now.)
+    local old_path
+    for old_path in \
+        /usr/libexec/bazzite-boot-remount \
+        /usr/libexec/bazzite-dynamic-fixes \
+        /usr/libexec/bazzite-fetch-image \
+        /usr/libexec/bazzite-hardware-setup \
+        /usr/libexec/bazzite-powersave \
+        /usr/libexec/bazzite-privileged-user-setup \
+        /usr/libexec/bazzite-snapper-config \
+        /usr/libexec/bazzite-user-setup \
+        /usr/libexec/ublue-nvidia-flatpak-runtime-sync \
+        /usr/libexec/ublue-nvidia-flatpak-runtime-notify \
+        /usr/bin/halcyon-boot-remount \
+        /usr/bin/halcyon-dlss-swapper \
+        /usr/bin/halcyon-dlss-swapper-dll \
+        /usr/bin/halcyon-dynamic-fixes \
+        /usr/bin/halcyon-fetch-image \
+        /usr/bin/halcyon-hardware-setup \
+        /usr/bin/halcyon-nvidia-flatpak-runtime-notify \
+        /usr/bin/halcyon-nvidia-flatpak-runtime-sync \
+        /usr/bin/halcyon-powersave \
+        /usr/bin/halcyon-privileged-user-setup \
+        /usr/bin/halcyon-snapper-config \
+        /usr/bin/halcyon-user-setup \
+        /usr/lib/systemd/system/bazzite-hardware-setup.service \
+        /usr/lib/systemd/system/halcyon-hardware-setup.service \
+        /usr/lib/systemd/system/halcyon-nvidia-flatpak-runtime-sync.service \
+        /usr/lib/systemd/system/halcyon-nvidia-flatpak-runtime-verify.service \
+        /usr/lib/systemd/system/ublue-nvidia-flatpak-runtime-sync.service \
+        /usr/lib/systemd/system/ublue-nvidia-flatpak-runtime-verify.service \
+        /usr/lib/systemd/user/bazzite-dynamic-fixes.service \
+        /usr/lib/systemd/user/bazzite-user-setup.service \
+        /usr/lib/systemd/user/halcyon-dynamic-fixes.service \
+        /usr/lib/systemd/user/halcyon-user-setup.service; do
+        if [[ -e "$old_path" ]]; then
+            fail "obsolete path present: $old_path"
+        else
+            pass "obsolete path absent: $old_path"
+        fi
+    done
+
+    # The replacement binaries come from the RPM packages.
+    local new_bin
+    for new_bin in \
+        /usr/bin/boot-remount \
+        /usr/bin/dlss-swapper \
+        /usr/bin/dlss-swapper-dll \
+        /usr/bin/dynamic-fixes \
+        /usr/bin/fetch-image \
+        /usr/bin/hardware-setup \
+        /usr/bin/nvidia-flatpak-runtime-notify \
+        /usr/bin/nvidia-flatpak-runtime-sync \
+        /usr/bin/powersave \
+        /usr/bin/privileged-user-setup \
+        /usr/bin/snapper-config \
+        /usr/bin/user-setup; do
+        if [[ -x "$new_bin" ]]; then
+            pass "helper binary present: $new_bin"
+        else
+            fail "helper binary missing or not executable: $new_bin"
+        fi
+    done
+
+    # The renamed units ship with the image.
+    local new_unit
+    for new_unit in \
+        /usr/lib/systemd/system/hardware-setup.service \
+        /usr/lib/systemd/system/nvidia-flatpak-runtime-sync.service \
+        /usr/lib/systemd/system/nvidia-flatpak-runtime-verify.service \
+        /usr/lib/systemd/user/dynamic-fixes.service \
+        /usr/lib/systemd/user/user-setup.service; do
+        if [[ -e "$new_unit" ]]; then
+            pass "helper unit present: $new_unit"
+        else
+            fail "helper unit missing: $new_unit"
+        fi
+    done
+
+    # They stay enabled exactly where their predecessors were.
+    for new_unit in \
+        /etc/systemd/system/multi-user.target.wants/hardware-setup.service \
+        /etc/systemd/system/multi-user.target.wants/nvidia-flatpak-runtime-sync.service \
+        /etc/systemd/system/graphical.target.wants/nvidia-flatpak-runtime-verify.service \
+        /etc/systemd/user/default.target.wants/user-setup.service \
+        /etc/systemd/user/default.target.wants/dynamic-fixes.service; do
+        if [[ -e "$new_unit" ]]; then
+            pass "helper unit enabled: $new_unit"
+        else
+            fail "helper unit not enabled: $new_unit"
+        fi
+    done
+
+    # pkexec must point at the RPM-provided privileged helper.
+    if grep -qF 'exec.path">/usr/bin/privileged-user-setup</annotate>' \
+        /usr/share/polkit-1/actions/org.bazzite.privileged.user.setup.policy 2>/dev/null; then
+        pass "polkit action points at privileged-user-setup"
+    else
+        fail "polkit action does not point at privileged-user-setup"
+    fi
+}
+
+case "$group" in
+kernel) verify_kernel ;;
+repos) verify_repos ;;
+packages) verify_packages ;;
+nvidia) verify_nvidia ;;
+final) verify_final ;;
+esac
+
+if ((${#failures[@]})); then
+    printf '\nverify (%s): %d check(s) failed\n' "$group" "${#failures[@]}" >&2
+    exit 1
+fi
+
+printf '\nverify (%s): all checks passed\n' "$group"

@@ -1,25 +1,21 @@
-cosign.key
-cosign.private
-*.build
-*.log
-/tmp/
-/dist/
-*.tar
-*.tar.gz
-*.oci
+# Editor & IDE files
 .vscode/
+.zcode/
+.zcodeignore
 .idea/
 *.swp
-/.bluebuild-scripts_*
-__pycache__/
-*.pyc
-.venv/
-.pytest_cache/
-*.egg-info/
-dist/
-build/
-*.iso
-*.iso-CHECKSUM
-.obsidian/
-.zcode/
+*.swo
+*~
 
+# Python cache
+__pycache__/
+*.py[cod]
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+
+# Build & temporary files
+/build_args.txt
+/output.env
+/changelog.md

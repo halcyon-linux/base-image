@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+requested_target=${target:-${default_target:-bazzfin-nvidia}}
+requested_image=${image:-${default_image:-bazzfin-nvidia}}
+
+for requested in "$requested_target" "$requested_image"; do
+    case "${requested,,}" in
+        ""|nvidia|bazzfin-nvidia) ;;
+        *)
+            printf 'Only the bazzfin-nvidia image is supported (received: %s).\n' \
+                "$requested" >&2
+            exit 1
+            ;;
+    esac
+done
+
+target=bazzfin-nvidia
+image=bazzfin-nvidia

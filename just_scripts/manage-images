@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+action=${1:-}
+case "$action" in
+    list | clean) ;;
+    *)
+        printf 'Usage: %s <list|clean>\n' "$0" >&2
+        exit 2
+        ;;
+esac
+
+container_mgr=(
+    podman
+    podman-remote
+)
+
+for i in "${container_mgr[@]}"; do
+    if command -v "$i" >/dev/null 2>&1; then
+        echo "Container Manager: ${i}"
+        if [[ "$action" == list ]]; then
+            "$i" images --filter "reference=localhost/bazzite*-build"
+            continue
+        fi
+
+        mapfile -t ids < <("${i}" images --filter "reference=localhost/bazzite*-build" -q 2>/dev/null || true)
+        if [[ ${#ids[@]} -gt 0 && -n "${ids[0]}" ]]; then
+            printf '%s\n' "${ids[@]}" | xargs -r "${i}" image rm
+        else
+            echo "No bazzite*-build images found for ${i}."
+        fi
+        echo ""
+    fi
+done

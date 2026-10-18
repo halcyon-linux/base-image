@@ -1,0 +1,127 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+: "${FEDORA_VERSION:?FEDORA_VERSION must be set by the Containerfile}"
+
+cicpoffs_url=$(
+    /ctx/shared/ghcurl https://api.github.com/repos/ublue-os/cicpoffs/releases/latest |
+        jq -er --arg name "cicpoffs-fc${FEDORA_VERSION}.rpm" \
+            '[.assets[] | select(.name == $name)][0].browser_download_url'
+)
+dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y install "$cicpoffs_url"
+
+dnf5 -y copr enable bieszczaders/kernel-cachyos-addons
+dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y install scx-scheds scx-tools
+dnf5 -y copr disable bieszczaders/kernel-cachyos-addons
+
+common_packages=(
+    bpftune-gaming
+    bbrew-helper
+    brh
+    bruh
+    crh
+    gameclass
+    boot-remount
+    dlss-swapper
+    dynamic-fixes
+    fetch-image
+    hardware-setup
+    nvidia-flatpak-runtime
+    powersave
+    snapper-config
+    user-setup
+    fuse-libs
+    uld
+    ublue-motd
+    uupd-update
+    bazaar
+    mission-center
+    greenboot
+    greenboot-default-health-checks
+    ublue-os-selinux-workarounds
+    bazzite-updater
+    ScopeBuddy
+    python3-pip
+    libadwaita
+    bees
+    xwininfo
+    compsize
+    input-remapper
+    libinput-utils
+    i2c-tools
+    lm_sensors
+    udica
+    ladspa-caps-plugins
+    pipewire-module-filter-chain-sofa
+    python3-icoextract
+    tailscale
+    webapp-manager
+    btop
+    duf
+    lshw
+    yad
+    f3
+    lzip
+    p7zip
+    p7zip-plugins
+    rar
+    libxcrypt-compat
+    vulkan-tools
+    vulkan-low-latency-layer
+    fastfetch
+    cockpit-networkmanager
+    cockpit-podman
+    cockpit-selinux
+    cockpit-system
+    cockpit-files
+    cockpit-storaged
+    ydotool
+    stress-ng
+    snapper
+    btrfs-assistant
+    edk2-ovmf
+    lsb_release
+    uupd
+    ds-inhibit
+    bazzite-portal
+    kernel-tools
+    kmod
+    ls-iommu
+    virt-manager
+    virt-install
+    libvirt-daemon
+    libvirt-daemon-kvm
+    libvirt-daemon-config-network
+    libvirt-daemon-config-nwfilter
+    virtiofsd
+)
+dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y install "${common_packages[@]}"
+
+# dnf5 -y swap --repo terra switcheroo-control cardwire
+dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y install --enable-repo=terra cardwire-gui
+dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y swap --allowerasing --repo terra-extras ddcutil terra-ddcutil
+dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y swap --allowerasing --repo terra-extras libddcutil terra-libddcutil
+
+mkdir -p /etc/NetworkManager/dispatcher.d
+ln -sfn /dev/null /etc/NetworkManager/dispatcher.d/04-iscsi
+systemctl mask iscsi
+systemctl mask systemd-remount-fs.service
+systemctl mask fedora-atomic-desktop-appstream-cache-refresh
+
+extest_url=$(
+    /ctx/shared/ghcurl https://api.github.com/repos/ublue-os/extest/releases/latest |
+        jq -er '[.assets[] | select(.name | endswith(".so"))][0].browser_download_url'
+)
+install -d /usr/lib/extest
+/ctx/shared/ghcurl "$extest_url" -Lo /usr/lib/extest/libextest.so
+
+setfattr -n user.component -v extest /usr/lib/extest/libextest.so 2>/dev/null || true
+install -d /etc/xdg/autostart
+
+# Disabled with Waydroid:
+# sed -i~ -E 's/=\$\(command -v (nft|ip6?tables-legacy).*/=/g' /usr/lib/waydroid/data/scripts/waydroid-net.sh
+if [[ -f /usr/bin/btrfs-assistant-launcher ]]; then
+    sed -i 's/ --xdg-runtime=\\"${XDG_RUNTIME_DIR}\\"//g' \
+        /usr/bin/btrfs-assistant-launcher
+fi

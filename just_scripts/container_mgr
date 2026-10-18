@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+valid_managers=(
+    podman
+    podman-remote
+)
+
+if [[ -n "${CONTAINER_MGR:-}" ]]; then
+    for mgr in "${valid_managers[@]}"; do
+        if [[ "$mgr" == "$CONTAINER_MGR" ]]; then
+            echo "$CONTAINER_MGR"
+            exit 0
+        fi
+    done
+    printf 'Invalid container manager: %s\n' "$CONTAINER_MGR" >&2
+    exit 1
+elif command -v podman >/dev/null 2>&1; then
+    echo podman
+elif command -v podman-remote >/dev/null 2>&1; then
+    echo podman-remote
+else
+    echo "No valid container manager found (podman, podman-remote)." >&2
+    exit 1
+fi

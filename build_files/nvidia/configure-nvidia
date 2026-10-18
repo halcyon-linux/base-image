@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+# Remove the Nouveau firmware package before installing the NVIDIA driver.
+if rpm -q nvidia-gpu-firmware >/dev/null 2>&1; then
+    dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y remove nvidia-gpu-firmware
+fi

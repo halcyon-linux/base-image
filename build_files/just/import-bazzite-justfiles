@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+mkdir -p /usr/share/ublue-os
+touch /usr/share/ublue-os/justfile
+
+justfiles=(
+    "80-bazzite.just"
+    "81-bazzite-fixes.just"
+    "82-bazzite-apps.just"
+    "system-tools.just"
+    "83-bazzite-audio.just"
+    "87-bazzite-framegen.just"
+    "maintenance.just"
+)
+
+for jf in "${justfiles[@]}"; do
+    line="import \"/usr/share/ublue-os/just/${jf}\""
+    if ! grep -qxF "$line" /usr/share/ublue-os/justfile 2>/dev/null; then
+        echo "$line" >> /usr/share/ublue-os/justfile
+    fi
+done

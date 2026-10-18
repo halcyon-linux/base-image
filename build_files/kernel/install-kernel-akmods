@@ -1,0 +1,51 @@
+#!/usr/bin/bash
+
+set -eoux pipefail
+
+echo "::group::Executing install-kernel-akmods"
+trap 'echo "::endgroup::"' EXIT
+
+# create shims to bypass kernel install triggering dracut/rpm-ostree
+mkdir -p /usr/lib/kernel/install.d
+if [[ -f /usr/lib/kernel/install.d/05-rpmostree.install && ! -f /usr/lib/kernel/install.d/05-rpmostree.install.bak ]]; then
+    mv /usr/lib/kernel/install.d/05-rpmostree.install /usr/lib/kernel/install.d/05-rpmostree.install.bak
+fi
+if [[ -f /usr/lib/kernel/install.d/50-dracut.install && ! -f /usr/lib/kernel/install.d/50-dracut.install.bak ]]; then
+    mv /usr/lib/kernel/install.d/50-dracut.install /usr/lib/kernel/install.d/50-dracut.install.bak
+fi
+printf '%s\n' '#!/bin/sh' 'exit 0' >/usr/lib/kernel/install.d/05-rpmostree.install
+printf '%s\n' '#!/bin/sh' 'exit 0' >/usr/lib/kernel/install.d/50-dracut.install
+chmod +x /usr/lib/kernel/install.d/05-rpmostree.install /usr/lib/kernel/install.d/50-dracut.install
+
+# Remove Existing Kernel
+for pkg in kernel kernel-core kernel-modules kernel-modules-core kernel-modules-extra kernel-tools-libs kernel-tools; do
+    if rpm -q "$pkg" >/dev/null 2>&1; then
+        rpm --erase "$pkg" --nodeps
+    fi
+done
+
+# cleanup leftovers that are not covered by kernel-* packages for some reason
+rm -rf /usr/lib/modules
+
+dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y install \
+    /tmp/kernel-rpms/kernel-[0-9]*.rpm \
+    /tmp/kernel-rpms/kernel-core-*.rpm \
+    /tmp/kernel-rpms/kernel-modules-*.rpm \
+    /tmp/kernel-rpms/kernel-devel-*.rpm
+
+dnf5 versionlock add kernel kernel-devel kernel-devel-matched kernel-core kernel-modules
+
+# Install only the kernel modules this device needs: nct6687d for the NCT6687
+# sensor chip on the MSI Z790-P board (kmod plus its required kmod-common
+# package from the extra tree). All other akmods payloads (racing wheels,
+# Xbox/Razer/DisplayLink/Broadcom, VM extensions, AMD-only modules, System76)
+# are intentionally not installed.
+/ctx/kernel/install-kmods \
+    /tmp/rpms/{extra,kmods-extra}/*nct6687d*.rpm
+
+if [[ -f /usr/lib/kernel/install.d/05-rpmostree.install.bak ]]; then
+    mv -f /usr/lib/kernel/install.d/05-rpmostree.install.bak /usr/lib/kernel/install.d/05-rpmostree.install
+fi
+if [[ -f /usr/lib/kernel/install.d/50-dracut.install.bak ]]; then
+    mv -f /usr/lib/kernel/install.d/50-dracut.install.bak /usr/lib/kernel/install.d/50-dracut.install
+fi
