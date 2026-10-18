@@ -13,4 +13,4 @@ ${MOTD_SYSTEM}
 
 ${MOTD_TIP}
 
-- [Repository](https://github.com/halcyon-linux/bazzite-fork) · [Report an issue](https://github.com/halcyon-linux/bazzite-fork/issues)
+- [Repository](https://github.com/halcyon-linux/base-image) · [Report an issue](https://github.com/halcyon-linux/base-image/issues)

@@ -1,8 +1,8 @@
 export project_root := `git rev-parse --show-toplevel`
 export git_branch := `git branch --show-current`
 export latest := "44"
-export default_image := "bazzfin-nvidia"
-export default_target := "bazzfin-nvidia"
+export default_image := "alcyone"
+export default_target := "alcyone"
 
 alias run := run-container
 

@@ -19,15 +19,15 @@ for i in "${container_mgr[@]}"; do
     if command -v "$i" >/dev/null 2>&1; then
         echo "Container Manager: ${i}"
         if [[ "$action" == list ]]; then
-            "$i" images --filter "reference=localhost/bazzite*-build"
+            "$i" images --filter "reference=localhost/alcyone*-build"
             continue
         fi
 
-        mapfile -t ids < <("${i}" images --filter "reference=localhost/bazzite*-build" -q 2>/dev/null || true)
+        mapfile -t ids < <("${i}" images --filter "reference=localhost/alcyone*-build" -q 2>/dev/null || true)
         if [[ ${#ids[@]} -gt 0 && -n "${ids[0]}" ]]; then
             printf '%s\n' "${ids[@]}" | xargs -r "${i}" image rm
         else
-            echo "No bazzite*-build images found for ${i}."
+            echo "No alcyone*-build images found for ${i}."
         fi
         echo ""
     fi

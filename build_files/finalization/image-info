@@ -2,18 +2,18 @@
 
 set -eoux pipefail
 
-IMAGE_NAME="${IMAGE_NAME:-bazzfin-nvidia}"
-IMAGE_VENDOR="${IMAGE_VENDOR:-ublue-os}"
+IMAGE_NAME="${IMAGE_NAME:-alcyone}"
+IMAGE_VENDOR="${IMAGE_VENDOR:-halcyon-linux}"
 IMAGE_BRANCH="${IMAGE_BRANCH:-stable}"
 VERSION_TAG="${VERSION_TAG:-}"
 VERSION_PRETTY="${VERSION_PRETTY:-}"
 
 IMAGE_PRETTY_NAME="Halcyon"
 IMAGE_LIKE="fedora"
-HOME_URL="https://github.com/halcyon-linux/bazzite-fork"
-DOCUMENTATION_URL="https://github.com/halcyon-linux/bazzite-fork"
-SUPPORT_URL="https://github.com/halcyon-linux/bazzite-fork"
-BUG_SUPPORT_URL="https://github.com/halcyon-linux/bazzite-fork/issues"
+HOME_URL="https://github.com/halcyon-linux/base-image"
+DOCUMENTATION_URL="https://github.com/halcyon-linux/base-image"
+SUPPORT_URL="https://github.com/halcyon-linux/base-image"
+BUG_SUPPORT_URL="https://github.com/halcyon-linux/base-image/issues"
 LOGO_ICON="fedora"
 LOGO_COLOR="0;38;2;138;43;226"
 

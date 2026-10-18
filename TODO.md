@@ -8,7 +8,7 @@
 
 2. Is there is only custom image?
 
-→ Answered (2026-10-18): yes — `bazzfin-nvidia` is the single published image. `just_scripts/get-defaults` rejects other targets, CI builds/tags/signs only it, and the cleanup workflow prunes only its package. The `akmods*`, `brew`, and `ctx` stages are build inputs, not outputs.
+→ Answered (2026-10-18): yes — `alcyone` (formerly `bazzfin-nvidia`) is the single published image on this branch. `just_scripts/get-defaults` rejects other targets, CI builds/tags/signs only it, and the cleanup workflow prunes only its package. The `akmods*`, `brew`, and `ctx` stages are build inputs, not outputs. Renamed (2026-10-19): the Halcyon project publishes two images — `alcyone` (Containerfile, this branch) and `ceyx` (BlueBuild, `bluebuild` branch); `os-release` reports `NAME=Halcyon` on both.
 
 3. What is the difference between binary/script in `system_files/desktop/usr/bin` and `system_files/desktop/usr/libexec`?
 
@@ -94,6 +94,6 @@ Unneeded scripts/binaries
 
 → Resolved (2026-10-18): all in-tree `usr/bin` scripts were removed, including `copr`; user-facing commands now come from RPMs. Dangling references (the Steam wrapper block in `configure-desktop-integration`, `bazzite-steam-bpm.desktop`, the `setup-boot-windows-steam` recipe + yafti entry, and the `fix-reset-steam` relaunch) were cleaned too.
 
-- [ ] Add bazzite-fork as a branch for base-image with Containerfile as the base image.
+- [x] Add bazzite-fork as a branch for base-image with Containerfile as the base image. → Done: this is the `containerfile` branch, which builds `alcyone`.
 
 - [ ] Don't start steam when logging 1st in.

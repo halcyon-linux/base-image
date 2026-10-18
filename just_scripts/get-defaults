@@ -2,19 +2,19 @@
 
 set -Eeuo pipefail
 
-requested_target=${target:-${default_target:-bazzfin-nvidia}}
-requested_image=${image:-${default_image:-bazzfin-nvidia}}
+requested_target=${target:-${default_target:-alcyone}}
+requested_image=${image:-${default_image:-alcyone}}
 
 for requested in "$requested_target" "$requested_image"; do
     case "${requested,,}" in
-        ""|nvidia|bazzfin-nvidia) ;;
+        ""|alcyone|containerfile) ;;
         *)
-            printf 'Only the bazzfin-nvidia image is supported (received: %s).\n' \
+            printf 'Only the alcyone image (containerfile branch) is supported (received: %s).\n' \
                 "$requested" >&2
             exit 1
             ;;
     esac
 done
 
-target=bazzfin-nvidia
-image=bazzfin-nvidia
+target=alcyone
+image=alcyone

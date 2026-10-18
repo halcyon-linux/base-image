@@ -3,7 +3,7 @@
 # gaming image with the NVIDIA open kernel modules; bootc and rpm-ostree provide staged updates
 # and rollback.
 # Keep the Containerfile build: the image uses multi-stage akmods inputs, bind mounts,
-# and package swaps to build the single published NVIDIA image.
+# and package swaps to build the single published NVIDIA image (alcyone).
 # Upstream Fedora release number
 ARG FEDORA_VERSION="${FEDORA_VERSION:-44}"
 
@@ -32,13 +32,13 @@ COPY build_files /
 # BAZZITE BASE
 ################
 
-FROM ${BASE_IMAGE} AS bazzfin-nvidia
+FROM ${BASE_IMAGE} AS alcyone
 # hadolint shell=bash
 
 # Image name identifier
-ARG IMAGE_NAME="${IMAGE_NAME:-bazzfin-nvidia}"
+ARG IMAGE_NAME="${IMAGE_NAME:-alcyone}"
 # Image vendor namespace
-ARG IMAGE_VENDOR="${IMAGE_VENDOR:-ublue-os}"
+ARG IMAGE_VENDOR="${IMAGE_VENDOR:-halcyon-linux}"
 # Image release branch (stable, testing, unstable)
 ARG IMAGE_BRANCH="${IMAGE_BRANCH:-stable}"
 # Fedora release number (redeclared in this stage so RUN instructions can use it)
