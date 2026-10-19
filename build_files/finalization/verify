@@ -652,7 +652,7 @@ verify_final() {
     else
         fail "zsh missing from /etc/shells"
     fi
-    if grep -qP '^root:[^:]*:[^:]*:[^:]*:[^:]*:/usr/bin/zsh$' /etc/passwd 2>/dev/null; then
+    if grep -qP '^root:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*:/usr/bin/zsh$' /etc/passwd 2>/dev/null; then
         pass "root shell is /usr/bin/zsh"
     else
         fail "root shell is not /usr/bin/zsh"
@@ -732,7 +732,7 @@ verify_final() {
         fail "gaming kernel missing from final image (found: ${kernel_flavor:-none})"
     fi
 
-    if [[ -n "$(find /usr/lib/modules -name 'nct6687d.ko*' -print -quit 2>/dev/null)" ]]; then
+    if [[ -n "$(find /usr/lib/modules -name 'nct6687*.ko*' -print -quit 2>/dev/null)" ]]; then
         pass "extra kmod present: nct6687d"
     else
         fail "required extra kmod missing: nct6687d"
