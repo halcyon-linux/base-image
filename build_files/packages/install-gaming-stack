@@ -45,7 +45,7 @@ copr_enabled=1
 dnf5 -y config-manager setopt "${repo_id}.priority=1"
 
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' \
-    -y install protonplus
+    -y install protonplus heroic-games-launcher
 
 disable_copr
 
