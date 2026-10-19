@@ -2,7 +2,8 @@
 
 set -eoux pipefail
 
-rm -rf /tmp/* || true
+# Callers mount /tmp as tmpfs, so its contents disappear when the RUN ends.
+# Avoid traversing read-only bind-mounted RPM trees under /tmp.
 rm -rf /var/log/dnf5.log || true
 rm -rf /boot/* || true
 rm -rf /boot/.* || true
