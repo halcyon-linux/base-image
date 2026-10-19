@@ -18,19 +18,19 @@
 
 If you plan to combine bazzite-hardware-setup, bazzite-iwd-migration and bazzite-boot-remount into hardware-setup, you have to take into account the system systemd services and determine how to handle that?
 
-→ Resolved (2026-10-18): not combined. `bazzite-iwd-migration` is deleted (unit + script): iwd is not installed in this image and the target machine's NetworkManager drop-ins are already clean. `bazzite-boot-remount` is a sourced function library (no unit) and stays as-is. `bazzite-hardware-setup` keeps its own unit; its rewrite is separate.
+→ Resolved (2026-10-19): `bazzite-iwd-migration` is deleted (unit + script): iwd is not installed in this image and the target machine's NetworkManager drop-ins are already clean. The boot-remount and hardware-setup helpers are now supplied by vendor-neutral RPMs; the image keeps the hardware setup oneshot unit and does not bundle their old Bazzite-named scripts.
 
 [To understand the system systemd services, look at /usr/libexec/ binaries]:
 
-1. `Important:` bazzite-hardware-setup.service -> bazzite-hardware-setup bash script needs a lot of changes using to finished files [NOTE: Only complete it after every file is finalized]
+1. `Important:` hardware setup service and helper
 
-→ Resolved (2026-10-18): rewrote with helper functions and `set -Eeuo pipefail`. Kept the karg handling (bluetooth.disable_ertm append, nomodeset delete, reboot-if-changed) and the distrobox hostname/`/etc/hostname` fix; dropped the zram `vm.min_free_kbytes` tweak and the inert Waydroid apparmor cleanup. The state gate is bumped to `HWS_VER=80` (later 81, for the KVM kargs — see item 3) so existing installs re-run.
+→ Resolved (2026-10-19): the image installs the `hardware-setup` RPM and checks its `/usr/bin/hardware-setup` executable. The local oneshot unit orders it before user sessions; no old in-tree helper script is shipped.
 
 2. `Important` bazzite-iwd-migration.service -> bazzite-iwd-migration [NOTE:] Needs to be understand 1st or if even needed since NetworkManager is to be used. → RESOLVED (2026-10-18): both deleted; NetworkManager uses wpa_supplicant here and nothing in the image re-creates the iwd drop-ins.
 
 3. For `bazzite-libvirtd-setup.service` where does libvirtd service exist?
 
-→ Resolved (2026-10-18): `libvirtd.service` ships in the `libvirt-daemon` RPM. Follow-up same day: virtualization is now enabled by default — the libvirt/QEMU/swtpm stack, `virt-manager`, and `virt-install` ship in the image, `libvirtd.service` is enabled at build time, KVM kargs are applied by `bazzite-hardware-setup`, and the old `bazzite-libvirtd-setup.service` one-shot (which only queued the enable for the next boot after a runtime `rpm-ostree install`) was deleted. `ujust setup-virtualization` remains as the repair/disable path.
+→ Resolved (2026-10-18): `libvirtd.service` ships in the `libvirt-daemon` RPM. Follow-up same day: virtualization is now enabled by default — the libvirt/QEMU/swtpm stack, `virt-manager`, and `virt-install` ship in the image, `libvirtd.service` is enabled at build time, KVM kargs are applied by the `hardware-setup` RPM, and the old `bazzite-libvirtd-setup.service` one-shot (which only queued the enable for the next boot after a runtime `rpm-ostree install`) was deleted. `ujust setup-virtualization` remains as the repair/disable path.
 
 4. `Ultra-important`: beesd@timer needs to exist which service pulls in the timer?
 
@@ -60,13 +60,13 @@ If you plan to combine bazzite-hardware-setup, bazzite-iwd-migration and bazzite
 
 → Resolved (2026-10-18): kept; added `kmod` to `common_packages`, and `verify packages` now requires the RPM and checks `/usr/bin/rmmod` + `/usr/bin/modprobe`.
 
-11. `Important`: For `bazzite-dynamic-fixes.service` systemd user service, bazzite-dynamic-fixes bash script is needed.
+11. `Important`: The dynamic-fixes user service needs its helper executable.
 
-→ Resolved (2026-10-18): restored `usr/libexec/bazzite-dynamic-fixes`; the user unit remains enabled globally.
+→ Resolved (2026-10-19): the `dynamic-fixes` RPM provides `/usr/bin/dynamic-fixes`; the user unit remains enabled globally and final verification checks both.
 
-12. `Important`: For `bazzite-user-setup.service`, bazzite-user-setup bash script is needed.
+12. `Important`: The user-setup service needs its helper executable.
 
-→ Resolved (2026-10-18): present (`usr/libexec/bazzite-user-setup` + user unit, version-gated); no change needed.
+→ Resolved (2026-10-19): the `user-setup` RPM provides `/usr/bin/user-setup`; the user unit remains enabled globally and final verification checks both.
 
 13. `Important`: `ntfs-nag.service` user service cannot exist because ntfs file system will be blacklisted or removed. Similarly, ntfs-exfat-monitor-script is no longer needed.
 
@@ -76,7 +76,9 @@ If you plan to combine bazzite-hardware-setup, bazzite-iwd-migration and bazzite
 
 → Resolved (2026-10-18): the `mesa-git` script was removed with the `usr/bin` purge; also removed `89-bazzite-mesa-git.just` and its import line.
 
-15. add Waydroid nvidia support
+15. Waydroid support
+
+→ Deferred: Waydroid is not included in this image and is explicitly forbidden by final verification. Its Portal entry, which invoked missing recipes, has been removed. Do not add NVIDIA support without revisiting the image's package policy.
 
 ---
 
@@ -97,3 +99,7 @@ Unneeded scripts/binaries
 - [x] Add bazzite-fork as a branch for base-image with Containerfile as the base image. → Done: this is the `containerfile` branch, which builds `alcyone`.
 
 - [ ] Don't start steam when logging 1st in.
+
+- [x] Combine install-steam-lutris, install-gaming-stack and mesa-git, protonplus from aahsnr-work/gaming copr repo
+
+→ Resolved (2026-10-19): `install-steam-lutris` removed; its contents merged into `install-gaming-stack`, which now also enables `aahsnr-work/gaming` at priority=1, installs `protonplus`, then immediately disables the repo. `verify_final` asserts the gaming COPR is disabled and `protonplus` is installed. mesa-git is not installed (kept in the COPR for manual/future use only).

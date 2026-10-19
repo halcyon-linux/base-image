@@ -309,7 +309,7 @@ asus ACTION="":
                     sudo systemctl disable --now asusd.service asus-shutdown.service 2>/dev/null || true
                     sudo udevadm control --reload
                     sudo udevadm trigger
-                    rpm-ostree uninstall -y "${layered_packages[*]}"
+                    rpm-ostree uninstall -y "${layered_packages[@]}"
                     echo 'Complete, please reboot to apply changes.'
                     exit 0
                 elif [[ $REPLY == "N" || $REPLY == "n" ]]; then
@@ -376,7 +376,7 @@ asus ACTION="":
             sudo udevadm control --reload
             sudo udevadm trigger
             echo "Uninstalling: ${layered_packages[*]}"
-            rpm-ostree uninstall -y "${layered_packages[*]}"
+            rpm-ostree uninstall -y "${layered_packages[@]}"
             echo 'Complete, please reboot to apply changes.'
         else
             echo "ASUS ROG utilities are not installed."
@@ -608,7 +608,7 @@ openrgb ACTION="":
         fi
     }
     install_openrgb() {
-        just _install_appimage_file "https://codeberg.org/OpenRGB/OpenRGB/releases/download/release_candidate_1.0rc2/OpenRGB_1.0rc2_x86_64_0fca93e.AppImage"
+        just _install_appimage_file "https://codeberg.org/OpenRGB/OpenRGB/releases/download/release_1.1/OpenRGB_1.1_x86_64_8e16de2.AppImage"
     }
     uninstall_openrgb() {
         find "$HOME/Applications" -maxdepth 1 -type f -name "*OpenRGB*.AppImage" -delete 2>/dev/null || true
@@ -680,6 +680,7 @@ install-boxtron ACTION="":
         just distrobox-check-fedora
         distrobox enter -n fedora -- bash -c '\
           sudo dnf install dosbox-staging inotify-tools timidity++ fluid-soundfont-gm -y && \
+          mkdir -p ~/.steam/root/compatibilitytools.d && \
           cd ~/.steam/root/compatibilitytools.d/ && \
           curl -L https://github.com/dreamer/boxtron/releases/download/v0.5.4/boxtron.tar.xz | tar xJf - && \
           distrobox-export --bin /usr/bin/dosbox'

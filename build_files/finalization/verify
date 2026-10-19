@@ -75,6 +75,21 @@ require_repos() {
     done
 }
 
+# Require every listed repository to be present and disabled.
+require_repos_disabled() {
+    local available id
+    available="$(dnf5 repo info --all --json)"
+    for id in "$@"; do
+        if jq -e --arg id "$id" \
+            '[.[] | select(.id == $id)] as $repos | (($repos | length) == 1) and ($repos[0].is_enabled == false)' \
+            <<<"$available" >/dev/null; then
+            pass "repo disabled: $id"
+        else
+            fail "repo missing or still enabled: $id"
+        fi
+    done
+}
+
 verify_kernel() {
     local -a dirs
     local kver_dir actual expected
@@ -122,17 +137,25 @@ verify_repos() {
         'copr:copr.fedorainfracloud.org:ublue-os:bazzite' \
         'copr:copr.fedorainfracloud.org:ublue-os:bazzite-multilib' \
         'copr:copr.fedorainfracloud.org:ublue-os:staging' \
-        'copr:copr.fedorainfracloud.org:ublue-os:packages' \
-        'copr:copr.fedorainfracloud.org:aahsnr-work:python-packages'
+        'copr:copr.fedorainfracloud.org:ublue-os:packages'
 }
 
 verify_packages() {
+    # These package sets must match the registries in the two halcyon COPRs.
     require_rpms \
-        steam lutris bazaar uupd btop fastfetch snapper bees \
-        brh bruh crh gameclass bbrew-helper ublue-motd uupd-update \
-        boot-remount dlss-swapper dynamic-fixes \
-        fetch-image hardware-setup nvidia-flatpak-runtime \
-        powersave snapper-config user-setup \
+        bun tealdeer uv atuin bat bat-extras eza gnuplot cava pixi \
+        xwiimote-ng zoxide asdf fd-find cliphist topgrade fzf fzy kilo \
+        chafa dust lazygit pandoc starship yazi zellij opencode marksman \
+        texlab glow
+
+    require_rpms \
+        bbrew-helper boot-remount brh bruh crh dlss-swapper dump-to-markdown \
+        dynamic-fixes fconf fe fetch-image ff fkill fp fssh gameclass \
+        hardware-setup nvidia-flatpak-runtime powersave rmi rmtmp screenshot \
+        se snapper-config ublue-motd user-setup uupd-update
+
+    require_rpms \
+        steam lutris protonplus bazaar uupd btop fastfetch snapper bees \
         input-remapper tailscale cockpit-system yad btrfs-assistant kernel-tools kmod
 
     # Virtualization is enabled by default; the full stack ships in the image.
@@ -167,6 +190,11 @@ verify_nvidia() {
 
 verify_final() {
     local info kver
+
+    require_repos_disabled \
+        'copr:copr.fedorainfracloud.org:aahsnr-work:cli-tools' \
+        'copr:copr.fedorainfracloud.org:aahsnr-work:python-packages' \
+        'copr:copr.fedorainfracloud.org:aahsnr-work:gaming'
 
     # Negative guards: fonts and waydroid must never reach the published image.
     forbid_rpms \
@@ -258,6 +286,7 @@ verify_final() {
         /usr/libexec/bazzite-user-setup \
         /usr/libexec/ublue-nvidia-flatpak-runtime-sync \
         /usr/libexec/ublue-nvidia-flatpak-runtime-notify \
+        /usr/lib/systemd/system/nvidia-flatpak-runtime-verify.service \
         /usr/bin/halcyon-boot-remount \
         /usr/bin/halcyon-dlss-swapper \
         /usr/bin/halcyon-dlss-swapper-dll \
@@ -296,7 +325,6 @@ verify_final() {
         /usr/bin/dynamic-fixes \
         /usr/bin/fetch-image \
         /usr/bin/hardware-setup \
-        /usr/bin/nvidia-flatpak-runtime-notify \
         /usr/bin/nvidia-flatpak-runtime-sync \
         /usr/bin/powersave \
         /usr/bin/privileged-user-setup \
@@ -314,7 +342,6 @@ verify_final() {
     for new_unit in \
         /usr/lib/systemd/system/hardware-setup.service \
         /usr/lib/systemd/system/nvidia-flatpak-runtime-sync.service \
-        /usr/lib/systemd/system/nvidia-flatpak-runtime-verify.service \
         /usr/lib/systemd/user/dynamic-fixes.service \
         /usr/lib/systemd/user/user-setup.service; do
         if [[ -e "$new_unit" ]]; then
@@ -328,7 +355,6 @@ verify_final() {
     for new_unit in \
         /etc/systemd/system/multi-user.target.wants/hardware-setup.service \
         /etc/systemd/system/multi-user.target.wants/nvidia-flatpak-runtime-sync.service \
-        /etc/systemd/system/graphical.target.wants/nvidia-flatpak-runtime-verify.service \
         /etc/systemd/user/default.target.wants/user-setup.service \
         /etc/systemd/user/default.target.wants/dynamic-fixes.service; do
         if [[ -e "$new_unit" ]]; then
@@ -344,6 +370,14 @@ verify_final() {
         pass "polkit action points at privileged-user-setup"
     else
         fail "polkit action does not point at privileged-user-setup"
+    fi
+
+    # polkit defaults must not grant execution unconditionally.
+    if grep -q '<allow_any>yes</allow_any>' \
+        /usr/share/polkit-1/actions/org.bazzite.privileged.user.setup.policy 2>/dev/null; then
+        fail "polkit action insecurely defaults allow_any to yes"
+    else
+        pass "polkit action has secure defaults"
     fi
 }
 

@@ -6,4 +6,4 @@ dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' ins
     --enable-repo=copr:copr.fedorainfracloud.org:ublue-os:packages \
     ublue-os-media-automount-udev
 
-systemctl enable ublue-os-media-automount.service || true
+systemctl enable ublue-os-media-automount.service

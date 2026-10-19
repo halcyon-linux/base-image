@@ -7,6 +7,7 @@ IMAGE_VENDOR="${IMAGE_VENDOR:-halcyon-linux}"
 IMAGE_BRANCH="${IMAGE_BRANCH:-stable}"
 VERSION_TAG="${VERSION_TAG:-}"
 VERSION_PRETTY="${VERSION_PRETTY:-}"
+IMAGE_TAG="${IMAGE_TAG:-stable}"
 
 IMAGE_PRETTY_NAME="Halcyon"
 IMAGE_LIKE="fedora"
@@ -29,20 +30,27 @@ FEDORA_VERSION=$(rpm -E %fedora)
 
 mkdir -p /usr/share/ublue-os
 
-# Image Info File
-cat > $IMAGE_INFO <<EOF
-{
-  "image-name": "$IMAGE_NAME",
-  "image-vendor": "$IMAGE_VENDOR",
-  "image-ref": "$IMAGE_REF",
-  "image-tag": "stable",
-  "image-branch": "$IMAGE_BRANCH_NORMALIZED",
-  "base-image-name": "base-main",
-  "fedora-version": "$FEDORA_VERSION",
-  "version": "$VERSION_TAG",
-  "version-pretty": "$VERSION_PRETTY"
-}
-EOF
+# Serialize values instead of interpolating unescaped strings into JSON.
+jq -n \
+  --arg image_name "$IMAGE_NAME" \
+  --arg image_vendor "$IMAGE_VENDOR" \
+  --arg image_ref "$IMAGE_REF" \
+  --arg image_tag "$IMAGE_TAG" \
+  --arg image_branch "$IMAGE_BRANCH_NORMALIZED" \
+  --arg fedora_version "$FEDORA_VERSION" \
+  --arg version "$VERSION_TAG" \
+  --arg version_pretty "$VERSION_PRETTY" \
+  '{
+    "image-name": $image_name,
+    "image-vendor": $image_vendor,
+    "image-ref": $image_ref,
+    "image-tag": $image_tag,
+    "image-branch": $image_branch,
+    "base-image-name": "base-main",
+    "fedora-version": $fedora_version,
+    "version": $version,
+    "version-pretty": $version_pretty
+  }' > "$IMAGE_INFO"
 
 # OS Release File
 sed -i "s/^VARIANT_ID=.*/VARIANT_ID=$IMAGE_NAME/" /usr/lib/os-release

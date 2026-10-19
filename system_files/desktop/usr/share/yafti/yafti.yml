@@ -1,34 +1,24 @@
-title: Bazzite Portal
+title: Halcyon Portal
 screens:
   - title: "Welcome!"
-    description: "Get to know Bazzite"
+    description: "Get to know Halcyon"
     hidden: true
     actions:
-      - id: "bazzite-documentation"
-        title: "Read the Bazzite Docs"
-        description: "New to Bazzite or Linux? Check out our helpful documentation."
+      - id: "halcyon-documentation"
+        title: "Read the Halcyon project documentation"
+        description: "Read the project README and build information."
         default: false
-        script: "xdg-open https://docs.bazzite.gg/"
+        script: "xdg-open https://github.com/halcyon-linux/base-image"
       - id: "bazaar"
         title: "Browse your Bazaar"
         description: "Your software store! Check out our curated selection for apps like Discord, Heroic Games Launcher, or Viper."
         default: false
         script: "yad --info --title=\"Tip\" --image=dialog-information --text \"You can launch Bazaar anytime from your pinned apps or the app menu.\" --button=\"I get it\"!gtk-ok! && nohup setsid gtk4-launch io.github.kolunmi.Bazaar >&/dev/null"
-      - id: "bazzite-discord"
-        title: "Get help through Discord"
-        description: "Enter our official server for Bazzite user tech support. Bring your system logs!"
+      - id: "halcyon-issues"
+        title: "Report an issue"
+        description: "Open the Halcyon project issue tracker."
         default: false
-        script: "xdg-open https://discord.gg/JQq48bYzrc"
-      - id: "bazzite-discourse"
-        title: "See our announcements in Discourse"
-        description: "Our forum posts for the latest breaking news on Bazzite!"
-        default: false
-        script: "xdg-open https://universal-blue.discourse.group/tags/c/bazzite/announcements/"
-      - id: "reddit"
-        title: "Join the official community on Reddit"
-        description: "Start a conversation, ask questions, or show off your Bazzite build!"
-        default: false
-        script: "xdg-open https://www.reddit.com/r/Bazzite/"
+        script: "xdg-open https://github.com/halcyon-linux/base-image/issues"
   - title: "Install Applications"
     description: "Get and configure software"
     actions:
@@ -89,18 +79,6 @@ screens:
           - id: "uninstall"
             label: "Uninstall CoolerControl"
             script: 'ujust install-coolercontrol uninstall; status=$?; echo; echo "Press Enter to close..."; read -r _; exit $status'
-      - id: "davinci-resolve"
-        title: "DaVinci Resolve"
-        description: "Cinema production non-linear editor (NLE) from Blackmagic Design — installed using davincibox."
-        default: false
-        status_script: "ujust install-davinci status"
-        options:
-          - id: "install"
-            label: "Install/Upgrade DaVinci Resolve"
-            script: 'ujust install-davinci install; status=$?; echo; echo "Press Enter to close..."; read -r _; exit $status'
-          - id: "uninstall"
-            label: "Uninstall DaVinci Resolve"
-            script: 'ujust install-davinci uninstall; status=$?; echo; echo "Press Enter to close..."; read -r _; exit $status'
       - id: "jetbrains-toolbox-linux"
         title: "JetBrains Toolbox"
         description: "Utility for managing IDE installs from JetBrains — installed using Brew."
@@ -193,159 +171,23 @@ screens:
         description: "Strictly open source community edition of Visual Studio Code — installed using Brew."
         default: false
         script: 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" && brew trust ublue-os/tap && brew tap ublue-os/tap && brew install --cask vscodium-linux'
-      - id: "waydroid"
-        title: "Waydroid"
-        description: "Android system in a container, for app compatibility on Linux. Incompatible with NVIDIA drivers."
-        default: false
-        options:
-          - id: "init"
-            label: "Initialize"
-            script: "ujust configure-waydroid init"
-          - id: "configure"
-            label: "Configure"
-            script: "ujust configure-waydroid configure"
-          - id: "gpu"
-            label: "Select GPU"
-            script: "ujust configure-waydroid gpu"
-          - id: "reset"
-            label: "Reset"
-            script: "ujust configure-waydroid reset"
-          - id: "helper"
-            label: "Install Helper"
-            script: "ujust configure-waydroid helper"
-  - title: "Get Media Apps"
-    description: "Configure streaming services"
-    actions:
-      - id: "amazon-luna"
-        title: "Amazon Luna"
-        description: "Cloud gaming service from Amazon."
-        default: false
-        script: "ujust get-media-app \"Amazon Luna\""
-      - id: "amazon-prime-video"
-        title: "Amazon Prime Video"
-        description: "Subscription service for entertainment on demand."
-        default: false
-        script: "ujust get-media-app \"Amazon Prime Video\""
-      - id: "apple-tv"
-        title: "Apple TV"
-        description: "Subscription service for entertainment on demand."
-        default: false
-        script: "ujust get-media-app \"Apple TV\""
-      - id: "crunchyroll"
-        title: "Crunchyroll"
-        description: "Subscription service centered on Japanese animation on demand."
-        default: false
-        script: "ujust get-media-app \"Crunchyroll\""
-      - id: "curiosity-stream"
-        title: "Curiosity Stream"
-        description: "Subscription service for non-fiction content on demand."
-        default: false
-        script: "ujust get-media-app \"Curiosity Stream\""
-      - id: "disney-plus"
-        title: "Disney Plus"
-        description: "Subscription service for entertainment on demand."
-        default: false
-        script: "ujust get-media-app \"Disney Plus\""
-      # - id: "geforce-now"
-      #   title: "GeForce Now"
-      #   description: "Cloud gaming service"
-      #   default: false
-      #   script: "ujust get-media-app \"GeForce Now\""
-      - id: "hbo-max"
-        title: "HBO Max"
-        description: "Subscription service for entertainment on demand."
-        default: false
-        script: "ujust get-media-app \"HBO Max\""
-      - id: "hulu"
-        title: "Hulu"
-        description: "Subscription service for entertainment on demand."
-        default: false
-        script: "ujust get-media-app \"Hulu\""
-      - id: "jellyfin"
-        title: "Jellyfin"
-        description: "Free (as in ‘freedom’) client for self-hosted media."
-        default: false
-        script: "ujust get-media-app \"Jellyfin Media Player\""
-      - id: "netflix"
-        title: "Netflix"
-        description: "Popular subscription service for entertainment on demand."
-        default: false
-        script: "ujust get-media-app \"Netflix\""
-      - id: "paramount-plus"
-        title: "Paramount Plus"
-        description: "Subscription service for entertainment on demand."
-        default: false
-        script: "ujust get-media-app \"Paramount Plus\""
-      - id: "peacock"
-        title: "Peacock"
-        description: "Subscription service for entertainment on demand from NBCUniversal."
-        default: false
-        script: "ujust get-media-app \"Peacock\""
-      - id: "plex-htpc"
-        title: "Plex HTPC"
-        description: "Client for video on demand or self-hosted media."
-        default: false
-        script: "ujust get-media-app \"Plex HTPC\""
-      - id: "sling-tv"
-        title: "Sling TV"
-        description: "Service for streaming live television programming."
-        default: false
-        script: "ujust get-media-app \"Sling TV\""
-      - id: "spotify"
-        title: "Spotify"
-        description: "Popular music streaming service."
-        default: false
-        script: "ujust get-media-app \"Spotify\""
-      - id: "vimeo"
-        title: "Vimeo"
-        description: "Service for sharing video, live or on demand."
-        default: false
-        script: "ujust get-media-app \"Vimeo\""
-      - id: "xbox-cloud-gaming"
-        title: "Xbox Cloud Gaming"
-        description: "Cloud gaming service from Microsoft."
-        default: false
-        script: "ujust get-media-app \"Xbox Cloud Gaming\""
-      - id: "youtube"
-        title: "YouTube"
-        description: "Popular platform for sharing video, live or on demand."
-        default: false
-        script: "ujust get-media-app \"YouTube\""
-      - id: "youtube-music"
-        title: "YouTube Music"
-        description: "Streaming service for music."
-        default: false
-        script: "ujust get-media-app \"YouTube Music\""
-      - id: "youtube-tv"
-        title: "YouTube TV"
-        description: "Subscription service for streaming live television programming."
-        default: false
-        script: "ujust get-media-app \"YouTube TV\""
-  - title: "Manage Bazzite"
+  - title: "Manage Halcyon"
     description: "System management and configuration"
     actions:
-      - id: "update-bazzite"
+      - id: "update-halcyon"
         default: false
         title: "Update your system"
-        description: "Update Bazzite and installed apps."
+        description: "Update Halcyon and installed apps."
         options:
-          - id: "Launch Bazzite Updater"
+          - id: "launch-system-updater"
             label: "Update Now"
-            script: "yad --info --title=\"Tip\" --image=dialog-information --text \"You can launch Bazzite Updater anytime from your pinned apps or the app menu.\" --button=\"Got it\"!gtk-ok! && nohup setsid bazzite-updater >&/dev/null"
-          - id: "Game Mode Shortcut"
-            label: "Add Bazzite Updater to Steam Big Picture"
-            script: "yad --info --title=\"Info\" --image=dialog-information --text \"This will add Bazzite Updater as a Non-Steam App, allowing updates with your controller from Big Picture Mode.\" --button=\"Nice\"!gtk-ok! && ujust add-updater-to-steam >&/dev/null"
-      - id: "rebase-bazzite-stable"
-        title: "Move to the stable update track"
-        description: "Rebase your system to the «stable» Bazzite image tag."
+            script: 'ujust update; status=$?; echo; echo "Press Enter to close..."; read -r _; exit $status'
+      - id: "rebase-halcyon-stable"
+        title: "Reinstall the stable Halcyon image"
+        description: "Rebase your system to the signed Halcyon alcyone stable image."
         default: false
-        script: "brh rebase stable -y && reboot"
-      - id: "rebase-bazzite-testing"
-        title: "Move to the testing update track"
-        description: "Rebase your system to the «testing» Bazzite image tag."
-        default: false
-        script: "brh rebase testing -y && reboot"
-      - id: "reset-bazzite"
+        script: "brh rebase ostree-image-signed:docker://ghcr.io/halcyon-linux/alcyone:stable -y && reboot"
+      - id: "reset-halcyon"
         title: "Shed system software layers"
         description: "Reset «rpm-ostree» layers back to the default state, removing added packages. Will not touch user data."
         default: false
@@ -355,11 +197,6 @@ screens:
         description: "Remove the next image deployment, halting all updates or layering changes pending reboot."
         default: false
         script: 'rpm-ostree cleanup -p; status=$?; echo; echo "Press Enter to close..."; read -r _; exit $status'
-      - id: "verify-image"
-        title: "Move to a ‘verified’ image"
-        description: "Detect if you are on an ‘unverified’ image of Bazzite and then, if applicable, move you to a signed one."
-        default: false
-        script: 'ujust verify-image; status=$?; echo; echo "Press Enter to close..."; read -r _; exit $status'
       - id: "tailscale"
         title: "Enable Tailscale"
         description: "Toggle the Tailscale service for mesh VPN support."
@@ -641,8 +478,8 @@ screens:
         description: "Gather system records and information into a shareable web page report."
         default: false
         script: 'ujust get-logs; status=$?; echo; echo "Press Enter to close..."; read -r _; exit $status'
-      - id: "rollback-bazzite"
-        title: "Rollback to the prior Bazzite deployment"
+      - id: "rollback-halcyon"
+        title: "Rollback to the prior Halcyon deployment"
         description: "Revert the ‘current deployment’ back to the former one. May be useful if the booted image has an issue."
         default: false
         script: "brh rollback -y && reboot"

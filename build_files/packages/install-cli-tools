@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+copr='aahsnr-work/cli-tools'
+repo_id="copr:copr.fedorainfracloud.org:${copr////:}"
+copr_enabled=0
+
+disable_copr() {
+    local status=$?
+    trap - EXIT
+    if ((copr_enabled)); then
+        if ! dnf5 -y copr disable "$copr"; then
+            printf 'ERROR: failed to disable COPR %s\n' "$copr" >&2
+            status=1
+        fi
+    fi
+    exit "$status"
+}
+trap disable_copr EXIT
+
+dnf5 -y copr enable "$copr"
+copr_enabled=1
+dnf5 -y config-manager setopt "${repo_id}.priority=1"
+
+cli_tools_packages=(
+    bun
+    tealdeer
+    uv
+    atuin
+    bat
+    bat-extras
+    eza
+    gnuplot
+    cava
+    pixi
+    xwiimote-ng
+    zoxide
+    asdf
+    fd-find
+    cliphist
+    topgrade
+    fzf
+    fzy
+    kilo
+    chafa
+    dust
+    lazygit
+    pandoc
+    starship
+    yazi
+    zellij
+    opencode
+    marksman
+    texlab
+    glow
+)
+
+dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' \
+    -y install "${cli_tools_packages[@]}"

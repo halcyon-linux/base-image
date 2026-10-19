@@ -8,6 +8,7 @@ start() {
 }
 
 stop() {
+    [ "$(/usr/bin/systemctl is-enabled scx_loader.service 2>/dev/null)" = "enabled" ] && /usr/bin/scxctl switch -m auto
     return 0
 }
 

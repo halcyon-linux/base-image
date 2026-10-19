@@ -18,7 +18,8 @@ _tag image:
 # Check Just Syntax
 just-check:
     #!/usr/bin/bash
-    find "${project_root}" -type f -name "*.just" | while read -r file; do
+    set -Eeuo pipefail
+    find "${project_root}" -type f -name "*.just" -print0 | while IFS= read -r -d '' file; do
     	echo "Checking syntax: $file"
     	just --unstable --fmt --check -f "$file"
     done
@@ -28,7 +29,8 @@ just-check:
 [private]
 just-fix:
     #!/usr/bin/bash
-    find "${project_root}" -type f -name "*.just" | while read -r file; do
+    set -Eeuo pipefail
+    find "${project_root}" -type f -name "*.just" -print0 | while IFS= read -r -d '' file; do
     	echo "Checking syntax: $file"
     	just --unstable --fmt -f "$file"
     done

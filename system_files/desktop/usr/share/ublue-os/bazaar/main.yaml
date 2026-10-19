@@ -1,3 +1,8 @@
+curated-config-paths:
+  - /usr/share/ublue-os/bazaar/content.yaml
+  - /run/host/etc/bazaar/config.yaml
+  - /etc/bazaar/config.yaml
+
 yaml-blocklist-paths:
   - /usr/share/ublue-os/bazaar/blocklist.yaml
 override-eol-markings:

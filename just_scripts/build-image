@@ -21,7 +21,8 @@ tag=$(just _tag "${image}")
 
 # Build Image
 $container_mgr build -f Containerfile \
-    --build-arg="IMAGE_NAME=${tag}" \
+    --build-arg="IMAGE_NAME=${image}" \
+    --build-arg="IMAGE_BRANCH=${git_branch}" \
     --build-arg="FEDORA_VERSION=${latest}" \
     --target="${target}" \
     --tag localhost/"${tag}:${latest}-${git_branch}" \

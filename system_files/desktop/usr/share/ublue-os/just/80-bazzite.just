@@ -118,13 +118,14 @@ reisub ACTION="":
 [group("system")]
 regenerate-grub:
     #!/usr/bin/bash
+    set -euo pipefail
     BOOT_REMOUNT_STATE="$(/usr/bin/boot-remount rw)" || exit $?
+    trap '/usr/bin/boot-remount ro "$BOOT_REMOUNT_STATE" || true' EXIT
     if [ -d /sys/firmware/efi ]; then
       sudo grub2-mkconfig -o /etc/grub2-efi.cfg
     else
       sudo grub2-mkconfig -o /etc/grub2.cfg
     fi
-    /usr/bin/boot-remount ro "$BOOT_REMOUNT_STATE"
 
 # Set GRUB menu timeout and regenerate config. Options: no-timeout | instant | 1-second | 3-seconds | 5-seconds | 10-seconds | custom
 [group("system")]
@@ -931,24 +932,24 @@ bazzite-cli ACTION="":
     shell="$1"
     if [[ "${shell}" == "fish" ]]; then
         line=$(grep -n "source /usr/share/bazzite-cli/bling.fish" \
-            "${XDG_CONFIG_HOME:-$HOME/.config}/fish/config.fish" \
-            | grep -Eo '^[^:]+')
+            "${XDG_CONFIG_HOME:-$HOME/.config}/fish/config.fish" 2>/dev/null \
+            | grep -Eo '^[^:]+' || true)
         if [[ -n "${line}" ]]; then
             return 1;
         fi
         return 0;
     elif [[ "${shell}" == "zsh" ]]; then
         line=$(grep -n "source /usr/share/bazzite-cli/bling" \
-            "${ZDOTDIR:-$HOME}/.zshrc" \
-            | grep -Eo '^[^:]+')
+            "${ZDOTDIR:-$HOME}/.zshrc" 2>/dev/null \
+            | grep -Eo '^[^:]+' || true)
         if [[ -n "${line}" ]]; then
             return 1;
         fi
         return 0;
     elif [[ "${shell}" == "bash" ]]; then
         line=$(grep -n "source /usr/share/bazzite-cli/bling" \
-            "${HOME}/.bashrc" \
-            | grep -Eo '^[^:]+')
+            "${HOME}/.bashrc" 2>/dev/null \
+            | grep -Eo '^[^:]+' || true)
         if [[ -n "${line}" ]]; then
             return 1;
         fi
@@ -968,6 +969,7 @@ bazzite-cli ACTION="":
     echo 'Setting up your Shell 🐚🐚🐚'
     if [[ "${shell}" == "fish" ]]; then
         echo 'Adding bling to your config.fish 🐟🐟🐟'
+        mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}/fish"
         cat<<-EOF >> "${XDG_CONFIG_HOME:-$HOME/.config}/fish/config.fish"
     ### bling.fish source start
     test -f /usr/share/bazzite-cli/bling.fish && source /usr/share/bazzite-cli/bling.fish
@@ -975,6 +977,7 @@ bazzite-cli ACTION="":
     EOF
     elif [[ "${shell}" == "zsh" ]]; then
         echo 'Adding bling to your .zshrc 💤💤💤'
+        mkdir -p "${ZDOTDIR:-$HOME}"
         cat<<-EOF >> "${ZDOTDIR:-$HOME}/.zshrc"
     ### bling source start
     test -f /usr/share/bazzite-cli/bling && source /usr/share/bazzite-cli/bling
@@ -982,6 +985,7 @@ bazzite-cli ACTION="":
     EOF
     elif [[ "${shell}" == "bash" ]]; then
         echo 'Adding bling to your .bashrc 💥💥💥'
+        mkdir -p "${HOME}"
         cat<<-EOF >> "${HOME}/.bashrc"
     ### bling source start
     test -f /usr/share/bazzite-cli/bling && source /usr/share/bazzite-cli/bling

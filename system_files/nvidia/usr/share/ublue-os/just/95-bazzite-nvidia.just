@@ -2,14 +2,17 @@
 
 update-nvidia-runtime ACTION="":
     #!/usr/bin/bash
+    set -Eeuo pipefail
     source /usr/lib/ujust/ujust.sh
     get_status_token() {
-        local service_state
-        service_state="$(/usr/bin/nvidia-flatpak-runtime-sync check)"
-        if ! service_state; then
+        local output
+        if output="$(/usr/bin/nvidia-flatpak-runtime-sync check 2>&1)"; then
+            echo "mismatch"
+        elif [[ "$output" == *"already installed"* ]]; then
             echo "upgraded"
         else
-            echo "mismatch"
+            printf '%s\n' "$output" >&2
+            return 1
         fi
     }
     OPTION="{{ ACTION }}"
@@ -25,8 +28,9 @@ update-nvidia-runtime ACTION="":
     elif [[ "$OPTION" == "upgrade" ]]; then
         /usr/bin/nvidia-flatpak-runtime-sync sync
     elif [[ -z "$OPTION" ]]; then
-        echo "${bold}No option specified.${normal}"
-        exit 0
+        echo "Usage: ujust update-nvidia-runtime <status|upgrade|help>" >&2
+        exit 2
+    else
+        echo "Unknown option: $OPTION" >&2
+        exit 2
     fi
-
-    exit 0

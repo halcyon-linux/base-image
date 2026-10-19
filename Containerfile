@@ -17,7 +17,7 @@ ARG KERNEL_VERSION="${KERNEL_VERSION:-7.2.7-ogc1.1.fc${FEDORA_VERSION}}"
 # Pull the pre-compiled kernel and akmods rpms for the pinned kernel version
 FROM ghcr.io/ublue-os/akmods:${KERNEL_FLAVOR}-${FEDORA_VERSION}-${KERNEL_VERSION} AS akmods
 # Pull the akmods-extra trees (device-specific kmods and their userspace parts;
-# only nct6687d is installed, see build_files/install-kernel-akmods)
+# only nct6687d is installed, see build_files/kernel/install-kernel-akmods)
 FROM ghcr.io/ublue-os/akmods-extra:${KERNEL_FLAVOR}-${FEDORA_VERSION}-${KERNEL_VERSION} AS akmods-extra
 # Pull the NVIDIA open driver rpms matching the pinned kernel
 FROM ghcr.io/ublue-os/akmods-nvidia-open:${KERNEL_FLAVOR}-${FEDORA_VERSION}-${KERNEL_VERSION} AS akmods-nvidia
@@ -79,12 +79,20 @@ RUN --mount=type=cache,dst=/var/cache \
     /ctx/finalization/verify repos && \
     /ctx/shared/cleanup
 
-# Install the patched gaming stack and its supporting codecs.
+# Install the complete CLI COPR package set; its installer manages that repo.
 RUN --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
-    /ctx/packages/install-gaming-stack && \
+    /ctx/packages/install-cli-tools && \
+    /ctx/shared/cleanup
+
+# Install the complete Python COPR package set as image utilities.
+RUN --mount=type=cache,dst=/var/cache \
+    --mount=type=cache,dst=/var/log \
+    --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=tmpfs,dst=/tmp \
+    /ctx/packages/install-utils && \
     /ctx/shared/cleanup
 
 # Remove packages superseded by image tooling.
@@ -104,13 +112,13 @@ RUN --mount=type=cache,dst=/var/cache \
     /ctx/packages/install-common-packages && \
     /ctx/shared/cleanup
 
-# Install Steam, Lutris, gaming middleware, and Winetricks.
+# Install the gaming stack: mesa-git, protonplus, Steam, Lutris, and Winetricks.
 RUN --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
     --mount=type=secret,id=GITHUB_TOKEN \
-    /ctx/packages/install-steam-lutris && \
+    /ctx/packages/install-gaming-stack && \
     /ctx/finalization/verify packages && \
     /ctx/shared/cleanup
 
@@ -135,9 +143,10 @@ RUN --mount=type=cache,dst=/var/cache \
 # Copy final system file overrides into root
 COPY system_files/overrides/ /
 
-# This pass applies shared defaults after packages and overlays are present, disables build-only
-# repositories, and configures the services shipped in the image. Metadata, initramfs, and account
-# finalization run here and once more after the NVIDIA section, so the last pass includes everything.
+# Apply shared desktop defaults after packages and overlays are present. The CLI/Python installers
+# disable their own COPRs; system policy below disables the remaining build repositories after the
+# NVIDIA package transaction. Metadata, initramfs, and account finalization run here and once more
+# after the NVIDIA section, so the last pass includes everything.
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     rm -f /etc/profile.d/toolbox.sh && \
     /ctx/system/configure-desktop-integration && \
@@ -145,11 +154,6 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
 
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     /ctx/just/import-bazzite-justfiles
-
-RUN --mount=type=cache,dst=/var/cache \
-    --mount=type=cache,dst=/var/log \
-    --mount=type=bind,from=ctx,source=/,target=/ctx \
-    /ctx/system/configure-system-policy
 
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     /ctx/system/configure-system-services
@@ -211,6 +215,12 @@ RUN --mount=type=cache,dst=/var/cache \
     rm -f /usr/share/vulkan/icd.d/nouveau_icd.*.json && \
     /ctx/finalization/verify nvidia && \
     /ctx/shared/cleanup
+
+# Disable the remaining build-only repositories after the final package transaction.
+RUN --mount=type=cache,dst=/var/cache \
+    --mount=type=cache,dst=/var/log \
+    --mount=type=bind,from=ctx,source=/,target=/ctx \
+    /ctx/system/configure-system-policy
 
 # Cleanup & Finalize
 RUN --mount=type=cache,dst=/var/cache \

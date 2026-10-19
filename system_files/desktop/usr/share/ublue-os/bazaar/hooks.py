@@ -49,18 +49,21 @@ stage_idx = os.getenv('BAZAAR_HOOK_STAGE_IDX')
 # UTIL
 #
 
-temp_file = "/tmp/bazaar-hook-choice"
+temp_file = os.path.join(os.getenv("XDG_RUNTIME_DIR", "/tmp"), f"bazaar-hook-choice-{os.getuid()}")
 
 def pick_action(action):
-    file = open(temp_file, "w")
-    file.write(action)
-    file.close()
+    try:
+        with open(temp_file, "w") as file:
+            file.write(action)
+    except OSError as e:
+        sys.stderr.write(f"Failed to record action choice: {e}\n")
 
 def find_action():
-    file = open(temp_file)
-    output = file.read()
-    file.close()
-    return output
+    try:
+        with open(temp_file, "r") as file:
+            return file.read().strip()
+    except OSError:
+        return ""
 
 def brew_eval(args):
     return f'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" && {args}'

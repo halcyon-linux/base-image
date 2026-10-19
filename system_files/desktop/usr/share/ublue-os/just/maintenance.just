@@ -48,8 +48,10 @@ pick:
     fi
 
     echo "⬇️  Downloading updated binary from release $TAG_NAME"
-    curl -L "$ASSET_URL" -o "$DEST"
-    chmod +x "$DEST"
+    TMP_DEST="${DEST}.tmp.$$"
+    curl -fL "$ASSET_URL" -o "$TMP_DEST"
+    chmod +x "$TMP_DEST"
+    mv -f "$TMP_DEST" "$DEST"
     echo "$TAG_NAME" > "$CACHED_TAG_FILE"
 
     echo "🚀 Running picker..."
@@ -68,8 +70,8 @@ verify-image:
     BAD="ostree-unverified-registry:"
     GOOD="ostree-image-signed:docker://"
 
-    # Logic: Check for Unverified AND Official
-    if [[ "$REF" == *"$BAD"* ]] && [[ "$REF" == *"ghcr.io/ublue-os/"* ]]; then
+    # Logic: Check for Unverified AND Official/Halcyon
+    if [[ "$REF" == *"$BAD"* ]] && ([[ "$REF" == *"ghcr.io/ublue-os/"* ]] || [[ "$REF" == *"ghcr.io/halcyon-linux/"* ]]); then
         echo "⚠️  UNVERIFIED OFFICIAL IMAGE DETECTED"
         echo "Current: $REF"
 

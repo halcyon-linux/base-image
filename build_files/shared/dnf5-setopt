@@ -1,20 +1,15 @@
-#!/usr/bin/bash
-set -euo pipefail
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
 
 die() {
-    local frame=0
-    while caller $frame >&2; do
-        ((++frame))
-    done
-    echo >&2 "${*:-Something went wrong}"
-    echo >&1 ":"
-    exit 0
+    printf 'ERROR: %s\n' "${*:-Something went wrong}" >&2
+    exit 1
 }
-trap 'die' ERR
 
 _usage() {
     local -i status=${1:-0}
-    printf >&2 'Usage: eval "%s <setopt|unsetopt> <repo_name|repo_id> <option>=<value>)"\n' "$(basename "$0")"
+    printf >&2 'Usage: %s <setopt|unsetopt> <repo_name|repo_id> <option>=<value> [...]\n' "$(basename "$0")"
     return $status
 }
 
@@ -28,42 +23,45 @@ while getopts "h" opt; do
     esac
 done
 
-cmd="dnf5 config-manager"
-action=$1
+action=${1:-}
+[[ -n "$action" ]] || die "Missing action"
 shift
 
 case $action in
-setopt | unsetopt) cmd+=" $action" ;;
+setopt | unsetopt) ;;
 *)
-    die "ERROR: Only setopt|unsetopt are allowed as first param"
+    die "Only setopt|unsetopt are allowed as first parameter"
     ;;
 esac
 
-# shellcheck disable=SC2086
-_repos_raw="$(dnf5 repo info --all --json ${1//,/ } | jq -r '.[].id')"
-if [[ -z $_repos_raw ]]; then
-    die "No repo found matching '$1'"
-fi
+selector=${1:-}
+[[ -n "$selector" ]] || die "Missing repository selector"
 shift
 
-repos=()
-mapfile -t repos <<<"$_repos_raw"
+IFS=',' read -r -a selectors <<<"$selector"
+repo_json="$(dnf5 repo info --all --json "${selectors[@]}")" || die "Failed to query repositories"
+repo_ids="$(jq -r '.[].id' <<<"$repo_json")" || die "Failed to parse repository list"
+if [[ -z "$repo_ids" ]]; then
+    die "No repo found matching '$selector'"
+fi
+mapfile -t repos <<<"$repo_ids"
 
 options=()
 while (($#)); do
-    [[ -n ${_v:=${1##.}} ]] && options+=("$_v")
+    [[ -n "$1" ]] || die "Empty option"
+    options+=("$1")
     shift
 done
-unset -v _v
 
 if [[ ${#options[@]} -eq 0 ]]; then
-    die "No options were providied"
+    die "No options were provided"
 fi
 
+arguments=()
 for repo in "${repos[@]}"; do
-    for opt in "${options[@]}"; do
-        cmd+=" $repo.$opt"
+    for option in "${options[@]}"; do
+        arguments+=("$repo.$option")
     done
 done
 
-echo "$cmd"
+dnf5 config-manager "$action" "${arguments[@]}"

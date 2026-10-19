@@ -10,8 +10,9 @@ copr_repositories=(
     ublue-os/bazzite-multilib
     ublue-os/staging
     ublue-os/packages
-    aahsnr-work/python-packages
 )
+# The Halcyon package COPRs are enabled only by their corresponding install
+# scripts, where each repo's priority and lifecycle are kept together.
 
 for copr in "${copr_repositories[@]}"; do
     printf 'Enabling Copr repository: %s\n' "$copr"

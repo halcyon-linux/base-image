@@ -6,6 +6,7 @@ mkdir -p /usr/share/ublue-os
 touch /usr/share/ublue-os/justfile
 
 justfiles=(
+    "10-update.just"
     "80-bazzite.just"
     "81-bazzite-fixes.just"
     "82-bazzite-apps.just"

@@ -478,7 +478,7 @@ manage-intel-ethernet ACTION="":
         else
             echo "Applying Intel Ethernet stability fixes..."
             # Added deletion of the old ignored EEE arg and appended the new policy
-            rpm-ostree kargs --delete='igc.EEE=0' --append-if-missing='pcie_aspm=off' --append-if-missing='pcie_aspm.policy=performance' 2>/dev/null || true
+            rpm-ostree kargs --delete='igc.EEE=0' --append-if-missing='pcie_aspm=off' --append-if-missing='pcie_aspm.policy=performance'
             echo "Done! Please reboot to apply changes."
         fi
         ;;
@@ -487,7 +487,7 @@ manage-intel-ethernet ACTION="":
             gum style --foreground 117 "Notice: System is already at defaults."
         else
             echo "Restoring Intel Ethernet defaults..."
-            rpm-ostree kargs --delete='igc.EEE=0' --delete='pcie_aspm=off' --delete='pcie_aspm.policy=performance' 2>/dev/null || true
+            rpm-ostree kargs --delete='igc.EEE=0' --delete='pcie_aspm=off' --delete='pcie_aspm.policy=performance'
             echo "Defaults restored. Please reboot."
         fi
         ;;
@@ -550,7 +550,7 @@ manage-pcie-power ACTION="":
             gum style --foreground 117 "Notice: System is already at defaults."
         else
             echo "Restoring PCIe Port Power Management defaults..."
-            rpm-ostree kargs --delete='pcie_port_pm=off' 2>/dev/null || true
+            rpm-ostree kargs --delete='pcie_port_pm=off'
             echo "Defaults restored. Please reboot."
         fi
         ;;

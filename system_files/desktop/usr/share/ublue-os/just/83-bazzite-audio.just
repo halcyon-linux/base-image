@@ -151,7 +151,11 @@ setup-virtual-surround ACTION="":
       mkdir -p ~/.config/pipewire/pipewire.conf.d
       mkdir -p ~/.config/pipewire/hrtf-sofa
       echo "Downloading Valve's Steam Audio HRTF..."
-      wget -O "$HRTF_FILE" https://github.com/ValveSoftware/steam-audio/raw/480dd64f513cc8a6437e7d5b9eb0d3f1d30c2fac/core/data/hrtf/sadie_d1.sofa
+      if ! wget -O "$HRTF_FILE" https://github.com/ValveSoftware/steam-audio/raw/480dd64f513cc8a6437e7d5b9eb0d3f1d30c2fac/core/data/hrtf/sadie_d1.sofa; then
+        echo "Failed to download Valve Steam Audio HRTF file." >&2
+        rm -f "$HRTF_FILE"
+        exit 1
+      fi
       if [ -f "$LEGACY_CONFIG_FILE" ]; then
         mv "$LEGACY_CONFIG_FILE" ~/.config/pipewire/virtual-surround-71.conf.bak
       fi
@@ -322,6 +326,7 @@ setup-virtual-surround ACTION="":
       if [ -f "$LEGACY_CONFIG_FILE" ]; then
         rm "$LEGACY_CONFIG_FILE"
       fi
+      rm -f ~/.config/pipewire/virtual-surround-71.conf.bak
       rm -f "$CONFIG_FILE"
       rm -f "$HRTF_FILE"
       echo "Virtual surround configuration file and HRTF removed, please reboot or restart PipeWire for changes to take effect. ${bold}TIP:${normal} Use Bazzite Portal > Troubleshooting > Restart PipeWire or run 'ujust restart-pipewire'."

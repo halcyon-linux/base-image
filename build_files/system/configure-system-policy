@@ -4,7 +4,8 @@ set -Eeuo pipefail
 
 # Disable rpm-ostree automatic staging; updates are managed by uupd.
 if [[ -f /etc/rpm-ostreed.conf ]]; then
-    sed -i 's/stage/none/g' /etc/rpm-ostreed.conf
+    sed -i -E 's/^([[:space:]]*AutomaticUpdatePolicy[[:space:]]*=).*/\1none/' \
+        /etc/rpm-ostreed.conf
 fi
 
 # Disable external build repositories in the shipping image.
@@ -27,16 +28,23 @@ coprs=(
     ublue-os/bazzite-multilib
     ublue-os/staging
     ublue-os/packages
-    aahsnr-work/python-packages
-    ycollet/audinux
-    che/nerd-fonts
 )
+# Keep this list synchronized with setup-repositories. Repositories not
+# enabled by this build do not belong in the disable list. Nerd Fonts remain
+# excluded from Terra and forbidden by final verification.
 for copr in "${coprs[@]}"; do
-    dnf5 -y copr disable "$copr" 2>/dev/null || true
+    repo_id="copr:copr.fedorainfracloud.org:${copr////:}"
+    dnf5 -y config-manager setopt "${repo_id}.enabled=0"
 done
-unset -v copr
+unset -v copr repo_id
 
-    eval "$(/ctx/shared/dnf5-setopt setopt '*negativo17*' enabled=0 2>/dev/null || true)"
+# Disable the inherited negativo17 repository when it exists; propagate DNF
+# errors rather than hiding a failed repository update.
+all_repos="$(dnf5 repo info --all --json)"
+negativo17_repos="$(jq '[.[] | select(.id | contains("negativo17"))]' <<<"$all_repos")"
+if jq -e 'length > 0' <<<"$negativo17_repos" >/dev/null; then
+    /ctx/shared/dnf5-setopt setopt '*negativo17*' enabled=0
+fi
 
 # Patch setroubleshoot's SELinux configuration path.
 for util_file in /usr/lib/python3.*/site-packages/setroubleshoot/util.py; do

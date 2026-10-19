@@ -6,20 +6,13 @@ alias upgrade := update
 [group("system")]
 update:
     #!/usr/bin/bash
+    set -Eeuo pipefail
     /usr/bin/uupd-update | jq -r -R 'fromjson? | [(.title, .msg, .description) | select(.)] | join(" ")'
 
 alias changelog := changelogs
 
-# Show the stable changelog
+# Open the Halcyon image's recent changes.
 [group("system")]
 changelogs:
     #!/usr/bin/bash
-    CONTENT=$(curl -s https://api.github.com/repos/ublue-os/bazzite/releases/latest | jq -r '.body')
-      echo "$CONTENT" | glow -
-
-# Show the testing (pre-release) changelog
-[group("system")]
-changelogs-testing:
-    #!/usr/bin/bash
-    CONTENT=$(curl -s https://api.github.com/repos/ublue-os/bazzite/releases | jq -r 'map(select(.prerelease)) | .[0].body')
-       echo "$CONTENT" | glow -
+    xdg-open https://github.com/halcyon-linux/base-image/commits/containerfile

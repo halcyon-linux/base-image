@@ -17,24 +17,8 @@ dnf5 -y copr disable bieszczaders/kernel-cachyos-addons
 
 common_packages=(
     bpftune-gaming
-    bbrew-helper
-    brh
-    bruh
-    crh
-    gameclass
-    boot-remount
-    dlss-swapper
-    dynamic-fixes
-    fetch-image
-    hardware-setup
-    nvidia-flatpak-runtime
-    powersave
-    snapper-config
-    user-setup
     fuse-libs
     uld
-    ublue-motd
-    uupd-update
     bazaar
     mission-center
     greenboot

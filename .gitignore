@@ -19,3 +19,5 @@ Thumbs.db
 /build_args.txt
 /output.env
 /changelog.md
+cosign.key
+*.key

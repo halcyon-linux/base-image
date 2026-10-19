@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+copr='aahsnr-work/python-packages'
+repo_id="copr:copr.fedorainfracloud.org:${copr////:}"
+copr_enabled=0
+
+disable_copr() {
+    local status=$?
+    trap - EXIT
+    if ((copr_enabled)); then
+        if ! dnf5 -y copr disable "$copr"; then
+            printf 'ERROR: failed to disable COPR %s\n' "$copr" >&2
+            status=1
+        fi
+    fi
+    exit "$status"
+}
+trap disable_copr EXIT
+
+dnf5 -y copr enable "$copr"
+copr_enabled=1
+dnf5 -y config-manager setopt "${repo_id}.priority=1"
+
+python_packages=(
+    bbrew-helper
+    boot-remount
+    brh
+    bruh
+    crh
+    dlss-swapper
+    dump-to-markdown
+    dynamic-fixes
+    fconf
+    fe
+    fetch-image
+    ff
+    fkill
+    fp
+    fssh
+    gameclass
+    hardware-setup
+    nvidia-flatpak-runtime
+    powersave
+    rmi
+    rmtmp
+    screenshot
+    se
+    snapper-config
+    ublue-motd
+    user-setup
+    uupd-update
+)
+
+dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' \
+    -y install "${python_packages[@]}"
