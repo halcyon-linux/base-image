@@ -1,11 +1,13 @@
-name: Build
+name: build alcyone
 
 on:
   schedule:
+    # Dormant: scheduled runs only come from the default branch (bluebuild);
+    # pushes to containerfile and workflow_dispatch drive this build.
     - cron: "40 4 * * *" # 4:40 UTC daily
   push:
     branches:
-      - main
+      - containerfile
     paths-ignore:
       - "**.md"
       - "**.txt"
@@ -120,7 +122,7 @@ jobs:
         id: relabel
         env:
           IMAGE_LABELS: |
-            io.artifacthub.package.readme-url=https://raw.githubusercontent.com/${{ github.repository }}/main/README.md
+            io.artifacthub.package.readme-url=https://raw.githubusercontent.com/${{ github.repository }}/containerfile/README.md
             org.opencontainers.image.description=Halcyon (alcyone) — DE-free Fedora Atomic gaming image built from Universal Blue base-main with the NVIDIA open kernel modules (Containerfile variant).
             org.opencontainers.image.licenses=Apache-2.0
             org.opencontainers.image.revision=${{ github.sha }}
