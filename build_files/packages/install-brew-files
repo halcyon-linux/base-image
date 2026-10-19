@@ -16,6 +16,9 @@ cleanup_staging() {
 }
 trap cleanup_staging EXIT
 
+# Strip upstream fish configurations since fish is strictly removed from this image
+rm -rf "$source_dir/usr/share/fish"
+
 find "$source_dir" -type f -printf '/%P\0' > "$file_list"
 cp -a "$source_dir"/. /
 xargs -0 -r -a "$file_list" setfattr -h -n user.component -v homebrew 2>/dev/null || true

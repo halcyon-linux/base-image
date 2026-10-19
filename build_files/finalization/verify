@@ -91,15 +91,42 @@ require_repos_disabled() {
 }
 
 verify_brew() {
-    if [[ -d /home/linuxbrew || -f /etc/profile.d/homebrew.sh || -d /usr/share/ublue-os/homebrew ]]; then
-        pass "Homebrew tree present"
+    # The brew image ships the standalone root as a tarball; brew-setup.service
+    # unpacks it into /home/linuxbrew on first boot, so the tree itself must
+    # not exist at build time.
+    local file
+    for file in \
+        /usr/share/homebrew.tar.zst \
+        /etc/profile.d/brew.sh \
+        /etc/profile.d/brew-bash-completion.sh \
+        /etc/security/limits.d/30-brew-limits.conf \
+        /usr/lib/systemd/system/brew-setup.service \
+        /usr/lib/systemd/system/brew-update.service \
+        /usr/lib/systemd/system/brew-update.timer \
+        /usr/lib/systemd/system/brew-upgrade.service \
+        /usr/lib/systemd/system/brew-upgrade.timer \
+        /usr/lib/systemd/system-preset/01-homebrew.preset; do
+        if [[ -f "$file" ]]; then
+            pass "Homebrew file installed: $file"
+        else
+            fail "Homebrew file missing after install-brew-files: $file"
+        fi
+    done
+
+    if [[ -d /home/linuxbrew ]]; then
+        fail "/home/linuxbrew must be created by brew-setup.service, not baked into the image"
     else
-        fail "Homebrew tree missing after install-brew-files"
+        pass "/home/linuxbrew absent until first boot"
     fi
     if [[ -d /tmp/brew_files ]]; then
         fail "/tmp/brew_files staging directory was not removed"
     else
         pass "/tmp/brew_files staging directory removed"
+    fi
+    if [[ -e /usr/share/fish/vendor_conf.d/ublue-brew.fish ]]; then
+        fail "fish brew integration present; fish shell is forbidden"
+    else
+        pass "fish brew integration excluded"
     fi
 }
 

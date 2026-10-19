@@ -11,3 +11,7 @@ for pkg in htop ublue-os-update-services google-noto-sans-cjk-fonts fish greetd 
         dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y remove "$pkg"
     fi
 done
+
+# Wipe any residual fish shell configuration or integration directories
+rm -rf /etc/fish /usr/share/fish
+
