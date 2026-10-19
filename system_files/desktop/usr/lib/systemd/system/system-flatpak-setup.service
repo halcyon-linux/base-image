@@ -1,0 +1,15 @@
+[Unit]
+Description=Provision declared system Flatpaks
+After=network-online.target flatpak-system-helper.service
+Wants=network-online.target
+ConditionPathExists=/usr/share/ublue-os/flatpak/system-flatpaks.list
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/system-flatpak-setup
+RemainAfterExit=true
+TimeoutStartSec=900
+
+[Install]
+WantedBy=multi-user.target
+

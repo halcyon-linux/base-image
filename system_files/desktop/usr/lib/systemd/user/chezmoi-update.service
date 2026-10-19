@@ -1,0 +1,11 @@
+[Unit]
+Description=Chezmoi Dotfiles Periodic Update
+ConditionUser=!@system
+ConditionUser=!sddm
+ConditionPathExists=%h/.local/share/chezmoi/.git/
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/chezmoi update --no-tty --force
+TimeoutStartSec=600
+

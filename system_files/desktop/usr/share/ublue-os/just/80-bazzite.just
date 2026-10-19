@@ -930,15 +930,7 @@ bazzite-cli ACTION="":
     # Check if bling is already sourced
     function check-bling() {
     shell="$1"
-    if [[ "${shell}" == "fish" ]]; then
-        line=$(grep -n "source /usr/share/bazzite-cli/bling.fish" \
-            "${XDG_CONFIG_HOME:-$HOME/.config}/fish/config.fish" 2>/dev/null \
-            | grep -Eo '^[^:]+' || true)
-        if [[ -n "${line}" ]]; then
-            return 1;
-        fi
-        return 0;
-    elif [[ "${shell}" == "zsh" ]]; then
+    if [[ "${shell}" == "zsh" ]]; then
         line=$(grep -n "source /usr/share/bazzite-cli/bling" \
             "${ZDOTDIR:-$HOME}/.zshrc" 2>/dev/null \
             | grep -Eo '^[^:]+' || true)
@@ -967,15 +959,7 @@ bazzite-cli ACTION="":
         Exiting
     fi
     echo 'Setting up your Shell 🐚🐚🐚'
-    if [[ "${shell}" == "fish" ]]; then
-        echo 'Adding bling to your config.fish 🐟🐟🐟'
-        mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}/fish"
-        cat<<-EOF >> "${XDG_CONFIG_HOME:-$HOME/.config}/fish/config.fish"
-    ### bling.fish source start
-    test -f /usr/share/bazzite-cli/bling.fish && source /usr/share/bazzite-cli/bling.fish
-    ### bling.fish source end
-    EOF
-    elif [[ "${shell}" == "zsh" ]]; then
+    if [[ "${shell}" == "zsh" ]]; then
         echo 'Adding bling to your .zshrc 💤💤💤'
         mkdir -p "${ZDOTDIR:-$HOME}"
         cat<<-EOF >> "${ZDOTDIR:-$HOME}/.zshrc"
@@ -1000,15 +984,7 @@ bazzite-cli ACTION="":
     function remove-bling(){
     shell="$1"
     local line=""
-    if [[ "${shell}" == "fish" ]]; then
-        sed -i '/### bling.fish source start/,/### bling.fish source end/d' \
-            "${XDG_CONFIG_HOME:-$HOME/.config}/fish/config.fish" \
-            || \
-            { line=$(grep -n "source /usr/share/bazzite-cli/bling.fish" \
-            "${XDG_CONFIG_HOME:-$HOME/.config}/fish/config.fish" \
-            | grep -Eo '^[^:]+' | head -n1) && [[ -n "${line}" ]] && sed -i "${line}"d \
-            "${XDG_CONFIG_HOME:-$HOME/.config}/fish/config.fish"; }
-    elif [[ "${shell}" == "zsh" ]]; then
+    if [[ "${shell}" == "zsh" ]]; then
         sed -i '/### bling source start/,/### bling source end/d' \
             "${ZDOTDIR:-$HOME}/.zshrc" \
             || \
@@ -1279,7 +1255,18 @@ get-logs:
     #!/bin/bash
     set -euo pipefail
     source /usr/lib/ujust/ujust.sh
-    echo -e "${red}${bold}Generating and uploading system information and logs for Bazzite Support...${normal}"
+    echo -e "${yellow}${bold}WARNING: This will upload your system information and full boot journals to a public paste service (fpaste).${normal}"
+    echo -e "${yellow}Please ensure you have reviewed your logs for any sensitive data before sharing.${normal}"
+    read -rp "Proceed with generating and uploading logs? [y/N]: " confirm
+    case "${confirm,,}" in
+      y|yes) ;;
+      *)
+        echo "Log upload cancelled."
+        exit 0
+        ;;
+    esac
+
+    echo -e "${red}${bold}Generating and uploading system information and logs for Support...${normal}"
     echo " "
     # Upload system status information
     system_information=$({
@@ -1307,10 +1294,73 @@ get-logs:
       echo "Logs This Boot: $this_boot_logs"
       echo
       echo "Logs Last Boot: $last_boot_logs"
-    } | wl-copy
-    echo -e "${lightgreen}${bold}Logs and system information have been uploaded, and the links have been copied to your clipboard.\nPlease provide them to Bazzite Support for further help.${normal}"
+    } | wl-copy 2>/dev/null || true
+    echo -e "${lightgreen}${bold}Logs and system information have been uploaded, and the links have been copied to your clipboard (if available).\nPlease provide them for further help.${normal}"
 
 # Toggle the login MOTD banner on or off
 [group("system")]
 toggle-user-motd:
     @/usr/bin/ublue-motd toggle
+
+# Manage chezmoi dotfiles from aahsnr-configs/dotfiles. Options: status | sync | diff | edit
+[group("system")]
+dotfiles ACTION="":
+    #!/usr/bin/bash
+    set -euo pipefail
+    source /usr/lib/ujust/ujust.sh
+    OPTION="{{ ACTION }}"
+
+    if ! command -v chezmoi >/dev/null 2>&1; then
+        echo -e "${red}${bold}Error: chezmoi is not installed.${normal}" >&2
+        exit 1
+    fi
+
+    if [ "$OPTION" == "help" ]; then
+        echo "Usage: ujust dotfiles <status|sync|diff|edit>"
+        echo "  status - Show dotfiles status and repo location"
+        echo "  sync   - Synchronize (pull and apply) dotfiles"
+        echo "  diff   - Show diff between repository and home directory"
+        echo "  edit   - Open chezmoi working directory in your editor"
+        exit 0
+    fi
+
+    if [ -z "$OPTION" ]; then
+        echo -e "${bold}Chezmoi Dotfiles Management (aahsnr-configs/dotfiles)${normal}"
+        OPTION=$(ugum choose "status" "sync" "diff" "edit" "cancel")
+    fi
+
+    case "${OPTION,,}" in
+        status)
+            echo -e "${bold}Checking chezmoi status...${normal}"
+            chezmoi status || true
+            if [ -d "$HOME/.local/share/chezmoi/.git" ]; then
+                echo ""
+                git -C "$HOME/.local/share/chezmoi" log -1 --format="Latest commit: %h - %s (%cr)" 2>/dev/null || true
+            else
+                echo -e "${yellow}Chezmoi repository not initialized in ~/.local/share/chezmoi.${normal}"
+            fi
+            ;;
+        sync)
+            echo -e "${green}${bold}Syncing dotfiles from remote repository...${normal}"
+            chezmoi update --force
+            echo -e "${green}Dotfiles synchronized successfully.${normal}"
+            ;;
+        diff)
+            echo -e "${bold}Comparing working tree with home directory...${normal}"
+            chezmoi diff || true
+            ;;
+        edit)
+            if [ -d "$HOME/.local/share/chezmoi" ]; then
+                "${EDITOR:-nano}" "$HOME/.local/share/chezmoi"
+            else
+                echo -e "${yellow}Chezmoi repository not initialized yet.${normal}"
+            fi
+            ;;
+        cancel|"")
+            echo "No changes made."
+            ;;
+        *)
+            echo "Unknown option: $OPTION" >&2
+            exit 1
+            ;;
+    esac

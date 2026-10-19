@@ -2,6 +2,9 @@
 # System-wide environment variables for /etc/profile.d/
 # This script is sourced by /etc/profile and must be POSIX-compliant
 
+# Skip when HOME is unset or empty (e.g. systemd system units or headless jobs)
+[ -n "${HOME:-}" ] || return 0 2>/dev/null || exit 0
+
 # XDG Base Directory Specification
 export XDG_BIN_HOME="${HOME}/.local/bin"
 export XDG_CACHE_HOME="${HOME}/.cache"

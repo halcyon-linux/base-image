@@ -14,6 +14,8 @@ system_services=(
     greenboot-set-rollback-trigger.service
     dmemcg-booster-system.service
     cardwired.service
+    system-flatpak-setup.service
+    sddm.service
 )
 
 global_services=(
@@ -22,12 +24,15 @@ global_services=(
     systemd-tmpfiles-setup.service
     dynamic-fixes.service
     dmemcg-booster-user.service
+    chezmoi-init.service
+    chezmoi-update.timer
 )
 
 disabled_services=(
     scx_loader.service
     rpm-ostreed-automatic.timer
     tailscaled.service
+    greetd.service
 )
 
 for unit in "${system_services[@]}"; do
@@ -41,3 +46,5 @@ done
 for unit in "${disabled_services[@]}"; do
     systemctl disable "$unit" 2>/dev/null || true
 done
+
+systemctl set-default graphical.target || echo "Warning: failed to set graphical.target" >&2

@@ -28,6 +28,10 @@ if [ "$(basename "$SHELL")" = "bash" ]; then
     [ "$(command -v atuin)" ] && eval "$(atuin init bash)"
     [ "$(command -v zoxide)" ] && eval "$(zoxide init bash)"
 elif [ "$(basename "$SHELL")" = "zsh" ]; then
+    # Source the zsh-preexec compatibility shim (bash-preexec API for zsh)
+    #shellcheck disable=SC1091
+    [ -f /usr/share/zsh/site-functions/zsh-preexec.zsh ] && \
+        . /usr/share/zsh/site-functions/zsh-preexec.zsh
     [ "$(command -v atuin)" ] && eval "$(atuin init zsh)"
     [ "$(command -v zoxide)" ] && eval "$(zoxide init zsh)"
 fi

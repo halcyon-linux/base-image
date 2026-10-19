@@ -9,7 +9,7 @@
 # sourced in zsh instead.
 #
 # Usage: source this file late in your .zshrc, then append hook functions:
-#   source /usr/share/zsh-preexec.sh
+#   source /usr/share/zsh/site-functions/zsh-preexec.zsh
 #   preexec_functions+=(my_preexec_function)
 #   precmd_functions+=(my_precmd_function)
 #

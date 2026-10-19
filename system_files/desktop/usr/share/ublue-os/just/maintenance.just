@@ -105,4 +105,12 @@ verify-image:
 
 add-updater-to-steam:
     #!/usr/bin/bash
-    /usr/bin/steamos-add-to-steam /usr/bin/bazzite-updater
+    set -euo pipefail
+    if command -v steamos-add-to-steam >/dev/null 2>&1; then
+        steamos-add-to-steam /usr/bin/bazzite-updater
+    elif [[ -x /usr/bin/steamos-add-to-steam ]]; then
+        /usr/bin/steamos-add-to-steam /usr/bin/bazzite-updater
+    else
+        echo "Error: steamos-add-to-steam is not available on this system." >&2
+        exit 1
+    fi

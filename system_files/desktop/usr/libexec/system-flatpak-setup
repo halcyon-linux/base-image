@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+LIST_FILE="/usr/share/ublue-os/flatpak/system-flatpaks.list"
+[[ -f "$LIST_FILE" ]] || exit 0
+
+mapfile -t TARGET_APPS < <(grep -vE '^[[:space:]]*(#|$)' "$LIST_FILE" || true)
+((${#TARGET_APPS[@]} == 0)) && exit 0
+
+if ! command -v flatpak >/dev/null 2>&1; then
+    echo "Warning: flatpak command not found; skipping system flatpak setup." >&2
+    exit 0
+fi
+
+installed="$(flatpak list --system --app --columns=application 2>/dev/null || true)"
+
+for app in "${TARGET_APPS[@]}"; do
+    if grep -qxF "$app" <<<"$installed"; then
+        continue
+    fi
+    echo "Installing system flatpak: $app..."
+    flatpak install --system -y --noninteractive flathub "$app" || {
+        echo "Warning: Failed to install system flatpak: $app (will retry next boot)" >&2
+    }
+done
+

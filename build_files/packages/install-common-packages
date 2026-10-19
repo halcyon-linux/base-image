@@ -16,6 +16,10 @@ dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y 
 dnf5 -y copr disable bieszczaders/kernel-cachyos-addons
 
 common_packages=(
+    zsh
+    sddm
+    sddm-wayland-generic
+    chezmoi
     bpftune-gaming
     fuse-libs
     uld

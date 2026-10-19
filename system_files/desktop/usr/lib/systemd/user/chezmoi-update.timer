@@ -1,0 +1,13 @@
+[Unit]
+Description=Timer for Chezmoi Dotfiles Update
+ConditionUser=!@system
+ConditionUser=!sddm
+ConditionPathExists=%h/.local/share/chezmoi/.git/
+
+[Timer]
+OnBootSec=5m
+OnUnitInactiveSec=1d
+
+[Install]
+WantedBy=timers.target
+

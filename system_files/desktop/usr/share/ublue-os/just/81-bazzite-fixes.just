@@ -12,9 +12,9 @@ fix-gmod:
 [group("gaming")]
 fix-proton-hang:
     #!/usr/bin/bash
-    PROTONCORE=(pv-bwrap pressure-vessel reaper explorer.exe rpcss.exe plugplay.exe services.exe svchost.exe winedevice.exe winedevice.exe wineserver)
+    PROTONCORE=(pv-bwrap pressure-vessel reaper explorer.exe rpcss.exe plugplay.exe services.exe svchost.exe winedevice.exe wineserver)
     for PROG in "${PROTONCORE[@]}"; do
-      killall -9 "$PROG"
+      killall -q -9 "$PROG" 2>/dev/null || true
     done
 
 # Reset the Steam folder back to a fresh state

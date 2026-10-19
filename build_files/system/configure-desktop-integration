@@ -29,3 +29,40 @@ if [[ -f /usr/bin/grub2-mkconfig ]]; then
     sed -i "s|grub_probe\} --target=device /\`|grub_probe} --target=device /sysroot\`|g" \
         /usr/bin/grub2-mkconfig
 fi
+
+# Prevent Steam from autostarting on user login.
+rm -f \
+    /etc/skel/.config/autostart/steam.desktop \
+    /etc/xdg/autostart/steam.desktop \
+    /usr/share/autostart/steam.desktop
+
+# Set zsh as the default login shell.
+# 1. Ensure /etc/shells contains the zsh path (it should already be there
+#    after the zsh RPM install, but be explicit).
+if [[ -x /usr/bin/zsh ]] && ! grep -qxF /usr/bin/zsh /etc/shells 2>/dev/null; then
+    echo /usr/bin/zsh >> /etc/shells
+fi
+
+# 2. Configure useradd so newly created accounts get zsh.
+if [[ -f /etc/default/useradd ]]; then
+    sed -i 's|^SHELL=.*|SHELL=/usr/bin/zsh|' /etc/default/useradd
+else
+    printf '[useradd]\nSHELL=/usr/bin/zsh\n' > /etc/default/useradd
+fi
+
+# 3. Change root's default shell to zsh so the skeleton applies consistently.
+if [[ -x /usr/bin/zsh ]]; then
+    usermod --shell /usr/bin/zsh root 2>/dev/null || \
+        sed -i 's|^root:.*|root:x:0:0:root:/root:/usr/bin/zsh|' /etc/passwd
+fi
+
+# 4. Ensure /etc/skel has a minimal .zshrc that sources the zsh-preexec
+#    compatibility shim.
+mkdir -p /etc/skel
+cat > /etc/skel/.zshrc << 'ZSHRC'
+# /etc/skel/.zshrc — Halcyon default Zsh configuration
+# Source zsh-preexec compatibility shim (bash-preexec API for zsh)
+[[ -f /usr/share/zsh/site-functions/zsh-preexec.zsh ]] && \
+    source /usr/share/zsh/site-functions/zsh-preexec.zsh
+ZSHRC
+

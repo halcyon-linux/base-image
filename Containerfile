@@ -56,7 +56,8 @@ COPY system_files/desktop/ /
 # Use the standalone files exposed by the Homebrew image's /system_files tree.
 COPY --from=brew /system_files/ /tmp/brew_files/
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
-    /ctx/packages/install-brew-files
+    /ctx/packages/install-brew-files && \
+    /ctx/finalization/verify brew
 
 # Install kernel
 RUN --mount=type=cache,dst=/var/cache \
@@ -85,6 +86,7 @@ RUN --mount=type=cache,dst=/var/cache \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/packages/install-cli-tools && \
+    /ctx/finalization/verify cli-tools && \
     /ctx/shared/cleanup
 
 # Install the complete Python COPR package set as image utilities.
@@ -93,6 +95,7 @@ RUN --mount=type=cache,dst=/var/cache \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/packages/install-utils && \
+    /ctx/finalization/verify utils && \
     /ctx/shared/cleanup
 
 # Remove packages superseded by image tooling.
@@ -101,6 +104,7 @@ RUN --mount=type=cache,dst=/var/cache \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/packages/global-remove && \
+    /ctx/finalization/verify removals && \
     /ctx/shared/cleanup
 
 # Install shared gaming, hardware, and system utilities.
@@ -110,16 +114,17 @@ RUN --mount=type=cache,dst=/var/cache \
     --mount=type=tmpfs,dst=/tmp \
     --mount=type=secret,id=GITHUB_TOKEN \
     /ctx/packages/install-common-packages && \
+    /ctx/finalization/verify common-packages && \
     /ctx/shared/cleanup
 
-# Install the gaming stack: mesa-git, protonplus, Steam, Lutris, and Winetricks.
+# Install the gaming stack: protonplus, Steam, Lutris, and Winetricks.
 RUN --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
     --mount=type=secret,id=GITHUB_TOKEN \
     /ctx/packages/install-gaming-stack && \
-    /ctx/finalization/verify packages && \
+    /ctx/finalization/verify gaming && \
     /ctx/shared/cleanup
 
 # Install ujust-picker from the latest GitHub release.
@@ -129,6 +134,7 @@ RUN --mount=type=cache,dst=/var/cache \
     --mount=type=tmpfs,dst=/tmp \
     --mount=type=secret,id=GITHUB_TOKEN \
     /ctx/packages/install-ujust-picker && \
+    /ctx/finalization/verify picker && \
     /ctx/shared/cleanup
 
 # Mount non-removable device partitions automatically under /media/media-automount/ (ublue-os-media-automount-udev).
@@ -137,6 +143,7 @@ RUN --mount=type=cache,dst=/var/cache \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/packages/install-media-automount && \
+    /ctx/finalization/verify media && \
     /ctx/shared/cleanup
 
 # Cleanup & Finalize
@@ -150,26 +157,32 @@ COPY system_files/overrides/ /
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     rm -f /etc/profile.d/toolbox.sh && \
     /ctx/system/configure-desktop-integration && \
-    rm -f /usr/lib/systemd/system/service.d/50-keep-warm.conf
+    rm -f /usr/lib/systemd/system/service.d/50-keep-warm.conf && \
+    /ctx/finalization/verify desktop-integration
 
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
-    /ctx/just/import-bazzite-justfiles
+    /ctx/just/import-bazzite-justfiles && \
+    /ctx/finalization/verify justfiles
 
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
-    /ctx/system/configure-system-services
+    /ctx/system/configure-system-services && \
+    /ctx/finalization/verify services
 
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=secret,id=GITHUB_TOKEN \
-    /ctx/packages/install-system-integration-files
+    /ctx/packages/install-system-integration-files && \
+    /ctx/finalization/verify integration-files
 
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
-    /ctx/finalization/image-info
+    /ctx/finalization/image-info && \
+    /ctx/finalization/verify image-info
 
 RUN --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
-    /ctx/kernel/build-initramfs
+    /ctx/kernel/build-initramfs && \
+    /ctx/finalization/verify initramfs
 
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
@@ -181,7 +194,8 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
         /etc/shadow- \
         /etc/gshadow- \
         /etc/subuid- \
-        /etc/subgid-
+        /etc/subgid- && \
+    /ctx/finalization/verify finalize
 
 #############################
 # NVIDIA DRIVER INTEGRATION
@@ -202,6 +216,7 @@ RUN --mount=type=cache,dst=/var/cache \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/nvidia/configure-nvidia && \
+    /ctx/finalization/verify nvidia-config && \
     /ctx/shared/cleanup
 
 # Install NVIDIA driver
@@ -220,23 +235,27 @@ RUN --mount=type=cache,dst=/var/cache \
 RUN --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
-    /ctx/system/configure-system-policy
+    /ctx/system/configure-system-policy && \
+    /ctx/finalization/verify system-policy
 
 # Cleanup & Finalize
 RUN --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
-    /ctx/nvidia/finalize-nvidia
+    /ctx/nvidia/finalize-nvidia && \
+    /ctx/finalization/verify nvidia-finalize
 
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
-    /ctx/finalization/image-info
+    /ctx/finalization/image-info && \
+    /ctx/finalization/verify image-info
 
 RUN --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
-    /ctx/kernel/build-initramfs
+    /ctx/kernel/build-initramfs && \
+    /ctx/finalization/verify initramfs
 
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
@@ -248,7 +267,8 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
         /etc/shadow- \
         /etc/gshadow- \
         /etc/subuid- \
-        /etc/subgid-
+        /etc/subgid- && \
+    /ctx/finalization/verify finalize
 
 # Verify the published image before the final lint gate.
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \

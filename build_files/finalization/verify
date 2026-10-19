@@ -8,13 +8,13 @@ set -Eeuo pipefail
 # the step that broke them instead of surfacing in the final image (or worse,
 # on user machines).
 #
-# Usage: /ctx/finalization/verify <kernel|repos|packages|nvidia|final>
+# Usage: /ctx/finalization/verify <stage>
 
 group="${1:-}"
 case "$group" in
-kernel | repos | packages | nvidia | final) ;;
+brew | kernel | repos | cli-tools | utils | removals | common-packages | gaming | picker | media | desktop-integration | justfiles | services | integration-files | image-info | initramfs | finalize | nvidia-config | nvidia | system-policy | nvidia-finalize | packages | final) ;;
 *)
-    printf 'Usage: %s <kernel|repos|packages|nvidia|final>\n' "$0" >&2
+    printf 'Usage: %s <stage>\n' "$0" >&2
     exit 2
     ;;
 esac
@@ -90,6 +90,19 @@ require_repos_disabled() {
     done
 }
 
+verify_brew() {
+    if [[ -d /home/linuxbrew || -f /etc/profile.d/homebrew.sh || -d /usr/share/ublue-os/homebrew ]]; then
+        pass "Homebrew tree present"
+    else
+        fail "Homebrew tree missing after install-brew-files"
+    fi
+    if [[ -d /tmp/brew_files ]]; then
+        fail "/tmp/brew_files staging directory was not removed"
+    else
+        pass "/tmp/brew_files staging directory removed"
+    fi
+}
+
 verify_kernel() {
     local -a dirs
     local kver_dir actual expected
@@ -108,9 +121,6 @@ verify_kernel() {
     fi
 
     require_rpms kernel-core kernel-modules kernel-devel
-
-    # install-kmods only warns (exit 0) when no RPMs match, so a missing
-    # nct6687d payload is only detectable here.
     require_rpms kmod-nct6687d nct6687d
 
     actual="$(rpm -q kernel-core --qf '%{VERSION}-%{RELEASE}' 2>/dev/null || true)"
@@ -140,38 +150,368 @@ verify_repos() {
         'copr:copr.fedorainfracloud.org:ublue-os:packages'
 }
 
-verify_packages() {
-    # These package sets must match the registries in the two halcyon COPRs.
+verify_cli_tools() {
     require_rpms \
         bun tealdeer uv atuin bat bat-extras eza gnuplot cava pixi \
         xwiimote-ng zoxide asdf fd-find cliphist topgrade fzf fzy kilo \
         chafa dust lazygit pandoc starship yazi zellij opencode marksman \
         texlab glow
 
+    require_repos_disabled 'copr:copr.fedorainfracloud.org:aahsnr-work:cli-tools'
+
+    local bin
+    for bin in bun uv eza bat zoxide fzf starship zellij; do
+        if [[ -x "/usr/bin/$bin" ]]; then
+            pass "CLI binary present and executable: /usr/bin/$bin"
+        else
+            fail "CLI binary missing or not executable: /usr/bin/$bin"
+        fi
+    done
+}
+
+verify_utils() {
     require_rpms \
         bbrew-helper boot-remount brh bruh crh dlss-swapper dump-to-markdown \
         dynamic-fixes fconf fe fetch-image ff fkill fp fssh gameclass \
         hardware-setup nvidia-flatpak-runtime powersave rmi rmtmp screenshot \
         se snapper-config ublue-motd user-setup uupd-update
 
-    require_rpms \
-        steam lutris protonplus bazaar uupd btop fastfetch snapper bees \
-        input-remapper tailscale cockpit-system yad btrfs-assistant kernel-tools kmod
+    require_repos_disabled 'copr:copr.fedorainfracloud.org:aahsnr-work:python-packages'
 
-    # Virtualization is enabled by default; the full stack ships in the image.
-    require_rpms \
-        virt-manager virt-install libvirt-daemon libvirt-daemon-kvm \
-        libvirt-daemon-config-network swtpm-tools
-
-    # kmod-sleep-workaround@.service shells out to these on suspend/resume.
-    local modbin
-    for modbin in /usr/bin/rmmod /usr/bin/modprobe; do
-        if [[ -x "$modbin" ]]; then
-            pass "kmod binary present: $modbin"
+    local bin
+    for bin in bbrew-helper bruh hardware-setup user-setup dynamic-fixes ublue-motd; do
+        if [[ -x "/usr/bin/$bin" ]]; then
+            pass "utility binary present and executable: /usr/bin/$bin"
         else
-            fail "kmod binary missing: $modbin"
+            fail "utility binary missing or not executable: /usr/bin/$bin"
         fi
     done
+}
+
+verify_removals() {
+    forbid_rpms htop ublue-os-update-services google-noto-sans-cjk-fonts fish greetd greetd-selinux zsh-autosuggestions zsh-syntax-highlighting
+
+    local item
+    for item in /usr/bin/fish /usr/share/fish /usr/bin/greetd /etc/greetd; do
+        if [[ -e "$item" ]]; then
+            fail "removed component artifact present: $item"
+        else
+            pass "removed component artifact absent: $item"
+        fi
+    done
+}
+
+verify_common_packages() {
+    require_rpms \
+        zsh sddm sddm-wayland-generic chezmoi bpftune-gaming fuse-libs uld \
+        bazaar mission-center greenboot greenboot-default-health-checks \
+        ublue-os-selinux-workarounds bazzite-updater ScopeBuddy python3-pip \
+        libadwaita bees xwininfo compsize input-remapper libinput-utils \
+        i2c-tools lm_sensors udica ladspa-caps-plugins \
+        pipewire-module-filter-chain-sofa python3-icoextract tailscale \
+        webapp-manager btop duf lshw yad f3 lzip p7zip p7zip-plugins rar \
+        libxcrypt-compat vulkan-tools vulkan-low-latency-layer fastfetch \
+        cockpit-networkmanager cockpit-podman cockpit-selinux cockpit-system \
+        cockpit-files cockpit-storaged ydotool stress-ng snapper btrfs-assistant \
+        edk2-ovmf lsb_release uupd ds-inhibit bazzite-portal kernel-tools kmod \
+        ls-iommu virt-manager virt-install libvirt-daemon libvirt-daemon-kvm \
+        libvirt-daemon-config-network libvirt-daemon-config-nwfilter virtiofsd \
+        cardwire-gui
+
+    require_repos_disabled 'copr:copr.fedorainfracloud.org:bieszczaders:kernel-cachyos-addons'
+
+    forbid_rpms fish greetd greetd-selinux zsh-autosuggestions zsh-syntax-highlighting
+
+    local extra_zsh
+    extra_zsh=$(rpm -qa --qf '%{NAME}\n' 'zsh*' 2>/dev/null | grep -v '^zsh$' || true)
+    if [[ -n "$extra_zsh" ]]; then
+        fail "Forbidden auxiliary zsh package(s) installed: $extra_zsh"
+    else
+        pass "Only standalone zsh package is installed"
+    fi
+
+    local bin
+    for bin in /usr/bin/chezmoi /usr/bin/sddm /usr/bin/rmmod /usr/bin/modprobe; do
+        if [[ -x "$bin" ]]; then
+            pass "binary present and executable: $bin"
+        else
+            fail "binary missing or not executable: $bin"
+        fi
+    done
+
+    if [[ -f /usr/lib/extest/libextest.so ]]; then
+        pass "extest library present: /usr/lib/extest/libextest.so"
+    else
+        fail "extest library missing: /usr/lib/extest/libextest.so"
+    fi
+
+    if [[ -L /etc/NetworkManager/dispatcher.d/04-iscsi && "$(readlink /etc/NetworkManager/dispatcher.d/04-iscsi)" == "/dev/null" ]]; then
+        pass "iscsi dispatcher script masked to /dev/null"
+    else
+        fail "iscsi dispatcher script not masked to /dev/null"
+    fi
+}
+
+verify_gaming() {
+    require_rpms \
+        protonplus steam lutris dmemcg-booster \
+        terra-gamescope terra-gamescope-libs umu-wrapper umu-launcher \
+        dbus-x11 xrandr evtest xdg-terminal-exec gobject-introspection \
+        libFAudio vkBasalt terra-mangohud openxr openxr-libs terra-wireplumber \
+        openh264 libfreeaptx intel-opencl clinfo
+
+    require_repos_disabled 'copr:copr.fedorainfracloud.org:aahsnr-work:gaming'
+
+    forbid_rpms gamemode pipewire-config-raop mesa-va-drivers
+
+    if [[ -x /usr/bin/winetricks ]]; then
+        pass "winetricks present and executable: /usr/bin/winetricks"
+    else
+        fail "winetricks missing or not executable: /usr/bin/winetricks"
+    fi
+
+    if [[ -x /usr/bin/protonplus ]]; then
+        pass "protonplus present and executable: /usr/bin/protonplus"
+    else
+        fail "protonplus missing or not executable: /usr/bin/protonplus"
+    fi
+
+    local locks
+    locks="$(dnf5 versionlock list 2>/dev/null || true)"
+    local locked_pkg
+    for locked_pkg in mesa-filesystem xorg-x11-server-Xwayland bluez NetworkManager; do
+        if grep -qF "$locked_pkg" <<<"$locks"; then
+            pass "versionlock active for: $locked_pkg"
+        else
+            fail "versionlock missing for: $locked_pkg"
+        fi
+    done
+}
+
+verify_picker() {
+    if [[ -x /usr/bin/ujust-picker ]]; then
+        pass "ujust-picker present and executable: /usr/bin/ujust-picker"
+    else
+        fail "ujust-picker missing or not executable: /usr/bin/ujust-picker"
+    fi
+}
+
+verify_media() {
+    require_rpms ublue-os-media-automount-udev
+    if [[ -e /etc/systemd/system/multi-user.target.wants/ublue-os-media-automount.service ]]; then
+        pass "ublue-os-media-automount.service enabled"
+    else
+        fail "ublue-os-media-automount.service not enabled"
+    fi
+}
+
+verify_desktop_integration() {
+    local perm
+    perm="$(stat -c '%a' /var/tmp 2>/dev/null || true)"
+    if [[ "$perm" == "1777" ]]; then
+        pass "/var/tmp permissions are 1777"
+    else
+        fail "/var/tmp permissions are $perm, expected 1777"
+    fi
+
+    if [[ -e /usr/lib/libdrm.so && -e /usr/lib64/libdrm.so ]]; then
+        pass "DRM library symlinks present"
+    else
+        fail "DRM library symlink missing (/usr/lib[64]/libdrm.so)"
+    fi
+
+    local app
+    for app in nvtop btop yad-icon-browser; do
+        if [[ -f "/usr/share/applications/${app}.desktop" ]]; then
+            if grep -q '^Hidden=true' "/usr/share/applications/${app}.desktop"; then
+                pass "application hidden from menus: $app"
+            else
+                fail "application not hidden: $app"
+            fi
+        fi
+    done
+
+    if [[ -f /etc/bluetooth/input.conf ]] && grep -q '^UserspaceHID=true' /etc/bluetooth/input.conf; then
+        pass "UserspaceHID enabled in /etc/bluetooth/input.conf"
+    else
+        fail "UserspaceHID not enabled in /etc/bluetooth/input.conf"
+    fi
+
+    local autostart_path
+    for autostart_path in \
+        /etc/skel/.config/autostart/steam.desktop \
+        /etc/xdg/autostart/steam.desktop \
+        /usr/share/autostart/steam.desktop; do
+        if [[ -e "$autostart_path" ]]; then
+            fail "Steam autostart entry present: $autostart_path"
+        else
+            pass "Steam autostart entry absent: $autostart_path"
+        fi
+    done
+
+    if grep -qxF '/usr/bin/zsh' /etc/shells 2>/dev/null; then
+        pass "zsh present in /etc/shells"
+    else
+        fail "zsh missing from /etc/shells"
+    fi
+    if grep -qP '^root:[^:]*:[^:]*:[^:]*:[^:]*:[^:]*:/usr/bin/zsh$' /etc/passwd 2>/dev/null; then
+        pass "root shell is /usr/bin/zsh"
+    else
+        fail "root shell is not /usr/bin/zsh"
+    fi
+    if [[ -f /etc/skel/.zshrc ]]; then
+        pass "/etc/skel/.zshrc is present"
+    else
+        fail "/etc/skel/.zshrc is missing"
+    fi
+    if [[ -f /usr/share/zsh/site-functions/zsh-preexec.zsh ]]; then
+        pass "zsh-preexec shim present: /usr/share/zsh/site-functions/zsh-preexec.zsh"
+    else
+        fail "zsh-preexec shim missing: /usr/share/zsh/site-functions/zsh-preexec.zsh"
+    fi
+    if grep -qE 'zsh-autosuggestions|zsh-syntax-highlighting' /etc/skel/.zshrc 2>/dev/null; then
+        fail "/etc/skel/.zshrc references forbidden auxiliary zsh packages"
+    else
+        pass "/etc/skel/.zshrc contains no auxiliary zsh package references"
+    fi
+
+    if [[ -e /etc/profile.d/toolbox.sh ]]; then
+        fail "/etc/profile.d/toolbox.sh present (must be removed)"
+    else
+        pass "/etc/profile.d/toolbox.sh absent"
+    fi
+}
+
+verify_justfiles() {
+    if [[ -f /usr/share/ublue-os/justfile && -s /usr/share/ublue-os/justfile ]]; then
+        pass "main justfile present and non-empty: /usr/share/ublue-os/justfile"
+    else
+        fail "main justfile missing or empty: /usr/share/ublue-os/justfile"
+    fi
+
+    local inc
+    for inc in 10-update.just 80-bazzite.just maintenance.just system-tools.just; do
+        if grep -qF "$inc" /usr/share/ublue-os/justfile 2>/dev/null; then
+            pass "justfile imports $inc"
+        else
+            fail "justfile does not import $inc"
+        fi
+    done
+}
+
+verify_services() {
+    local svc
+    for svc in \
+        brew-setup.service input-remapper.service uupd.timer hardware-setup.service \
+        dev-hugepages1G.mount libvirtd.service ds-inhibit.service \
+        greenboot-healthcheck.service greenboot-set-rollback-trigger.service \
+        dmemcg-booster-system.service cardwired.service system-flatpak-setup.service \
+        sddm.service; do
+        if [[ -e "/etc/systemd/system/multi-user.target.wants/$svc" || \
+              -e "/etc/systemd/system/display-manager.service" || \
+              -e "/etc/systemd/system/timers.target.wants/$svc" || \
+              -e "/etc/systemd/system/sysinit.target.wants/$svc" ]]; then
+            pass "system service enabled: $svc"
+        else
+            fail "system service not enabled: $svc"
+        fi
+    done
+
+    for svc in chezmoi-init.service chezmoi-update.timer user-setup.service dynamic-fixes.service; do
+        if [[ -e "/etc/systemd/user/default.target.wants/$svc" || \
+              -e "/etc/systemd/user/timers.target.wants/$svc" ]]; then
+            pass "global user service enabled: $svc"
+        else
+            fail "global user service not enabled: $svc"
+        fi
+    done
+
+    if [[ -e /etc/systemd/system/display-manager.service ]] || \
+       [[ -e /etc/systemd/system/graphical.target.wants/sddm.service ]]; then
+        pass "sddm display manager enabled"
+    else
+        fail "sddm display manager not enabled"
+    fi
+
+    for svc in scx_loader.service greetd.service; do
+        if [[ -e "/etc/systemd/system/multi-user.target.wants/$svc" ]]; then
+            fail "service should be disabled: $svc"
+        else
+            pass "service disabled: $svc"
+        fi
+    done
+}
+
+verify_integration_files() {
+    if [[ -f /etc/dxvk-example.conf ]]; then
+        pass "dxvk-example.conf present"
+    else
+        fail "dxvk-example.conf missing"
+    fi
+
+    if [[ -f /etc/distrobox/docker.ini ]]; then
+        pass "distrobox docker.ini present"
+    else
+        fail "distrobox docker.ini missing"
+    fi
+
+    if [[ -f /usr/share/bash-prexec && -L /usr/share/bash-preexec ]]; then
+        pass "bash-preexec present and symlinked"
+    else
+        fail "bash-preexec missing or symlink not created"
+    fi
+}
+
+verify_image_info() {
+    local info=/usr/share/ublue-os/image-info.json
+    if [[ -f "$info" ]] && jq -e '(."image-name" | strings | length > 0) and (."image-branch" | strings | length > 0) and (."image-ref" | strings | length > 0)' "$info" >/dev/null; then
+        pass "image-info.json populated: $info"
+    else
+        fail "image-info.json missing or incomplete: $info"
+    fi
+    if jq -e '."image-ref" | startswith("ostree-image-signed:docker://ghcr.io/")' "$info" >/dev/null 2>&1; then
+        pass "image-ref uses the signed ghcr.io scheme"
+    else
+        fail "image-ref must start with ostree-image-signed:docker://ghcr.io/: $(jq -r '."image-ref"' "$info" 2>/dev/null || echo missing)"
+    fi
+}
+
+verify_initramfs() {
+    local -a imgs
+    mapfile -t imgs < <(find /usr/lib/modules -name 'initramfs.img' 2>/dev/null)
+    if [[ ${#imgs[@]} -ge 1 ]]; then
+        local img="${imgs[0]}"
+        local size
+        size=$(stat -c '%s' "$img" 2>/dev/null || echo 0)
+        if ((size > 1000000)); then
+            pass "initramfs image present and non-empty ($size bytes): $img"
+        else
+            fail "initramfs image too small ($size bytes): $img"
+        fi
+    else
+        fail "initramfs.img not found under /usr/lib/modules"
+    fi
+}
+
+verify_finalize() {
+    local lockfile
+    for lockfile in /etc/.pwd.lock /etc/passwd- /etc/group- /etc/shadow- /etc/gshadow- /etc/subuid- /etc/subgid-; do
+        if [[ -e "$lockfile" ]]; then
+            fail "transient lock or backup file present: $lockfile"
+        else
+            pass "transient lock/backup absent: $lockfile"
+        fi
+    done
+
+    if [[ -f /usr/lib/passwd && -f /usr/lib/group ]]; then
+        pass "system account databases exist in /usr/lib"
+    else
+        fail "system account databases missing from /usr/lib"
+    fi
+}
+
+verify_nvidia_config() {
+    forbid_rpms nvidia-gpu-firmware
 }
 
 verify_nvidia() {
@@ -186,6 +526,56 @@ verify_nvidia() {
     else
         fail "NVML library or symlink missing (/usr/lib64/libnvidia-ml.so[.1])"
     fi
+}
+
+verify_system_policy() {
+    require_repos_disabled \
+        'copr:copr.fedorainfracloud.org:ublue-os:bazzite' \
+        'copr:copr.fedorainfracloud.org:ublue-os:bazzite-multilib' \
+        'copr:copr.fedorainfracloud.org:ublue-os:staging' \
+        'copr:copr.fedorainfracloud.org:ublue-os:packages' \
+        'copr:copr.fedorainfracloud.org:aahsnr-work:cli-tools' \
+        'copr:copr.fedorainfracloud.org:aahsnr-work:python-packages' \
+        'copr:copr.fedorainfracloud.org:aahsnr-work:gaming' \
+        terra-mesa
+
+    if [[ -L /usr/bin/pulseaudio && "$(readlink /usr/bin/pulseaudio)" == "/usr/bin/true" ]]; then
+        pass "pulseaudio stubbed to /usr/bin/true"
+    else
+        fail "pulseaudio not stubbed to /usr/bin/true"
+    fi
+
+    if [[ -f /etc/rpm-ostreed.conf ]] && grep -qE '^AutomaticUpdatePolicy=none' /etc/rpm-ostreed.conf; then
+        pass "rpm-ostree automatic updates set to none"
+    else
+        fail "rpm-ostree automatic updates not set to none"
+    fi
+}
+
+verify_nvidia_finalize() {
+    local unit
+    for unit in nvidia-powerd.service nvidia-flatpak-runtime-sync.service; do
+        if [[ -e "/etc/systemd/system/multi-user.target.wants/$unit" || \
+              -e "/etc/systemd/system/graphical.target.wants/$unit" || \
+              -e "/usr/lib/systemd/system/$unit" ]]; then
+            pass "NVIDIA service present: $unit"
+        else
+            fail "NVIDIA service missing: $unit"
+        fi
+    done
+
+    if grep -qF '95-bazzite-nvidia.just' /usr/share/ublue-os/justfile 2>/dev/null; then
+        pass "justfile imports 95-bazzite-nvidia.just"
+    else
+        fail "justfile missing 95-bazzite-nvidia.just import"
+    fi
+}
+
+verify_packages() {
+    verify_cli_tools
+    verify_utils
+    verify_common_packages
+    verify_gaming
 }
 
 verify_final() {
@@ -216,6 +606,67 @@ verify_final() {
         pass "offline docs bundle absent"
     fi
 
+    # Ensure Steam does not autostart on user login.
+    local autostart_path
+    for autostart_path in \
+        /etc/skel/.config/autostart/steam.desktop \
+        /etc/xdg/autostart/steam.desktop \
+        /usr/share/autostart/steam.desktop; do
+        if [[ -e "$autostart_path" ]]; then
+            fail "Steam autostart entry present: $autostart_path"
+        else
+            pass "Steam autostart entry absent: $autostart_path"
+        fi
+    done
+
+    # zsh must be the default login shell.
+    if grep -qxF '/usr/bin/zsh' /etc/shells 2>/dev/null; then
+        pass "zsh present in /etc/shells"
+    else
+        fail "zsh missing from /etc/shells"
+    fi
+    if grep -qP '^root:[^:]*:[^:]*:[^:]*:[^:]*:/usr/bin/zsh$' /etc/passwd 2>/dev/null; then
+        pass "root shell is /usr/bin/zsh"
+    else
+        fail "root shell is not /usr/bin/zsh"
+    fi
+    if [[ -f /etc/skel/.zshrc ]]; then
+        pass "/etc/skel/.zshrc is present"
+    else
+        fail "/etc/skel/.zshrc is missing"
+    fi
+    if [[ -f /usr/share/zsh/site-functions/zsh-preexec.zsh ]]; then
+        pass "zsh-preexec shim present: /usr/share/zsh/site-functions/zsh-preexec.zsh"
+    else
+        fail "zsh-preexec shim missing: /usr/share/zsh/site-functions/zsh-preexec.zsh"
+    fi
+    # /etc/skel/.zshrc must not reference auxiliary zsh packages that are not installed.
+    if grep -qE 'zsh-autosuggestions|zsh-syntax-highlighting' /etc/skel/.zshrc 2>/dev/null; then
+        fail "/etc/skel/.zshrc references forbidden auxiliary zsh packages"
+    else
+        pass "/etc/skel/.zshrc contains no auxiliary zsh package references"
+    fi
+
+    # SDDM must be the display manager; greetd must be absent.
+    if [[ -e /usr/lib/systemd/system/sddm.service ]]; then
+        pass "sddm.service unit present"
+    else
+        fail "sddm.service unit missing"
+    fi
+    if [[ -e /etc/systemd/system/display-manager.service ]] || \
+       [[ -e /etc/systemd/system/graphical.target.wants/sddm.service ]]; then
+        pass "sddm.service is enabled as display manager"
+    else
+        fail "sddm.service is not enabled as display manager"
+    fi
+    for greetd_path in /usr/bin/greetd /etc/greetd /usr/lib/systemd/system/greetd.service; do
+        if [[ -e "$greetd_path" ]]; then
+            fail "greetd artifact present (must be absent): $greetd_path"
+        else
+            pass "greetd artifact absent: $greetd_path"
+        fi
+    done
+
     info=/usr/share/ublue-os/image-info.json
     if [[ -f "$info" ]] && jq -e '(."image-name" | strings | length > 0) and (."image-branch" | strings | length > 0) and (."image-ref" | strings | length > 0)' "$info" >/dev/null; then
         pass "image-info.json populated: $info"
@@ -225,167 +676,215 @@ verify_final() {
     if jq -e '."image-ref" | startswith("ostree-image-signed:docker://ghcr.io/")' "$info" >/dev/null 2>&1; then
         pass "image-ref uses the signed ghcr.io scheme"
     else
-        fail "image-ref is not the signed ghcr.io reference"
+        fail "image-ref must start with ostree-image-signed:docker://ghcr.io/: $(jq -r '."image-ref"' "$info" 2>/dev/null || echo missing)"
     fi
 
-    # The initramfs must exist for the installed kernel.
     kver="$(dnf5 repoquery --installed --queryformat='%{evr}.%{arch}' kernel 2>/dev/null | head -n1 || true)"
-    if [[ -n "$kver" && -s "/usr/lib/modules/$kver/initramfs.img" ]]; then
-        pass "initramfs present: /usr/lib/modules/$kver/initramfs.img"
+    if [[ -z "$kver" ]]; then
+        kver="$(rpm -q kernel-core --qf '%{evr}.%{arch}\n' 2>/dev/null | head -n1 || true)"
+    fi
+    if [[ -n "$kver" && -d "/usr/lib/modules/$kver" ]]; then
+        pass "installed kernel has matching modules dir: /usr/lib/modules/$kver"
     else
-        fail "initramfs missing for kernel '${kver:-<none>}'"
+        fail "kernel modules dir mismatch: kernel=${kver:-none}"
     fi
 
-    # Downloaded tooling binaries must be present and runnable.
-    if [[ -x /usr/bin/ujust-picker ]]; then
-        pass "ujust-picker is installed and executable"
+    local -a modprobe_dirs
+    mapfile -t modprobe_dirs < <(find /usr/lib/modules -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
+    if [[ ${#modprobe_dirs[@]} -eq 1 ]]; then
+        pass "single kernel tree retained in final image: ${modprobe_dirs[0]}"
     else
-        fail "ujust-picker missing or not executable"
-    fi
-    if [[ -x /usr/bin/winetricks ]]; then
-        pass "winetricks is installed and executable"
-    else
-        fail "winetricks missing or not executable"
+        fail "expected single kernel tree, found ${#modprobe_dirs[@]}: ${modprobe_dirs[*]:-none}"
     fi
 
-    # The generated justfile (ujust recipes) must parse with all imports.
-    if ! command -v just >/dev/null 2>&1; then
-        fail "just binary not found; cannot validate ujust justfile"
-    elif just --unstable --summary -f /usr/share/ublue-os/justfile >/dev/null 2>&1; then
-        pass "ujust justfile parses"
+    local kernel_flavor
+    kernel_flavor="$(rpm -q kernel-core --qf '%{VERSION}-%{RELEASE}' 2>/dev/null || true)"
+    if [[ "$kernel_flavor" == *fsync* || "$kernel_flavor" == *ogc* ]]; then
+        pass "gaming kernel retained: $kernel_flavor"
     else
-        fail "ujust justfile failed to parse"
+        fail "gaming kernel missing from final image (found: ${kernel_flavor:-none})"
     fi
 
-    # Virtualization is enabled by default: libvirtd must be enabled at build
-    # time, and the obsolete upstream one-shot must not come back.
-    if [[ -e /etc/systemd/system/multi-user.target.wants/libvirtd.service ]]; then
-        pass "libvirtd.service is enabled"
+    if [[ -n "$(find /usr/lib/modules -name 'nct6687d.ko*' -print -quit 2>/dev/null)" ]]; then
+        pass "extra kmod present: nct6687d"
     else
-        fail "libvirtd.service is not enabled"
-    fi
-    if [[ -e /usr/lib/systemd/system/bazzite-libvirtd-setup.service ]]; then
-        fail "obsolete bazzite-libvirtd-setup.service is present"
-    else
-        pass "obsolete bazzite-libvirtd-setup.service absent"
+        fail "required extra kmod missing: nct6687d"
     fi
 
-    # The image-owned shell helpers were replaced by the vendor-neutral Copr
-    # packages; the old libexec scripts, the short-lived halcyon-* names, and
-    # every old unit name must not come back. (/usr/bin/dlss-swapper and
-    # -dll moved from image files to RPM payload; they are expected now.)
-    local old_path
-    for old_path in \
-        /usr/libexec/bazzite-boot-remount \
-        /usr/libexec/bazzite-dynamic-fixes \
-        /usr/libexec/bazzite-fetch-image \
-        /usr/libexec/bazzite-hardware-setup \
-        /usr/libexec/bazzite-powersave \
-        /usr/libexec/bazzite-privileged-user-setup \
-        /usr/libexec/bazzite-snapper-config \
-        /usr/libexec/bazzite-user-setup \
-        /usr/libexec/ublue-nvidia-flatpak-runtime-sync \
-        /usr/libexec/ublue-nvidia-flatpak-runtime-notify \
-        /usr/lib/systemd/system/nvidia-flatpak-runtime-verify.service \
-        /usr/bin/halcyon-boot-remount \
-        /usr/bin/halcyon-dlss-swapper \
-        /usr/bin/halcyon-dlss-swapper-dll \
-        /usr/bin/halcyon-dynamic-fixes \
-        /usr/bin/halcyon-fetch-image \
-        /usr/bin/halcyon-hardware-setup \
-        /usr/bin/halcyon-nvidia-flatpak-runtime-notify \
-        /usr/bin/halcyon-nvidia-flatpak-runtime-sync \
-        /usr/bin/halcyon-powersave \
-        /usr/bin/halcyon-privileged-user-setup \
-        /usr/bin/halcyon-snapper-config \
-        /usr/bin/halcyon-user-setup \
-        /usr/lib/systemd/system/bazzite-hardware-setup.service \
-        /usr/lib/systemd/system/halcyon-hardware-setup.service \
-        /usr/lib/systemd/system/halcyon-nvidia-flatpak-runtime-sync.service \
-        /usr/lib/systemd/system/halcyon-nvidia-flatpak-runtime-verify.service \
-        /usr/lib/systemd/system/ublue-nvidia-flatpak-runtime-sync.service \
-        /usr/lib/systemd/system/ublue-nvidia-flatpak-runtime-verify.service \
-        /usr/lib/systemd/user/bazzite-dynamic-fixes.service \
-        /usr/lib/systemd/user/bazzite-user-setup.service \
-        /usr/lib/systemd/user/halcyon-dynamic-fixes.service \
-        /usr/lib/systemd/user/halcyon-user-setup.service; do
-        if [[ -e "$old_path" ]]; then
-            fail "obsolete path present: $old_path"
+    if [[ -n "$(find /usr/lib/modules -name 'nvidia.ko*' -print -quit 2>/dev/null)" ]]; then
+        pass "nvidia kmod present"
+    else
+        fail "nvidia kmod missing from final image"
+    fi
+
+    local required_binary
+    for required_binary in \
+        /usr/bin/ujust /usr/bin/ujust-picker /usr/bin/bbrew-helper /usr/bin/bruh \
+        /usr/bin/hardware-setup /usr/bin/user-setup /usr/bin/dynamic-fixes \
+        /usr/bin/ublue-motd /usr/bin/uupd-update /usr/bin/dlss-swapper \
+        /usr/bin/steam /usr/bin/lutris /usr/bin/protonplus /usr/bin/winetricks \
+        /usr/bin/bazaar /usr/bin/uupd /usr/bin/fastfetch /usr/bin/btop \
+        /usr/bin/input-remapper-control /usr/bin/snapper /usr/bin/btrfs-assistant \
+        /usr/bin/virt-manager /usr/bin/chezmoi /usr/bin/flatpak /usr/bin/sddm; do
+        if [[ -x "$required_binary" ]]; then
+            pass "command present and executable: $required_binary"
         else
-            pass "obsolete path absent: $old_path"
+            fail "command missing or not executable: $required_binary"
         fi
     done
 
-    # The replacement binaries come from the RPM packages.
-    local new_bin
-    for new_bin in \
-        /usr/bin/boot-remount \
-        /usr/bin/dlss-swapper \
-        /usr/bin/dlss-swapper-dll \
-        /usr/bin/dynamic-fixes \
-        /usr/bin/fetch-image \
-        /usr/bin/hardware-setup \
-        /usr/bin/nvidia-flatpak-runtime-sync \
-        /usr/bin/powersave \
-        /usr/bin/privileged-user-setup \
-        /usr/bin/snapper-config \
-        /usr/bin/user-setup; do
-        if [[ -x "$new_bin" ]]; then
-            pass "helper binary present: $new_bin"
-        else
-            fail "helper binary missing or not executable: $new_bin"
-        fi
-    done
-
-    # The renamed units ship with the image.
-    local new_unit
-    for new_unit in \
+    local unit
+    for unit in \
         /usr/lib/systemd/system/hardware-setup.service \
-        /usr/lib/systemd/system/nvidia-flatpak-runtime-sync.service \
+        /usr/lib/systemd/system/greenboot-healthcheck.service \
+        /usr/lib/systemd/system/greenboot-set-rollback-trigger.service \
+        /usr/lib/systemd/system/dmemcg-booster-system.service \
+        /usr/lib/systemd/system/uupd.timer \
+        /usr/lib/systemd/system/system-flatpak-setup.service \
+        /usr/lib/systemd/system/sddm.service \
+        /usr/lib/systemd/user/user-setup.service \
         /usr/lib/systemd/user/dynamic-fixes.service \
-        /usr/lib/systemd/user/user-setup.service; do
-        if [[ -e "$new_unit" ]]; then
-            pass "helper unit present: $new_unit"
+        /usr/lib/systemd/user/dmemcg-booster-user.service \
+        /usr/lib/systemd/user/chezmoi-init.service \
+        /usr/lib/systemd/user/chezmoi-update.timer; do
+        if [[ -e "$unit" ]]; then
+            pass "unit file present: $unit"
         else
-            fail "helper unit missing: $new_unit"
+            fail "unit file missing: $unit"
         fi
     done
 
-    # They stay enabled exactly where their predecessors were.
-    for new_unit in \
-        /etc/systemd/system/multi-user.target.wants/hardware-setup.service \
-        /etc/systemd/system/multi-user.target.wants/nvidia-flatpak-runtime-sync.service \
-        /etc/systemd/user/default.target.wants/user-setup.service \
-        /etc/systemd/user/default.target.wants/dynamic-fixes.service; do
-        if [[ -e "$new_unit" ]]; then
-            pass "helper unit enabled: $new_unit"
+    for unit in \
+        /usr/lib/systemd/system/bazzite-hardware-setup.service \
+        /usr/lib/systemd/system/bazzite-iwd-migration.service \
+        /usr/lib/systemd/system/bazzite-libvirtd-setup.service \
+        /usr/lib/systemd/system/force-wol.service \
+        /usr/lib/systemd/system/incus-workaround.service \
+        /usr/lib/systemd/system/greetd.service \
+        /usr/lib/systemd/user/ntfs-nag.service; do
+        if [[ -e "$unit" ]]; then
+            fail "obsolete/removed unit file present: $unit"
         else
-            fail "helper unit not enabled: $new_unit"
+            pass "obsolete/removed unit file absent: $unit"
         fi
     done
 
-    # pkexec must point at the RPM-provided privileged helper.
-    if grep -qF 'exec.path">/usr/bin/privileged-user-setup</annotate>' \
-        /usr/share/polkit-1/actions/org.bazzite.privileged.user.setup.policy 2>/dev/null; then
-        pass "polkit action points at privileged-user-setup"
+    if [[ -e /usr/lib/systemd/system/service.d/50-keep-warm.conf ]]; then
+        fail "keep-warm systemd drop-in present: /usr/lib/systemd/system/service.d/50-keep-warm.conf"
     else
-        fail "polkit action does not point at privileged-user-setup"
+        pass "keep-warm systemd drop-in absent"
     fi
 
-    # polkit defaults must not grant execution unconditionally.
+    if [[ -d /usr/share/ublue-os/bazaar ]]; then
+        pass "bazaar software directory present: /usr/share/ublue-os/bazaar"
+    else
+        fail "bazaar software directory missing: /usr/share/ublue-os/bazaar"
+    fi
+
+    if [[ -e /etc/bazaar/main.yaml && -e /etc/bazaar/curated.yaml && -e /etc/bazaar/featured.yaml ]]; then
+        pass "bazaar configuration symlinks present in /etc/bazaar"
+    else
+        fail "bazaar configuration symlinks missing in /etc/bazaar"
+    fi
+
     if grep -q '<allow_any>yes</allow_any>' \
         /usr/share/polkit-1/actions/org.bazzite.privileged.user.setup.policy 2>/dev/null; then
         fail "polkit action insecurely defaults allow_any to yes"
     else
         pass "polkit action has secure defaults"
     fi
+
+    # chezmoi user units and global enablement
+    local chezmoi_unit
+    for chezmoi_unit in \
+        /usr/lib/systemd/user/chezmoi-init.service \
+        /usr/lib/systemd/user/chezmoi-update.service \
+        /usr/lib/systemd/user/chezmoi-update.timer; do
+        if [[ -e "$chezmoi_unit" ]]; then
+            pass "chezmoi unit present: $chezmoi_unit"
+        else
+            fail "chezmoi unit missing: $chezmoi_unit"
+        fi
+    done
+
+    for chezmoi_unit in \
+        /etc/systemd/user/default.target.wants/chezmoi-init.service \
+        /etc/systemd/user/timers.target.wants/chezmoi-update.timer; do
+        if [[ -e "$chezmoi_unit" ]]; then
+            pass "chezmoi unit enabled: $chezmoi_unit"
+        else
+            fail "chezmoi unit not enabled: $chezmoi_unit"
+        fi
+    done
+
+    if grep -qF 'aahsnr-configs/dotfiles' /usr/lib/systemd/user/chezmoi-init.service 2>/dev/null && \
+       grep -qF -- '--force' /usr/lib/systemd/user/chezmoi-init.service 2>/dev/null; then
+        pass "chezmoi-init targets aahsnr-configs/dotfiles with --force"
+    else
+        fail "chezmoi-init does not properly configure dotfiles repository or --force"
+    fi
+
+    if grep -qF -- '--no-tty --force' /usr/lib/systemd/user/chezmoi-update.service 2>/dev/null; then
+        pass "chezmoi-update targets non-interactive update with --force"
+    else
+        fail "chezmoi-update missing --no-tty --force"
+    fi
+
+    # Flatpak system configuration and provisioning
+    if [[ -f /etc/flatpak/remotes.d/flathub.flatpakrepo ]] && grep -qF 'https://dl.flathub.org/repo/' /etc/flatpak/remotes.d/flathub.flatpakrepo 2>/dev/null; then
+        pass "flathub.flatpakrepo remote definition present"
+    else
+        fail "flathub.flatpakrepo missing or invalid"
+    fi
+
+    if [[ -f /usr/share/ublue-os/flatpak/system-flatpaks.list ]]; then
+        pass "system-flatpaks.list manifest present"
+    else
+        fail "system-flatpaks.list manifest missing"
+    fi
+
+    if [[ -x /usr/libexec/system-flatpak-setup ]]; then
+        pass "system-flatpak-setup helper present and executable"
+    else
+        fail "system-flatpak-setup helper missing or not executable"
+    fi
+
+    if [[ -e /usr/lib/systemd/system/system-flatpak-setup.service ]]; then
+        pass "system-flatpak-setup.service present"
+    else
+        fail "system-flatpak-setup.service missing"
+    fi
+
+    if [[ -e /etc/systemd/system/multi-user.target.wants/system-flatpak-setup.service ]]; then
+        pass "system-flatpak-setup.service enabled"
+    else
+        fail "system-flatpak-setup.service not enabled"
+    fi
 }
 
 case "$group" in
+brew) verify_brew ;;
 kernel) verify_kernel ;;
 repos) verify_repos ;;
-packages) verify_packages ;;
+cli-tools) verify_cli_tools ;;
+utils) verify_utils ;;
+removals) verify_removals ;;
+common-packages) verify_common_packages ;;
+gaming) verify_gaming ;;
+picker) verify_picker ;;
+media) verify_media ;;
+desktop-integration) verify_desktop_integration ;;
+justfiles) verify_justfiles ;;
+services) verify_services ;;
+integration-files) verify_integration_files ;;
+image-info) verify_image_info ;;
+initramfs) verify_initramfs ;;
+finalize) verify_finalize ;;
+nvidia-config) verify_nvidia_config ;;
 nvidia) verify_nvidia ;;
+system-policy) verify_system_policy ;;
+nvidia-finalize) verify_nvidia_finalize ;;
+packages) verify_packages ;;
 final) verify_final ;;
 esac
 

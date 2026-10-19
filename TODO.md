@@ -98,8 +98,47 @@ Unneeded scripts/binaries
 
 - [x] Add bazzite-fork as a branch for base-image with Containerfile as the base image. → Done: this is the `containerfile` branch, which builds `alcyone`.
 
-- [ ] Don't start steam when logging 1st in.
+- [x] Don't start steam when logging 1st in.
+
+→ Resolved (2026-10-19): autostart desktop entries in /etc/skel, /etc/xdg, and /usr/share/autostart are purged in configure-desktop-integration, and verify_final asserts they remain absent so Steam does not automatically launch upon user login.
 
 - [x] Combine install-steam-lutris, install-gaming-stack and mesa-git, protonplus from aahsnr-work/gaming copr repo
 
 → Resolved (2026-10-19): `install-steam-lutris` removed; its contents merged into `install-gaming-stack`, which now also enables `aahsnr-work/gaming` at priority=1, installs `protonplus`, then immediately disables the repo. `verify_final` asserts the gaming COPR is disabled and `protonplus` is installed. mesa-git is not installed (kept in the COPR for manual/future use only).
+
+- [x] Add chezmoi integration from aahsnr-configs/dotfiles repo
+
+→ Resolved (2026-10-19): `chezmoi` RPM is installed via `install-common-packages`; `chezmoi-init.service` initializes and force-applies `aahsnr-configs/dotfiles` on user login (with retry on failure and `@system`/`greetd` guards); `chezmoi-update.timer` & `chezmoi-update.service` periodically pull dotfiles updates; units are globally enabled; `ujust dotfiles` provides interactive inspection and synchronization; build verification asserts package, units, and symlinks.
+
+- [x] Determine if flatpak integration is complete and in place, just in case I want to add system flatpaks to the custom image.
+
+→ Resolved (2026-10-19): Flatpak integration determined and completed. In bootc/OSTree, system Flatpaks live in machine-local `/var/lib/flatpak`; installing them directly inside Containerfile writes to `/var`, which gets stripped during image build or masked by the host's persistent `/var` volume on `bootc upgrade`. To enable system flatpaks declaratively without breaking image upgrades:
+
+1. Flathub is pre-configured system-wide via declarative `/etc/flatpak/remotes.d/flathub.flatpakrepo` containing Flathub's official embedded GPG key (zero network calls during image build).
+2. Declarative manifest `/usr/share/ublue-os/flatpak/system-flatpaks.list` allows listing application IDs to be provisioned system-wide.
+3. Systemd oneshot unit `system-flatpak-setup.service` triggers `/usr/libexec/system-flatpak-setup` at boot (after network-online and flatpak-system-helper), idempotently reconciling and installing any declared Flatpaks into system storage.
+4. Build verification asserts `flatpak`, `flatpak-system-helper`, remote definition, manifest, helper, and service enablement.
+
+- [x] sddm must be installed instead of greetd. Only zsh package should be installed. No other zsh package is allowed.
+
+→ Resolved (2026-10-19): `sddm` and `sddm-wayland-generic` added to `common_packages` in `install-common-packages`; `sddm.service` enabled and default target set to `graphical.target` in `configure-system-services`; `greetd.service` explicitly disabled and `greetd`/`greetd-selinux` added to the global-remove purge loop; auxiliary zsh packages (`zsh-autosuggestions`, `zsh-syntax-highlighting`) removed from package installation and added to the forbid list; `/etc/skel/.zshrc` simplified to source only the in-tree `zsh-preexec.zsh` shim; chezmoi user unit guards updated from `ConditionUser=!greetd` to `ConditionUser=!sddm`; `verify_packages` asserts `sddm`/`sddm-wayland-generic` required and forbids all auxiliary `zsh-*` RPMs with a glob check; `verify_final` asserts `sddm.service` presence, display-manager enablement, greetd artifact absence, and `/etc/skel/.zshrc` contains no auxiliary zsh plugin references.
+
+- [x] Determine what else ublue-os/base-main comes pre-packaged with
+
+→ Resolved (2026-10-19): Researched `ublue-os/main` and `packages.json`. The `ghcr.io/ublue-os/base-main` image layers on top of Fedora Atomic/Silverblue/bootc and pre-packages:
+- Container orchestration & tooling: `distrobox`, `toolbx`, `flatpak-spawn`, `podman`
+- Command runner: `just` (used by `ujust` recipes)
+- Cryptographic verification: `cosign`
+- Pre-configured repositories: RPM Fusion Free & Non-Free, Fedora Cisco OpenH264
+- Hardware support: `ublue-os-udev-rules` for gamepads, controllers, and peripherals
+- Audio & Multimedia codecs: `alsa-firmware`, `ffmpeg`, `ffmpeg-libs`, `fdk-aac`, `ffmpegthumbnailer`, `heif-pixbuf-loader`
+- Base utilities & fonts: `apr`, `apr-util`, `fuse`, `fzf`, `grub2-tools-extra`, `htop` (purged in `global-remove`), `google-noto-sans-*-fonts` (CJK purged in `global-remove`).
+
+- [x] Add strong verifications steps at every stage of the Containerfile custom image build
+
+→ Resolved (2026-10-19): Comprehensive stage verification implemented across all 20+ build stages:
+1. Extended `build_files/finalization/verify` with stage-specific verification functions: `brew`, `kernel`, `repos`, `cli-tools`, `utils`, `removals`, `common-packages`, `gaming`, `picker`, `media`, `desktop-integration`, `justfiles`, `services`, `integration-files`, `image-info`, `initramfs`, `finalize`, `nvidia-config`, `nvidia`, `system-policy`, `nvidia-finalize`, `packages`, and `final`.
+2. Updated every single `RUN` instruction in `Containerfile` to call `/ctx/finalization/verify <stage>` immediately upon stage completion (prior to cleanup or subsequent stages).
+3. If any layer fails its required RPMs, repository states, binary executables, unit enablement, or negative assertions (forbid list), the build aborts immediately at that layer with a descriptive failure.
+
+- [ ] Make everything as automated as much as possible

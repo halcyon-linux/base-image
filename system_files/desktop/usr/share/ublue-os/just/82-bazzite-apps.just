@@ -445,10 +445,14 @@ get-steamcmd ACTION="":
             exit 1
         fi
         echo 'Installing SteamCMD...'
-        wget https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz -O /tmp/steamcmd.tar.gz
+        if ! wget https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz -O /tmp/steamcmd.tar.gz; then
+            echo "Failed to download SteamCMD archive." >&2
+            rm -f /tmp/steamcmd.tar.gz
+            return 1
+        fi
         mkdir -p ~/.steam
         tar -xvzf /tmp/steamcmd.tar.gz -C ~/.steam
-        rm /tmp/steamcmd.tar.gz
+        rm -f /tmp/steamcmd.tar.gz
         if [[ -f ~/.steam/steamcmd.sh ]]; then
             mkdir -p ~/.local/bin
             rm -f ~/.local/bin/steamcmd
