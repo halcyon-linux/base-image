@@ -51,8 +51,7 @@ common_packages=(
     yad
     f3
     lzip
-    p7zip
-    p7zip-plugins
+    7zip
     rar
     libxcrypt-compat
     vulkan-tools
