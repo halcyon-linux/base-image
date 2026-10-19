@@ -2,8 +2,8 @@ name: build alcyone
 
 on:
   schedule:
-    # Dormant: scheduled runs only come from the default branch (bluebuild);
-    # pushes to containerfile and workflow_dispatch drive this build.
+    # Daily rebuild (consumed COPRs republish; the image must track them).
+    # Schedules only run from the default branch, and this branch is it.
     - cron: "40 4 * * *" # 4:40 UTC daily
   push:
     branches:
@@ -204,8 +204,12 @@ jobs:
             --authfile "$HOME/.docker/config.json" \
             ghcr.io -u "${{ github.actor }}" --password-stdin
 
+      # Only the default (release) branch publishes and signs: workflow_dispatch
+      # can target any ref that carries this file — e.g. a tag — and such a run
+      # must not overwrite stable/latest with that ref's code.
       - name: Push to GHCR
         id: push
+        if: github.ref == 'refs/heads/containerfile'
         uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
         env:
           OUTPUT_IMAGE: ${{ steps.base.outputs.output_image }}
@@ -238,6 +242,7 @@ jobs:
           cosign-release: "v3.1.3"
 
       - name: Sign container image
+        if: github.ref == 'refs/heads/containerfile'
         env:
           COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
         run: |
