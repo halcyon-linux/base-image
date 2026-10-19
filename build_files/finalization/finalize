@@ -16,31 +16,33 @@ relocate_accounts() {
 
     [ -f "$etc" ] || return 0
     out=$(grep -vE -- "$keep" "$etc") || true
-    [ -n "$out" ] || return 0
 
-    echo
-    echo "Moving the following entries from ${etc} to ${lib}"
-    echo "$out"
+    if [ -n "$out" ]; then
+        echo
+        echo "Moving the following entries from ${etc} to ${lib}"
+        echo "$out"
 
-    { cat "$lib" 2>/dev/null || true; echo "$out"; } > "${lib}.new"
-    mv -f "${lib}.new" "$lib"
+        { cat "$lib" 2>/dev/null || true; echo "$out"; } > "${lib}.new"
+        mv -f "${lib}.new" "$lib"
 
-    # Fail the build rather than ship an image where these went missing.
-    while IFS= read -r line; do
-        if ! grep -qxF -- "$line" "$lib"; then
-            echo "ERROR: '${line}' did not persist in ${lib}" >&2
-            return 1
-        fi
-    done <<< "$out"
-
-    printf '%s\n' "$reset" > "$etc"
-
-    if [ -f "$shadow" ]; then
+        # Fail the build rather than ship an image where these went missing.
         while IFS= read -r line; do
-            name="${line%%:*}"
-            sed -i "/^${name}:/d" "$shadow"
+            if ! grep -qxF -- "$line" "$lib"; then
+                echo "ERROR: '${line}' did not persist in ${lib}" >&2
+                return 1
+            fi
         done <<< "$out"
+
+        if [ -f "$shadow" ]; then
+            while IFS= read -r line; do
+                name="${line%%:*}"
+                sed -i "/^${name}:/d" "$shadow"
+            done <<< "$out"
+        fi
     fi
+
+    # Reset $etc to the canonical kept entries (e.g. root with zsh)
+    printf '%s\n' "$reset" > "$etc"
 }
 
 relocate_accounts /etc/passwd /usr/lib/passwd /etc/shadow \
@@ -48,3 +50,4 @@ relocate_accounts /etc/passwd /usr/lib/passwd /etc/shadow \
 relocate_accounts /etc/group /usr/lib/group /etc/gshadow \
     '^(root:|wheel:)' 'root:x:0:
 wheel:x:10:'
+
