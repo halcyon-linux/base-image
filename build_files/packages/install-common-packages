@@ -52,7 +52,7 @@ common_packages=(
     f3
     lzip
     7zip
-    rar
+    unrar
     libxcrypt-compat
     vulkan-tools
     vulkan-low-latency-layer

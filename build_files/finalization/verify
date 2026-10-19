@@ -236,7 +236,7 @@ verify_common_packages() {
         libadwaita bees xwininfo compsize input-remapper libinput-utils \
         i2c-tools lm_sensors udica ladspa-caps-plugins \
         pipewire-module-filter-chain-sofa python3-icoextract tailscale \
-        webapp-manager btop duf lshw yad f3 lzip 7zip rar \
+        webapp-manager btop duf lshw yad f3 lzip 7zip unrar \
         libxcrypt-compat vulkan-tools vulkan-low-latency-layer fastfetch \
         cockpit-networkmanager cockpit-podman cockpit-selinux cockpit-system \
         cockpit-files cockpit-storaged ydotool stress-ng snapper btrfs-assistant \
