@@ -808,10 +808,11 @@ verify_final() {
         fail "bazaar software directory missing: /usr/share/ublue-os/bazaar"
     fi
 
-    if [[ -e /etc/bazaar/main.yaml && -e /etc/bazaar/curated.yaml && -e /etc/bazaar/featured.yaml ]]; then
+    if [[ -L /etc/bazaar/bazaar.yaml && "$(readlink /etc/bazaar/bazaar.yaml)" == "/usr/share/ublue-os/bazaar/main.yaml" && \
+          -L /etc/bazaar/config.yaml && "$(readlink /etc/bazaar/config.yaml)" == "/usr/share/ublue-os/bazaar/content.yaml" ]]; then
         pass "bazaar configuration symlinks present in /etc/bazaar"
     else
-        fail "bazaar configuration symlinks missing in /etc/bazaar"
+        fail "bazaar configuration symlinks missing or misdirected in /etc/bazaar"
     fi
 
     if grep -q '<allow_any>yes</allow_any>' \
