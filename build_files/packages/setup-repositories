@@ -49,7 +49,6 @@ dnf5 -y config-manager setopt \
     '*terra*'.exclude='nerd-fonts scx-tools scx-scheds python3-protobuf zlib-devel uupd'
 dnf5 -y config-manager setopt 'terra-mesa'.enabled=false
 dnf5 -y config-manager setopt '*bazzite*'.priority=2
-dnf5 -y config-manager setopt '*bazzite*'.exclude='NetworkManager*'
 
 if [[ -f /etc/yum.repos.d/negativo17-fedora-multimedia.repo ]]; then
     dnf5 -y config-manager setopt \
@@ -64,3 +63,8 @@ dnf5 -y config-manager setopt 'updates*'.exclude='noopenh264'
 # dnf5 -y config-manager setopt '*audinux*'.exclude='kernel*'
 dnf5 -y config-manager setopt \
     '*staging*'.exclude='scx-tools scx-scheds kf6-* mesa* mutter*'
+
+# Must run after the '*fedora*' exclude: COPR repo IDs contain
+# "copr.fedorainfracloud.org", so that glob matches them too, and
+# config-manager overwrites (not merges) a repo's exclude value.
+dnf5 -y config-manager setopt '*bazzite*'.exclude='NetworkManager*'
