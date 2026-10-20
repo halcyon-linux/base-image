@@ -62,5 +62,8 @@ cli_tools_packages=(
     glow
 )
 
+# Terra ships a newer fzy release (fzy-1.1-2.fc44), so it has to be pushed
+# behind the COPR or it shadows the cli-tools build.
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' \
+    --setopt='*terra*'.priority=10 \
     -y install "${cli_tools_packages[@]}"

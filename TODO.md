@@ -39,6 +39,7 @@ Open work first; resolved questions are one-liners, full detail in `git log -p T
 
 ### Packages and integration
 
+- [x] fzy must come from the cli-tools COPR — Terra ships a newer fzy release and shadowed the COPR package; the cli-tools install now pushes Terra behind the COPR and `verify cli-tools` asserts the COPR vendor. (10-20)
 - [x] Steam must not start on first login — autostart entries in `/etc/skel`, `/etc/xdg` and `/usr/share/autostart` are purged and `verify final` asserts they stay absent. (10-19)
 - [x] Merge `install-steam-lutris` + `install-gaming-stack` + mesa-git + protonplus — `install-steam-lutris` removed; `install-gaming-stack` enables `aahsnr-work/gaming` at priority=1, installs `protonplus` (+ `heroic-games-launcher`), then disables the repo; `verify final` asserts the COPR is disabled. mesa-git not installed (kept in the COPR for manual use). (10-19/20)
 - [x] chezmoi — RPM installed in `install-common-packages`; `chezmoi-init.service` force-applies `aahsnr-configs/dotfiles` at login (retry on failure), `chezmoi-update.timer` pulls updates, units enabled, `ujust dotfiles` for manual sync; verified in build. (10-19)

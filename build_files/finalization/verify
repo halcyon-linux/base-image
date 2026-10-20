@@ -194,6 +194,16 @@ verify_cli_tools() {
             fail "CLI binary missing or not executable: /usr/bin/$bin"
         fi
     done
+
+    # fzy must be the cli-tools COPR build: Terra ships a newer release and
+    # shadows the COPR package unless Terra is pushed behind it.
+    local fzy_vendor
+    fzy_vendor="$(rpm -q --qf '%{VENDOR}' fzy 2>/dev/null || true)"
+    if [[ "$fzy_vendor" == Fedora\ Copr* ]]; then
+        pass "fzy installed from the cli-tools COPR"
+    else
+        fail "fzy is not the cli-tools COPR build (vendor: ${fzy_vendor:-unknown})"
+    fi
 }
 
 verify_utils() {
