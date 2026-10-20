@@ -76,8 +76,9 @@ RUN --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
-    mkdir -p /usr/local/bin && \
-    install -m0755 /ctx/shared/dnf5 /usr/local/bin/dnf5 && \
+    usr_local=$(readlink -f /usr/local) && \
+    mkdir -p "$usr_local/bin" && \
+    install -m0755 /ctx/shared/dnf5 "$usr_local/bin/dnf5" && \
     /ctx/packages/setup-repositories && \
     /ctx/finalization/verify repos && \
     /ctx/shared/cleanup
