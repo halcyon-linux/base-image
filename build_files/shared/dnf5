@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
 # PATH shim for dnf5: upstream repos (e.g. terra) occasionally republish
 # metadata mid-build, defeating dnf5's sub-second per-mirror retries, so the
-# whole command is retried up to 3 extra times (budget mirrors shared/ghcurl)
-# with 60s gaps. Output is buffered per attempt so `$(dnf5 ...)` captures only
-# the winning attempt; DNF5_BIN/DNF5_RETRY_SLEEP are overridable for testing
-# (tests/test-dnf5-retry.sh).
+# whole command is retried up to 5 extra times with 60s gaps (~5 min, covering
+# observed republish windows). Output is buffered per attempt so `$(dnf5 ...)`
+# captures only the winning attempt; DNF5_BIN/DNF5_RETRY_SLEEP are overridable
+# for testing (tests/test-dnf5-retry.sh). Removed from the image before the
+# final lint, since it is build-only tooling.
 
 dnf5_retry() {
     local bin=${DNF5_BIN:-/usr/bin/dnf5}
     local delay=${DNF5_RETRY_SLEEP:-60}
-    local max_attempts=4
+    local max_attempts=6
     local attempt status out err
     out=$(mktemp "${TMPDIR:-/tmp}/dnf5-out.XXXXXX")
     err=$(mktemp "${TMPDIR:-/tmp}/dnf5-err.XXXXXX")

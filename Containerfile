@@ -322,4 +322,5 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     /ctx/finalization/verify final
 
-RUN --mount=type=tmpfs,target=/run --network=none bootc container lint
+RUN --mount=type=tmpfs,target=/run --network=none \
+    sh -c 'rm -rf "$(readlink -f /usr/local)/bin/dnf5" && rmdir "$(readlink -f /usr/local)/bin" 2>/dev/null; bootc container lint'

@@ -46,7 +46,7 @@ grep -qv 'junk' <<<"$out1" || not_ok "failed attempt stdout leaked into success 
 [[ $(<"$count1") == 3 ]] || not_ok "transient success took $(<"$count1") attempts, expected 3"
 grep -q 'repos broken' "$err1" || not_ok "transient failure stderr not surfaced"
 
-# Permanent failure: initial attempt + 3 retries = 4 attempts, nonzero exit,
+# Permanent failure: initial attempt + 5 retries = 6 attempts, nonzero exit,
 # and the backend's stderr reaches the caller.
 cat >"$tmp/fake_permanent" <<'EOF'
 #!/usr/bin/env bash
@@ -64,7 +64,7 @@ if DNF5_BIN="$tmp/fake_permanent" DNF5_RETRY_SLEEP=0 COUNT_FILE="$count2" dnf5_r
 else
     status=$?
     ((status != 0)) || not_ok "permanent failure exited $status"
-    [[ $(<"$count2") == 4 ]] || not_ok "gave up after $(<"$count2") attempts, expected 4"
+    [[ $(<"$count2") == 6 ]] || not_ok "gave up after $(<"$count2") attempts, expected 6"
     grep -q 'permanent boom' "$err2" || not_ok "final stderr not surfaced to caller"
     grep -q 'retry' "$err2" || not_ok "retry notices absent from log"
 fi

@@ -48,6 +48,9 @@ jobs:
       - name: Check just syntax
         uses: ublue-os/just-action@30ab4659369934b65b655bf8d2fa4ddd6547d384 # v3
 
+      - name: Check dnf5 retry shim
+        run: bash tests/test-dnf5-retry.sh
+
       # The image registry name must be lower-case, but GitHub usernames can be capitalized.
       - name: Get lower-case equivalent of the repository owner's username
         id: repo_owner_case
