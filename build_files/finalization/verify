@@ -351,6 +351,19 @@ verify_gaming() {
             fail "versionlock missing for: $locked_pkg"
         fi
     done
+
+    # The bazzite-multilib swap must have landed: the versionlock pins whatever
+    # is installed, so it proves nothing on its own. These packages are only
+    # useful in their patched bazzite build.
+    local swapped_pkg swapped_evr
+    for swapped_pkg in xorg-x11-server-Xwayland bluez; do
+        swapped_evr="$(rpm -q --qf '%{VERSION}-%{RELEASE}' "$swapped_pkg" 2>/dev/null || true)"
+        if [[ "$swapped_evr" == *bazzite* ]]; then
+            pass "patched bazzite build installed: ${swapped_pkg}-${swapped_evr}"
+        else
+            fail "${swapped_pkg} is not the patched bazzite build (${swapped_evr:-not installed})"
+        fi
+    done
 }
 
 verify_fonts() {
