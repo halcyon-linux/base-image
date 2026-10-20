@@ -251,7 +251,17 @@ verify_common_packages() {
         ls-iommu virt-manager virt-install libvirt-daemon libvirt-daemon-kvm \
         libvirt-daemon-config-network libvirt-daemon-config-nwfilter virtiofsd \
         cardwire-gui \
-        pinentry-gnome3 pinentry-curses pinentry-tty
+        pinentry pinentry-gnome3 pinentry-tty
+
+    # Fedora ships the curses variant inside the `pinentry` package (it only
+    # Provides pinentry-curses), so assert the executables the wrapper needs.
+    for pinentry_bin in /usr/bin/pinentry-curses /usr/bin/pinentry-gnome3 /usr/bin/pinentry-tty; do
+        if [[ -x "$pinentry_bin" ]]; then
+            pass "pinentry binary present and executable: $pinentry_bin"
+        else
+            fail "pinentry binary missing or not executable: $pinentry_bin"
+        fi
+    done
 
     require_repos_disabled 'copr:copr.fedorainfracloud.org:bieszczaders:kernel-cachyos-addons'
 

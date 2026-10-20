@@ -81,8 +81,8 @@ common_packages=(
     libvirt-daemon-config-network
     libvirt-daemon-config-nwfilter
     virtiofsd
+    pinentry
     pinentry-gnome3
-    pinentry-curses
     pinentry-tty
 )
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y install "${common_packages[@]}"
