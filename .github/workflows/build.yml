@@ -16,8 +16,10 @@ on:
 permissions: {}
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
-  cancel-in-progress: true
+  # Per trigger: a push may cancel an older push, but a manual dispatch must
+  # not be killed by a push that lands while it is still running.
+  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 env:
   REPO_OWNER: ${{ github.repository_owner }}
