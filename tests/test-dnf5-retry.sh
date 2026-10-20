@@ -6,7 +6,7 @@ set -euo pipefail
 
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 shim="$here/../build_files/shared/dnf5"
-tmp=$(mktemp -d /tmp/opencode/test-dnf5-sandbox.XXXXXX)
+tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 failures=0
 
