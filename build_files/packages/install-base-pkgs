@@ -57,6 +57,7 @@ PACKAGES=(
 
 INSTALL_OPTS=(
     --setopt="${repo_id}.priority=1"
+    --setopt='*terra*'.priority=10
     --setopt=install_weak_deps=False
     --setopt='*.skip_if_unavailable=False'
 )

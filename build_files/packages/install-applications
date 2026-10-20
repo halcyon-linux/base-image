@@ -30,8 +30,19 @@ if [[ "$repo_status" != "enabled" ]]; then
     exit 1
 fi
 
+# Ensure /opt is a real directory rather than a symlink to /var/opt.
+# Fedora Atomic base images ship /opt -> var/opt; replacing it with a directory avoids
+# cpio unpack errors ('File exists' / 'No such file or directory') when installing RPMs
+# that deliver files into /opt, and ensures application payloads are retained by bootc.
+if [[ -L /opt ]]; then
+    rm -f /opt
+    mkdir -p /opt
+    chmod 0755 /opt
+fi
+
 INSTALL_OPTS=(
     --setopt="${repo_id}.priority=1"
+    --setopt='*terra*'.priority=10
     --setopt=install_weak_deps=False
     --setopt='*.skip_if_unavailable=False'
 )

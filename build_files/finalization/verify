@@ -393,6 +393,12 @@ verify_applications() {
     else
         fail "beesd@.service unit missing: /usr/lib/systemd/system/beesd@.service"
     fi
+
+    if [[ -d /opt && ! -L /opt ]]; then
+        pass "/opt is a real directory"
+    else
+        fail "/opt is missing or a symlink"
+    fi
 }
 
 verify_texlive_packages() {
@@ -1067,6 +1073,13 @@ verify_final() {
         pass "system-flatpak-setup.service enabled"
     else
         fail "system-flatpak-setup.service not enabled"
+    fi
+
+    # /opt directory layout: must be an immutable directory in root, not a symlink to /var/opt
+    if [[ -d /opt && ! -L /opt ]]; then
+        pass "/opt is a real directory in final image"
+    else
+        fail "/opt is missing or a symlink in final image"
     fi
 }
 
