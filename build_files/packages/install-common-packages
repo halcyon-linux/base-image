@@ -84,6 +84,40 @@ common_packages=(
     pinentry
     pinentry-gnome3
     pinentry-tty
+    # Utilities the base image does not ship (dnf5 errors on install of an
+    # already installed package, so every name was checked against the base).
+    bleachbit
+    bluez-tools
+    brightnessctl
+    cronie
+    fail2ban
+    file-roller
+    git
+    grim
+    gtk4-layer-shell
+    igt-gpu-tools
+    imv
+    inotify-tools
+    lynis
+    ninja-build
+    pipx
+    pymol
+    setools-console
+    setroubleshoot
+    slurp
+    swappy
+    transmission-gtk
+    udiskie
+    xdg-user-dirs-gtk
+    zathura
+    zathura-pdf-poppler
+    zathura-plugins-all
+    # Toolchains the base image does not ship (python3 is the only one it has).
+    cargo
+    cmake
+    golang
+    nodejs22
+    nodejs22-npm
 )
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y install "${common_packages[@]}"
 

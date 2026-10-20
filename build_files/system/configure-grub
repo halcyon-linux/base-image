@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+
+# Make the GRUB menu visible.
+#
+# The bazzite base hides the GRUB menu with a ~1s timeout, which leaves no way
+# to pick an older deployment or edit kernel arguments from the menu. The
+# update is key-preserving: the base's GRUB_CMDLINE_* entries must survive, so
+# /etc/default/grub is never rewritten wholesale. Installed systems regenerate
+# grub.cfg from this file, so no grub.cfg is touched here.
+
+set -Eeuo pipefail
+
+GRUB_DEFAULT=/etc/default/grub
+TIMEOUT=10
+
+echo "::group::Executing configure-grub"
+trap 'echo "::endgroup::"' EXIT
+
+if [[ ! -f "${GRUB_DEFAULT}" ]]; then
+    cat > "${GRUB_DEFAULT}" <<EOF
+GRUB_TIMEOUT=${TIMEOUT}
+GRUB_TIMEOUT_STYLE=menu
+EOF
+else
+    if grep -qE '^GRUB_TIMEOUT=' "${GRUB_DEFAULT}"; then
+        sed -i "s/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=${TIMEOUT}/" "${GRUB_DEFAULT}"
+    else
+        echo "GRUB_TIMEOUT=${TIMEOUT}" >> "${GRUB_DEFAULT}"
+    fi
+    if grep -qE '^GRUB_TIMEOUT_STYLE=' "${GRUB_DEFAULT}"; then
+        sed -i "s/^GRUB_TIMEOUT_STYLE=.*/GRUB_TIMEOUT_STYLE=menu/" "${GRUB_DEFAULT}"
+    else
+        echo "GRUB_TIMEOUT_STYLE=menu" >> "${GRUB_DEFAULT}"
+    fi
+fi
+
+grep -E '^GRUB_TIMEOUT=|^GRUB_TIMEOUT_STYLE=' "${GRUB_DEFAULT}"

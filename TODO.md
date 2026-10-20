@@ -8,6 +8,9 @@ Open work first; resolved questions are one-liners, full detail in `git log -p T
 - [x] Remove certain kmods and handheld stuff. (10-20)
 - [x] Setup gui pinentry using pinentry-tty and/or pinentry-curses (10-20)
 - [x] Make everything as automated as much as possible: dynamic upstream ogc kernel resolution from ublue-os/bazzite with fallback to pinned version; automated candidate akmods tag presence check on ghcr plus a payload check that the device kmod is really published in the akmods-extra image; unpinned brew:latest in Containerfile with configurable BREW_IMAGE; parameterised AKMODS_TAG in Containerfile. (10-20)
+- [x] TeX Live must work — the COPR ships no %post scriptlets, so the image bakes the formats itself (ls-R rebuild, hyphenation trim, updmap/fmtutil) and `verify texlive-packages` gates the baked `pdflatex`/`lualatex` formats. (10-20)
+- [x] Visible GRUB menu — `configure-grub` sets `GRUB_TIMEOUT=10` / `GRUB_TIMEOUT_STYLE=menu` in `/etc/default/grub`; `verify grub` gates it. (10-20)
+- [x] Missing utilities and toolchains — git, grim/slurp/imv/swappy, zathura*, pipx, fail2ban, lynis, setools-console, udiskie, file-roller, transmission-gtk, igt-gpu-tools, brightnessctl, bleachbit, cronie, inotify-tools, ninja-build, pymol, xdg-user-dirs-gtk, setroubleshoot, direnv, ripgrep, plus nodejs22/cargo/cmake/golang; `neovim` added so the `EDITOR=nvim` default resolves. (10-20)
 
 ## Resolved
 

@@ -61,6 +61,9 @@ INSTALL_OPTS=(
 
 dnf5 -y install "${INSTALL_OPTS[@]}" "${PACKAGES[@]}"
 
+# The COPR tree ships no %post scriptlets, so the format files are baked here.
+"/ctx/packages/bake-texlive-formats"
+
 dnf5 -y copr disable "$copr"
 copr_enabled=0
 

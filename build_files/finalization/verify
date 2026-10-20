@@ -12,7 +12,7 @@ set -Eeuo pipefail
 
 group="${1:-}"
 case "$group" in
-brew | kernel | repos | cli-tools | utils | removals | common-packages | gaming | fonts | base-pkgs | applications | texlive-packages | nix | picker | media | desktop-integration | justfiles | services | integration-files | image-info | initramfs | finalize | nvidia-config | nvidia | system-policy | nvidia-finalize | packages | final) ;;
+brew | kernel | repos | cli-tools | utils | removals | common-packages | gaming | fonts | base-pkgs | applications | texlive-packages | nix | picker | media | desktop-integration | justfiles | services | grub | integration-files | image-info | initramfs | finalize | nvidia-config | nvidia | system-policy | nvidia-finalize | packages | final) ;;
 *)
     printf 'Usage: %s <stage>\n' "$0" >&2
     exit 2
@@ -182,7 +182,7 @@ verify_cli_tools() {
         bun tealdeer uv atuin bat bat-extras eza gnuplot cava pixi \
         xwiimote-ng zoxide asdf fd-find cliphist topgrade fzf fzy kilo \
         chafa dust lazygit pandoc starship yazi zellij opencode marksman \
-        texlab glow
+        texlab glow direnv ripgrep
 
     require_repos_disabled 'copr:copr.fedorainfracloud.org:aahsnr-work:cli-tools'
 
@@ -261,7 +261,13 @@ verify_common_packages() {
         ls-iommu virt-manager virt-install libvirt-daemon libvirt-daemon-kvm \
         libvirt-daemon-config-network libvirt-daemon-config-nwfilter virtiofsd \
         cardwire-gui \
-        pinentry pinentry-gnome3 pinentry-tty
+        pinentry pinentry-gnome3 pinentry-tty \
+        bleachbit bluez-tools brightnessctl cronie fail2ban file-roller git \
+        grim gtk4-layer-shell igt-gpu-tools imv inotify-tools lynis \
+        ninja-build pipx pymol setools-console setroubleshoot slurp swappy \
+        transmission-gtk udiskie xdg-user-dirs-gtk zathura zathura-pdf-poppler \
+        zathura-plugins-all \
+        cargo cmake golang nodejs22 nodejs22-npm
 
     # Fedora ships the curses variant inside the `pinentry` package (it only
     # Provides pinentry-curses), so assert the executables the wrapper needs.
@@ -313,7 +319,9 @@ verify_gaming() {
         terra-gamescope terra-gamescope-libs umu-wrapper umu-launcher \
         dbus-x11 xrandr evtest xdg-terminal-exec gobject-introspection \
         libFAudio vkBasalt terra-mangohud openxr openxr-libs terra-wireplumber \
-        openh264 libfreeaptx intel-opencl clinfo
+        openh264 libfreeaptx intel-opencl clinfo \
+        mesa-filesystem mesa-dri-drivers mesa-libEGL mesa-libGL \
+        mesa-libgbm mesa-vulkan-drivers
 
     require_repos_disabled 'copr:copr.fedorainfracloud.org:aahsnr-work:gaming'
 
@@ -334,7 +342,9 @@ verify_gaming() {
     local locks
     locks="$(dnf5 versionlock list 2>/dev/null || true)"
     local locked_pkg
-    for locked_pkg in mesa-filesystem xorg-x11-server-Xwayland bluez NetworkManager; do
+    for locked_pkg in mesa-filesystem mesa-dri-drivers mesa-libEGL mesa-libGL \
+                     mesa-libgbm mesa-vulkan-drivers xorg-x11-server-Xwayland \
+                     bluez NetworkManager; do
         if grep -qF "$locked_pkg" <<<"$locks"; then
             pass "versionlock active for: $locked_pkg"
         else
@@ -411,6 +421,7 @@ verify_applications() {
         codium \
         brave-browser \
         firefox \
+        neovim \
         google-chrome-stable \
         microsoft-edge-stable \
         vivaldi-stable
@@ -483,6 +494,43 @@ verify_texlive_packages() {
         texlive-xetex
 
     require_repos_disabled 'copr:copr.fedorainfracloud.org:aahsnr-work:texlive-packages'
+
+    # The COPR packages carry no %post scriptlets, so the image bakes the
+    # formats itself: without them pdflatex/lualatex abort with "I can't find
+    # the format file".
+    local tl_root tl_formats
+    tl_root="$(find /usr/lib/texlive -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort -V | tail -n1)"
+    if [[ -n "$tl_root" && -d "${tl_root}/bin/x86_64-linux" && -d "${tl_root}/texmf-dist/web2c" ]]; then
+        pass "TeX Live tree present: ${tl_root}"
+    else
+        fail "no usable TeX Live tree under /usr/lib/texlive (found: ${tl_root:-none})"
+        return
+    fi
+
+    if [[ -f "${tl_root}/texmf-dist/ls-R" ]]; then
+        pass "kpathsea filename database present: ${tl_root}/texmf-dist/ls-R"
+    else
+        fail "kpathsea filename database missing: ${tl_root}/texmf-dist/ls-R"
+    fi
+
+    tl_formats="$(find "${tl_root}/texmf-var/web2c" -name '*.fmt' -size +0 2>/dev/null | wc -l)"
+    if [[ "${tl_formats}" -gt 0 ]]; then
+        pass "TeX Live formats baked: ${tl_formats}"
+    else
+        fail "no TeX Live formats baked under ${tl_root}/texmf-var/web2c"
+    fi
+
+    if find "${tl_root}/texmf-var/web2c" -name 'pdflatex.fmt' -size +0 -print -quit 2>/dev/null | grep -q .; then
+        pass "pdflatex format baked"
+    else
+        fail "pdflatex format missing"
+    fi
+
+    if find "${tl_root}/texmf-var/web2c" -name 'lualatex.fmt' -size +0 -print -quit 2>/dev/null | grep -q .; then
+        pass "lualatex format baked"
+    else
+        fail "lualatex format missing"
+    fi
 }
 
 verify_nix() {
@@ -727,6 +775,28 @@ verify_integration_files() {
     fi
 }
 
+verify_grub() {
+    local grub_default=/etc/default/grub
+
+    if [[ ! -f "$grub_default" ]]; then
+        fail "GRUB defaults missing: $grub_default"
+        return
+    fi
+    pass "GRUB defaults present: $grub_default"
+
+    if grep -qE '^GRUB_TIMEOUT=[1-9][0-9]*' "$grub_default"; then
+        pass "GRUB menu timeout is visible: $(grep -E '^GRUB_TIMEOUT=' "$grub_default" | head -n1)"
+    else
+        fail "GRUB_TIMEOUT is not set to a visible timeout in $grub_default"
+    fi
+
+    if grep -qE '^GRUB_TIMEOUT_STYLE=menu' "$grub_default"; then
+        pass "GRUB menu style is menu"
+    else
+        fail "GRUB_TIMEOUT_STYLE is not 'menu' in $grub_default"
+    fi
+}
+
 verify_image_info() {
     local info=/usr/share/ublue-os/image-info.json
     if [[ -f "$info" ]] && jq -e '(."image-name" | strings | length > 0) and (."image-branch" | strings | length > 0) and (."image-ref" | strings | length > 0)' "$info" >/dev/null; then
@@ -850,6 +920,9 @@ verify_packages() {
 
 verify_final() {
     local info kver
+
+    # The GRUB menu must still be visible in the published image.
+    verify_grub
 
     require_repos_disabled \
         'copr:copr.fedorainfracloud.org:aahsnr-work:cli-tools' \
@@ -1006,6 +1079,13 @@ verify_final() {
         fail "required extra kmod missing: nct6687d"
     fi
 
+    # The graphics stack must survive the whole build: Mesa comes from Terra
+    # (Fedora's Mesa is excluded) and must still be present next to the
+    # NVIDIA driver in the published image.
+    require_rpms \
+        mesa-filesystem mesa-dri-drivers mesa-libEGL mesa-libGL \
+        mesa-libgbm mesa-vulkan-drivers
+
     if [[ -n "$(find /usr/lib/modules -name 'nvidia.ko*' -print -quit 2>/dev/null)" ]]; then
         pass "nvidia kmod present"
     else
@@ -1023,6 +1103,7 @@ verify_final() {
         /usr/bin/virt-manager /usr/bin/chezmoi /usr/bin/flatpak /usr/bin/sddm \
         /usr/bin/code /usr/bin/codium /usr/bin/brave-browser /usr/bin/firefox \
         /usr/bin/google-chrome /usr/bin/microsoft-edge /usr/bin/vivaldi \
+        /usr/bin/nvim /usr/bin/kitty \
         /usr/bin/pinentry-wrapper; do
         if [[ -x "$required_binary" ]]; then
             pass "command present and executable: $required_binary"
@@ -1194,6 +1275,7 @@ media) verify_media ;;
 desktop-integration) verify_desktop_integration ;;
 justfiles) verify_justfiles ;;
 services) verify_services ;;
+grub) verify_grub ;;
 integration-files) verify_integration_files ;;
 image-info) verify_image_info ;;
 initramfs) verify_initramfs ;;

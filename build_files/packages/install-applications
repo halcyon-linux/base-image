@@ -150,11 +150,11 @@ if [[ -n "$repo_file" && -f "$repo_file" ]]; then
 fi
 
 # -----------------------------------------------------------------------------
-# STEP 4: Firefox (from official Fedora repositories)
+# STEP 4: Firefox and neovim (from official Fedora repositories)
 # -----------------------------------------------------------------------------
-echo "Installing Firefox from Fedora repositories..."
-dnf5 -y install "${COMMON_INSTALL_OPTS[@]}" firefox
-rpm -q firefox
+echo "Installing Firefox and neovim from Fedora repositories..."
+dnf5 -y install "${COMMON_INSTALL_OPTS[@]}" firefox neovim
+rpm -q firefox neovim
 
 # -----------------------------------------------------------------------------
 # STEP 5: Visual Studio Code (Microsoft official repository)

@@ -220,6 +220,11 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     /ctx/system/configure-system-services && \
     /ctx/finalization/verify services
 
+# Show the GRUB menu long enough to pick a deployment or edit kernel arguments.
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    /ctx/system/configure-grub && \
+    /ctx/finalization/verify grub
+
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=secret,id=GITHUB_TOKEN \
     /ctx/packages/install-system-integration-files && \

@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+
+# Bake the TeX Live format files into the image.
+#
+# The rolling texlive-packages COPR tree ships its data groups without %post
+# scriptlets (rpm cannot order them after the sibling data groups), so the
+# packages generate no format files at all: without this step the image ships
+# a TeX Live whose pdflatex/lualatex abort with "I can't find the format file".
+#
+# Step 1: rebuild the kpathsea database. texlive-basic ships an ls-R that
+#   indexes only its own members, and kpathsea does not fall back to a disk
+#   search while an ls-R exists, so every non-basic input (latex.ltx & co.)
+#   would stay invisible. The shipped file must be removed first: mktexlsr
+#   refuses to overwrite a file whose magic header line deviates.
+# Step 2: trim the hyphenation declarations. language.dat/def/lua list ~70
+#   languages whose pattern files are not installed, and fmtutil's latex-family
+#   formats abort mid-ini on the first missing loader. Each loader line is
+#   kept only if kpsewhich resolves it.
+# Step 3: updmap-sys + fmtutil-sys --all. Formats for trimmed groups still
+#   fail; the tolerance is here, the enforcement is in `verify texlive-packages`.
+
+set -Eeuo pipefail
+
+echo "::group::Executing bake-texlive-formats"
+trap 'echo "::endgroup::"' EXIT
+
+shopt -s nullglob
+tl_roots=(/usr/lib/texlive/*/)
+shopt -u nullglob
+TL_ROOT=""
+if [[ ${#tl_roots[@]} -gt 0 ]]; then
+    TL_ROOT="${tl_roots[${#tl_roots[@]}-1]}"
+fi
+if [[ -z "${TL_ROOT}" || ! -d "${TL_ROOT}/bin/x86_64-linux" ]]; then
+    echo "ERROR: no TeX Live tree under /usr/lib/texlive" >&2
+    exit 1
+fi
+echo "TeX Live root: ${TL_ROOT}"
+
+export PATH="${TL_ROOT}/bin/x86_64-linux:${PATH}"
+CFG="${TL_ROOT}/texmf-dist/tex/generic/config"
+
+# Step 1 - filename database from the actual installed tree
+rm -f "${TL_ROOT}/texmf-dist/ls-R"
+mktexlsr "${TL_ROOT}/texmf-dist" >/dev/null
+echo "OK: texmf-dist ls-R rebuilt ($(wc -l < "${TL_ROOT}/texmf-dist/ls-R") lines)"
+
+# Step 2 - hyphenation trims against the installed tree
+awk '
+  /^[ \t]*%/ || /^[ \t]*$/ { print; next }
+  /^=/ { if (miss) print "%[halcyon-trim] " $0; else print; next }
+  {
+    f=$2; out="";
+    cmd="kpsewhich -format=tex " f " 2>/dev/null";
+    (cmd) | getline out; close(cmd);
+    if (out == "") { print "%[halcyon-trim] " $0; miss=1 } else { print; miss=0 }
+  }' "${CFG}/language.dat" > "${CFG}/language.dat.new" \
+    && mv "${CFG}/language.dat.new" "${CFG}/language.dat"
+awk '
+  /\\addlanguage/ {
+    n = split($0, p, "{"); f = p[3]; sub(/}.*/, "", f); out = "";
+    cmd="kpsewhich -format=tex " f " 2>/dev/null";
+    (cmd) | getline out; close(cmd);
+    if (out == "") { print "%[halcyon-trim] " $0; next }
+  }
+  { print }' "${CFG}/language.def" > "${CFG}/language.def.new" \
+    && mv "${CFG}/language.def.new" "${CFG}/language.def"
+awk '
+  /^[ \t]*\[/ { inb=1; buf=$0; miss=0; next }
+  inb {
+    buf = buf "\n" $0
+    if (match($0, /loader[ \t]*=[ \t]*["'"'"'][^"'"'"']+["'"'"']/)) {
+      f = substr($0, RSTART, RLENGTH)
+      sub(/^[^"'"'"'"]*["'"'"']/, "", f); sub(/["'"'"']$/, "", f)
+      out = ""; cmd="kpsewhich -format=tex " f " 2>/dev/null"
+      (cmd) | getline out; close(cmd)
+      if (out == "") miss = 1
+    }
+    if ($0 ~ /^[ \t]*},?[ \t]*$/) {
+      if (miss) { print "--[[ halcyon-trim: pattern file missing"; printf "%s\n", buf; print "]]" }
+      else { printf "%s\n", buf }
+      buf = ""; inb = 0
+    }
+    next
+  }
+  { print }' "${CFG}/language.dat.lua" > "${CFG}/language.dat.lua.new" \
+    && mv "${CFG}/language.dat.lua.new" "${CFG}/language.dat.lua"
+echo "OK: hyphenation trimmed ($(grep -c 'halcyon-trim' "${CFG}/language.dat") dat / $(grep -c 'halcyon-trim' "${CFG}/language.def") def / $(grep -c 'halcyon-trim' "${CFG}/language.dat.lua") lua entries disabled)"
+
+# Step 3 - font maps and formats
+if updmap-sys >/dev/null 2>&1; then
+    echo "OK: updmap-sys"
+else
+    echo "WARNING: updmap-sys reported failures (trimmed groups) - non-fatal"
+fi
+if fmtutil-sys --all >/dev/null 2>&1; then
+    echo "OK: fmtutil-sys --all"
+else
+    echo "WARNING: fmtutil-sys --all reported failures (trimmed groups) - non-fatal"
+fi
+
+mktexlsr "${TL_ROOT}/texmf-var" >/dev/null 2>&1 || true
+echo "INFO: formats baked: $(find "${TL_ROOT}/texmf-var/web2c" -name '*.fmt' 2>/dev/null | wc -l)"
