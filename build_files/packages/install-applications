@@ -177,9 +177,10 @@ echo "Installing Visual Studio Code..."
 dnf5 -y install --setopt="code.priority=1" "${COMMON_INSTALL_OPTS[@]}" code
 rpm -q code
 
+echo "Disabling repository: code"
 dnf5 -y config-manager setopt code.enabled=0
 sed -i 's/^enabled\s*=.*/enabled=0/' /etc/yum.repos.d/vscode.repo
-ENABLED_REPOS=("${ENABLED_REPOS[@]/code}")
+ENABLED_REPOS=()
 
 # -----------------------------------------------------------------------------
 # STEP 6: VSCodium (Paul Carroty GitLab repository)
@@ -202,9 +203,10 @@ echo "Installing VSCodium..."
 dnf5 -y install --setopt="gitlab.com_paulcarroty_vscodium_repo.priority=1" "${COMMON_INSTALL_OPTS[@]}" codium
 rpm -q codium
 
+echo "Disabling repository: gitlab.com_paulcarroty_vscodium_repo"
 dnf5 -y config-manager setopt gitlab.com_paulcarroty_vscodium_repo.enabled=0
 sed -i 's/^enabled\s*=.*/enabled=0/' /etc/yum.repos.d/vscodium.repo
-ENABLED_REPOS=("${ENABLED_REPOS[@]/gitlab.com_paulcarroty_vscodium_repo}")
+ENABLED_REPOS=()
 
 # -----------------------------------------------------------------------------
 # STEP 7: Brave Browser (Brave official repository)
@@ -226,9 +228,10 @@ echo "Installing Brave Browser..."
 dnf5 -y install --setopt="brave-browser.priority=1" "${COMMON_INSTALL_OPTS[@]}" brave-browser
 rpm -q brave-browser
 
+echo "Disabling repository: brave-browser"
 dnf5 -y config-manager setopt brave-browser.enabled=0
 sed -i 's/^enabled\s*=.*/enabled=0/' /etc/yum.repos.d/brave-browser.repo
-ENABLED_REPOS=("${ENABLED_REPOS[@]/brave-browser}")
+ENABLED_REPOS=()
 
 # -----------------------------------------------------------------------------
 # STEP 8: Google Chrome (Google official repository)
@@ -249,9 +252,10 @@ echo "Installing Google Chrome..."
 dnf5 -y install --setopt="google-chrome.priority=1" "${COMMON_INSTALL_OPTS[@]}" google-chrome-stable
 rpm -q google-chrome-stable
 
+echo "Disabling repository: google-chrome"
 dnf5 -y config-manager setopt google-chrome.enabled=0
 sed -i 's/^enabled\s*=.*/enabled=0/' /etc/yum.repos.d/google-chrome.repo
-ENABLED_REPOS=("${ENABLED_REPOS[@]/google-chrome}")
+ENABLED_REPOS=()
 
 # -----------------------------------------------------------------------------
 # STEP 9: Microsoft Edge (Microsoft Edge repository)
@@ -272,9 +276,10 @@ echo "Installing Microsoft Edge..."
 dnf5 -y install --setopt="microsoft-edge.priority=1" "${COMMON_INSTALL_OPTS[@]}" microsoft-edge-stable
 rpm -q microsoft-edge-stable
 
+echo "Disabling repository: microsoft-edge"
 dnf5 -y config-manager setopt microsoft-edge.enabled=0
 sed -i 's/^enabled\s*=.*/enabled=0/' /etc/yum.repos.d/microsoft-edge.repo
-ENABLED_REPOS=("${ENABLED_REPOS[@]/microsoft-edge}")
+ENABLED_REPOS=()
 
 # -----------------------------------------------------------------------------
 # STEP 10: Vivaldi (Vivaldi official repository)
@@ -295,9 +300,10 @@ echo "Installing Vivaldi..."
 dnf5 -y install --setopt="vivaldi.priority=1" "${COMMON_INSTALL_OPTS[@]}" vivaldi-stable
 rpm -q vivaldi-stable
 
+echo "Disabling repository: vivaldi"
 dnf5 -y config-manager setopt vivaldi.enabled=0
 sed -i 's/^enabled\s*=.*/enabled=0/' /etc/yum.repos.d/vivaldi.repo
-ENABLED_REPOS=("${ENABLED_REPOS[@]/vivaldi}")
+ENABLED_REPOS=()
 
 # -----------------------------------------------------------------------------
 # STEP 11: Package verification and repository status scan
@@ -326,11 +332,12 @@ for check_repo in "$repo_id" code gitlab.com_paulcarroty_vscodium_repo brave-bro
     fi
 done
 
-# Filesystem check: report any files under /opt or /var
+# Filesystem check: summarize files under /opt or /var (browsers and office suites ship thousands)
 for pkg in "${ALL_PACKAGES[@]}"; do
     opt_or_var=$(rpm -ql "$pkg" 2>/dev/null | grep -E '^/(opt|var)' || true)
     if [[ -n "$opt_or_var" ]]; then
-        echo "INFO: Package $pkg ships paths under /opt or /var:"
-        echo "$opt_or_var"
+        count=$(wc -l <<<"$opt_or_var")
+        dirs=$(cut -d/ -f1-3 <<<"$opt_or_var" | sort -u | paste -sd' ' -)
+        echo "INFO: Package $pkg ships ${count} path(s) under /opt or /var: ${dirs}"
     fi
 done
