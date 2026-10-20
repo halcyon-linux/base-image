@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# PATH shim for dnf5: upstream repos (e.g. terra) occasionally republish
+# metadata mid-build, defeating dnf5's sub-second per-mirror retries, so the
+# whole command is retried up to 3 extra times (budget mirrors shared/ghcurl)
+# with 60s gaps. Output is buffered per attempt so `$(dnf5 ...)` captures only
+# the winning attempt; DNF5_BIN/DNF5_RETRY_SLEEP are overridable for testing
+# (tests/test-dnf5-retry.sh).
+
+dnf5_retry() {
+    local bin=${DNF5_BIN:-/usr/bin/dnf5}
+    local delay=${DNF5_RETRY_SLEEP:-60}
+    local max_attempts=4
+    local attempt status out err
+    out=$(mktemp "${TMPDIR:-/tmp}/dnf5-out.XXXXXX")
+    err=$(mktemp "${TMPDIR:-/tmp}/dnf5-err.XXXXXX")
+    for ((attempt = 1; attempt <= max_attempts; attempt++)); do
+        status=0
+        "$bin" "$@" >"$out" 2>"$err" || status=$?
+        if (( status == 0 )); then
+            cat "$out"
+            cat "$err" >&2
+            rm -f "$out" "$err"
+            return 0
+        fi
+        if ((attempt == max_attempts)); then
+            cat "$out" >&2
+            cat "$err" >&2
+            rm -f "$out" "$err"
+            return "$status"
+        fi
+        printf >&2 'dnf5 attempt %d/%d failed; retrying in %ds (backend: %s)\n' \
+            "$attempt" "$max_attempts" "$delay" "$(tail -n 1 "$err")"
+        sleep "$delay"
+    done
+}
+
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
+    dnf5_retry "$@"
+fi
