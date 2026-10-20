@@ -16,6 +16,9 @@ system_services=(
     cardwired.service
     system-flatpak-setup.service
     sddm.service
+    var-nix.service
+    nix.mount
+    nix-daemon.socket
 )
 
 global_services=(

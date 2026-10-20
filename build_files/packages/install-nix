@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+# Install the Nix package manager and multi-user daemon.
+# System integration files (nix.mount, var-nix.service, tmpfiles.d) are provided
+# via system_files/desktop to support immutable bootc/OSTree runtime mounts.
+
+set -Eeuo pipefail
+
+nix_packages=(
+    nix
+    nix-daemon
+)
+
+dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' \
+    -y install "${nix_packages[@]}"
+
+# Ensure mountpoint directory exists in root with correct base permissions
+mkdir -p /nix
+chmod 0755 /nix
+
+rpm -q "${nix_packages[@]}"
+

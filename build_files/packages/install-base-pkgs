@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+
+# Enable aahsnr-work/base-pkgs COPR at priority=1 and install Hyprland desktop environment packages.
+# The repository is disabled immediately after successful installation.
+
+set -Eeuo pipefail
+
+copr='aahsnr-work/base-pkgs'
+repo_id="copr:copr.fedorainfracloud.org:${copr////:}"
+copr_enabled=0
+
+disable_copr() {
+    local status=$?
+    trap - EXIT
+    if ((copr_enabled)); then
+        echo "Disabling COPR ${copr}..."
+        dnf5 -y copr disable "$copr" || true
+    fi
+    exit "$status"
+}
+trap disable_copr EXIT
+
+dnf5 -y copr enable "$copr"
+copr_enabled=1
+
+repo_status=$(dnf5 repo list --all | awk -v id="$repo_id" '$1 == id { print $NF }')
+if [[ "$repo_status" != "enabled" ]]; then
+    echo "ERROR: ${repo_id} not found or not enabled (status: '${repo_status}')" >&2
+    exit 1
+fi
+
+PACKAGES=(
+    adw-gtk3
+    aquamarine
+    glaze
+    hyprcursor
+    hyprgraphics
+    hyprland-git
+    hyprland-guitils
+    hyprland-protocols
+    hyprland-qt-support
+    hyprlang
+    hyprpwcen
+    hyprshutdown
+    hyprtoolkit
+    hyprutils
+    hyprwayland-scanner
+    hyprwire
+    noctalia-git
+    nwg-displays
+    nwg-look
+    pyprland
+    qt6ct
+    xcur2png
+    xdg-desktop-portal-hyprland
+)
+
+INSTALL_OPTS=(
+    --setopt="${repo_id}.priority=1"
+    --setopt=install_weak_deps=False
+    --setopt='*.skip_if_unavailable=False'
+)
+
+dnf5 -y install "${INSTALL_OPTS[@]}" "${PACKAGES[@]}"
+
+dnf5 -y copr disable "$copr"
+copr_enabled=0
+
+repo_status=$(dnf5 repo list --all | awk -v id="$repo_id" '$1 == id { print $NF }')
+if [[ "$repo_status" != "disabled" ]]; then
+    echo "ERROR: ${repo_id} is still enabled according to dnf5 repo list (status: '${repo_status}')" >&2
+    exit 1
+fi
+
+repo_file=$(compgen -G "/etc/yum.repos.d/*${copr////:}*.repo" || compgen -G "/etc/yum.repos.d/*${copr////-}*.repo" || true)
+if [[ -n "$repo_file" && -f "$repo_file" ]]; then
+    if ! grep -qE '^enabled\s*=\s*0' "$repo_file"; then
+        echo "ERROR: ${repo_file} does not have enabled=0" >&2
+        exit 1
+    fi
+fi
+
+rpm -q "${PACKAGES[@]}"
+
+for pkg in "${PACKAGES[@]}"; do
+    from_repo=$(dnf5 info --installed "$pkg" 2>/dev/null | awk -F': ' '/^From repository/ { print $2 }' || true)
+    echo "Package $pkg installed from: ${from_repo:-<unknown>}"
+    if [[ -n "$from_repo" && "$from_repo" != "<unknown>" && "$from_repo" != "$repo_id" ]]; then
+        echo "WARNING: $pkg was resolved from $from_repo instead of $repo_id" >&2
+    fi
+done
+
+# Filesystem check: report any files under /opt or /var
+for pkg in "${PACKAGES[@]}"; do
+    opt_or_var=$(rpm -ql "$pkg" 2>/dev/null | grep -E '^/(opt|var)' || true)
+    if [[ -n "$opt_or_var" ]]; then
+        echo "INFO: Package $pkg ships paths under /opt or /var:"
+        echo "$opt_or_var"
+    fi
+done
+

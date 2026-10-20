@@ -1,0 +1,152 @@
+#!/usr/bin/env bash
+
+# Enable aahsnr-work/applications COPR at priority=1 and install desktop applications and bees deduplication daemon.
+# bees is installed in a dedicated, strictly verified first transaction.
+# The repository is disabled immediately after successful installation.
+
+set -Eeuo pipefail
+
+copr='aahsnr-work/applications'
+repo_id="copr:copr.fedorainfracloud.org:${copr////:}"
+copr_enabled=0
+
+disable_copr() {
+    local status=$?
+    trap - EXIT
+    if ((copr_enabled)); then
+        echo "Disabling COPR ${copr}..."
+        dnf5 -y copr disable "$copr" || true
+    fi
+    exit "$status"
+}
+trap disable_copr EXIT
+
+dnf5 -y copr enable "$copr"
+copr_enabled=1
+
+repo_status=$(dnf5 repo list --all | awk -v id="$repo_id" '$1 == id { print $NF }')
+if [[ "$repo_status" != "enabled" ]]; then
+    echo "ERROR: ${repo_id} not found or not enabled (status: '${repo_status}')" >&2
+    exit 1
+fi
+
+INSTALL_OPTS=(
+    --setopt="${repo_id}.priority=1"
+    --setopt=install_weak_deps=False
+    --setopt='*.skip_if_unavailable=False'
+)
+
+# -----------------------------------------------------------------------------
+# STEP 1: Dedicated bees installation and validation (Section 6)
+# -----------------------------------------------------------------------------
+echo "Installing bees deduplication package from ${copr}..."
+dnf5 -y install "${INSTALL_OPTS[@]}" bees
+
+# Confirm package installed
+rpm -q bees
+
+# Confirm package came from intended COPR
+from_repo=$(dnf5 info --installed bees 2>/dev/null | awk -F': ' '/^From repository/ { print $2 }' || true)
+echo "bees installed from repository: ${from_repo:-<unknown>}"
+if [[ -n "$from_repo" && "$from_repo" != "<unknown>" && "$from_repo" != "$repo_id" ]]; then
+    echo "ERROR: bees was resolved from ${from_repo} instead of ${repo_id}" >&2
+    exit 1
+fi
+
+# Discover and assert files shipped by bees
+echo "Files shipped by bees package:"
+rpm -ql bees
+
+if [[ ! -x /usr/bin/beesd ]]; then
+    echo "ERROR: /usr/bin/beesd missing or not executable after bees installation" >&2
+    exit 1
+fi
+
+if [[ ! -f /usr/lib/systemd/system/beesd@.service ]]; then
+    echo "ERROR: /usr/lib/systemd/system/beesd@.service template unit missing after bees installation" >&2
+    exit 1
+fi
+
+if [[ ! -f /usr/etc/bees/beesd.conf.sample && ! -f /etc/bees/beesd.conf.sample ]]; then
+    echo "WARNING: bees sample configuration (beesd.conf.sample) not found at expected paths" >&2
+fi
+
+# Check whether bees ships anything under /var
+bees_var=$(rpm -ql bees 2>/dev/null | grep -E '^/var' || true)
+if [[ -n "$bees_var" ]]; then
+    echo "INFO: bees package ships files under /var:"
+    echo "$bees_var"
+fi
+
+# -----------------------------------------------------------------------------
+# STEP 2: Install remaining application packages
+# -----------------------------------------------------------------------------
+REMAINING_PACKAGES=(
+    antigravity-cli
+    bitwarden
+    distroshelf
+    emacs-pgtk
+    ferdium
+    kitty
+    mullvad-vpn
+    obsidian
+    onlyoffice-desktopeditors
+    opencode-desktop
+    private-internet-access
+    proton-vpn-daemon
+    proton-vpn-gtk-app
+    python3-proton-core
+    python3-proton-keyring-linux
+    python3-proton-vpn-api-core
+    ticktick
+    zed
+    zen-browser
+    zotero
+)
+
+echo "Installing remaining packages from ${copr}..."
+dnf5 -y install "${INSTALL_OPTS[@]}" "${REMAINING_PACKAGES[@]}"
+
+# -----------------------------------------------------------------------------
+# STEP 3: Disable COPR and verify repository status
+# -----------------------------------------------------------------------------
+dnf5 -y copr disable "$copr"
+copr_enabled=0
+
+repo_status=$(dnf5 repo list --all | awk -v id="$repo_id" '$1 == id { print $NF }')
+if [[ "$repo_status" != "disabled" ]]; then
+    echo "ERROR: ${repo_id} is still enabled according to dnf5 repo list (status: '${repo_status}')" >&2
+    exit 1
+fi
+
+repo_file=$(compgen -G "/etc/yum.repos.d/*${copr////:}*.repo" || compgen -G "/etc/yum.repos.d/*${copr////-}*.repo" || true)
+if [[ -n "$repo_file" && -f "$repo_file" ]]; then
+    if ! grep -qE '^enabled\s*=\s*0' "$repo_file"; then
+        echo "ERROR: ${repo_file} does not have enabled=0" >&2
+        exit 1
+    fi
+fi
+
+# -----------------------------------------------------------------------------
+# STEP 4: Package verification and filesystem scan
+# -----------------------------------------------------------------------------
+ALL_PACKAGES=(bees "${REMAINING_PACKAGES[@]}")
+rpm -q "${ALL_PACKAGES[@]}"
+
+for pkg in "${REMAINING_PACKAGES[@]}"; do
+    from_repo=$(dnf5 info --installed "$pkg" 2>/dev/null | awk -F': ' '/^From repository/ { print $2 }' || true)
+    echo "Package $pkg installed from: ${from_repo:-<unknown>}"
+    if [[ -n "$from_repo" && "$from_repo" != "<unknown>" && "$from_repo" != "$repo_id" ]]; then
+        echo "WARNING: $pkg was resolved from $from_repo instead of $repo_id" >&2
+    fi
+done
+
+# Filesystem check: report any files under /opt or /var
+for pkg in "${ALL_PACKAGES[@]}"; do
+    opt_or_var=$(rpm -ql "$pkg" 2>/dev/null | grep -E '^/(opt|var)' || true)
+    if [[ -n "$opt_or_var" ]]; then
+        echo "INFO: Package $pkg ships paths under /opt or /var:"
+        echo "$opt_or_var"
+    fi
+done
+

@@ -12,7 +12,7 @@ set -Eeuo pipefail
 
 group="${1:-}"
 case "$group" in
-brew | kernel | repos | cli-tools | utils | removals | common-packages | gaming | picker | media | desktop-integration | justfiles | services | integration-files | image-info | initramfs | finalize | nvidia-config | nvidia | system-policy | nvidia-finalize | packages | final) ;;
+brew | kernel | repos | cli-tools | utils | removals | common-packages | gaming | fonts | base-pkgs | applications | texlive-packages | nix | picker | media | desktop-integration | justfiles | services | integration-files | image-info | initramfs | finalize | nvidia-config | nvidia | system-policy | nvidia-finalize | packages | final) ;;
 *)
     printf 'Usage: %s <stage>\n' "$0" >&2
     exit 2
@@ -233,7 +233,7 @@ verify_common_packages() {
         zsh sddm sddm-wayland-generic chezmoi bpftune-gaming fuse-libs uld \
         bazaar mission-center greenboot greenboot-default-health-checks \
         ublue-os-selinux-workarounds bazzite-updater ScopeBuddy python3-pip \
-        libadwaita bees xwininfo compsize input-remapper libinput-utils \
+        libadwaita xwininfo compsize input-remapper libinput-utils \
         i2c-tools lm_sensors udica ladspa-caps-plugins \
         pipewire-module-filter-chain-sofa python3-icoextract tailscale \
         webapp-manager btop duf lshw yad f3 lzip 7zip unrar \
@@ -311,6 +311,145 @@ verify_gaming() {
             pass "versionlock active for: $locked_pkg"
         else
             fail "versionlock missing for: $locked_pkg"
+        fi
+    done
+}
+
+verify_fonts() {
+    require_rpms \
+        google-noto-color-emoji-fonts \
+        jetbrains-mono-fonts-all \
+        nerd-fonts-jetbrainsmono \
+        nerd-fonts-symbols-only \
+        nerd-fonts-ubuntu \
+        nerd-fonts-ubuntu-mono
+
+    require_repos_disabled 'copr:copr.fedorainfracloud.org:aahsnr-work:fonts'
+}
+
+verify_base_pkgs() {
+    require_rpms \
+        adw-gtk3 \
+        aquamarine \
+        glaze \
+        hyprcursor \
+        hyprgraphics \
+        hyprland-git \
+        hyprland-guitils \
+        hyprland-protocols \
+        hyprland-qt-support \
+        hyprlang \
+        hyprpwcen \
+        hyprshutdown \
+        hyprtoolkit \
+        hyprutils \
+        hyprwayland-scanner \
+        hyprwire \
+        noctalia-git \
+        nwg-displays \
+        nwg-look \
+        pyprland \
+        qt6ct \
+        xcur2png \
+        xdg-desktop-portal-hyprland
+
+    require_repos_disabled 'copr:copr.fedorainfracloud.org:aahsnr-work:base-pkgs'
+}
+
+verify_applications() {
+    require_rpms \
+        bees \
+        antigravity-cli \
+        bitwarden \
+        distroshelf \
+        emacs-pgtk \
+        ferdium \
+        kitty \
+        mullvad-vpn \
+        obsidian \
+        onlyoffice-desktopeditors \
+        opencode-desktop \
+        private-internet-access \
+        proton-vpn-daemon \
+        proton-vpn-gtk-app \
+        python3-proton-core \
+        python3-proton-keyring-linux \
+        python3-proton-vpn-api-core \
+        ticktick \
+        zed \
+        zen-browser \
+        zotero
+
+    require_repos_disabled 'copr:copr.fedorainfracloud.org:aahsnr-work:applications'
+
+    if [[ -x /usr/bin/beesd ]]; then
+        pass "beesd binary present and executable: /usr/bin/beesd"
+    else
+        fail "beesd binary missing or not executable: /usr/bin/beesd"
+    fi
+
+    if [[ -f /usr/lib/systemd/system/beesd@.service ]]; then
+        pass "beesd@.service unit present: /usr/lib/systemd/system/beesd@.service"
+    else
+        fail "beesd@.service unit missing: /usr/lib/systemd/system/beesd@.service"
+    fi
+}
+
+verify_texlive_packages() {
+    require_rpms \
+        texlive-basic \
+        texlive-bibtexextra \
+        texlive-bin \
+        texlive-binextra \
+        texlive-fontsrecommended \
+        texlive-fontutils \
+        texlive-formatsextra \
+        texlive-humanities \
+        texlive-latex \
+        texlive-latexextra \
+        texlive-latexrecommended \
+        texlive-luatex \
+        texlive-mathscience \
+        texlive-meta \
+        texlive-metapost \
+        texlive-pictures \
+        texlive-plaingeneric \
+        texlive-pstricks \
+        texlive-publishers \
+        texlive-xetex
+
+    require_repos_disabled 'copr:copr.fedorainfracloud.org:aahsnr-work:texlive-packages'
+}
+
+verify_nix() {
+    require_rpms nix nix-daemon
+
+    local bin
+    for bin in /usr/bin/nix /usr/bin/nix-daemon; do
+        if [[ -x "$bin" ]]; then
+            pass "binary present and executable: $bin"
+        else
+            fail "binary missing or not executable: $bin"
+        fi
+    done
+
+    if [[ -d /nix ]]; then
+        pass "mountpoint directory exists: /nix"
+    else
+        fail "mountpoint directory missing: /nix"
+    fi
+
+    local f
+    for f in \
+        /usr/lib/systemd/system/var-nix.service \
+        /usr/lib/systemd/system/nix.mount \
+        /usr/lib/tmpfiles.d/nix.conf \
+        /etc/profile.d/00-nix-resolve-home-env.sh \
+        /etc/nix/nix.conf; do
+        if [[ -e "$f" ]]; then
+            pass "nix file present: $f"
+        else
+            fail "nix file missing: $f"
         fi
     done
 }
@@ -467,6 +606,31 @@ verify_services() {
             pass "service disabled: $svc"
         fi
     done
+
+    # Nix daemon socket: enabled to sockets.target.wants by systemctl enable.
+    if [[ -e /etc/systemd/system/sockets.target.wants/nix-daemon.socket || \
+          -e /etc/systemd/system/multi-user.target.wants/nix-daemon.socket ]]; then
+        pass "system service enabled: nix-daemon.socket"
+    else
+        fail "system service not enabled: nix-daemon.socket"
+    fi
+
+    # nix.mount enables to local-fs.target.wants.
+    if [[ -e /etc/systemd/system/local-fs.target.wants/nix.mount ]]; then
+        pass "system service enabled: nix.mount"
+    else
+        fail "system service not enabled: nix.mount"
+    fi
+
+    # var-nix.service is pulled in via RequiredBy=nix.mount — its symlink lands
+    # in /etc/systemd/system/nix.mount.requires/ rather than a .wants dir.
+    if [[ -e /etc/systemd/system/nix.mount.requires/var-nix.service || \
+          -e /etc/systemd/system/local-fs.target.wants/var-nix.service || \
+          -e /etc/systemd/system/multi-user.target.wants/var-nix.service ]]; then
+        pass "system service enabled: var-nix.service"
+    else
+        fail "system service not enabled: var-nix.service"
+    fi
 }
 
 verify_integration_files() {
@@ -603,6 +767,11 @@ verify_packages() {
     verify_utils
     verify_common_packages
     verify_gaming
+    verify_fonts
+    verify_base_pkgs
+    verify_applications
+    verify_texlive_packages
+    verify_nix
 }
 
 verify_final() {
@@ -611,7 +780,11 @@ verify_final() {
     require_repos_disabled \
         'copr:copr.fedorainfracloud.org:aahsnr-work:cli-tools' \
         'copr:copr.fedorainfracloud.org:aahsnr-work:python-packages' \
-        'copr:copr.fedorainfracloud.org:aahsnr-work:gaming'
+        'copr:copr.fedorainfracloud.org:aahsnr-work:gaming' \
+        'copr:copr.fedorainfracloud.org:aahsnr-work:fonts' \
+        'copr:copr.fedorainfracloud.org:aahsnr-work:base-pkgs' \
+        'copr:copr.fedorainfracloud.org:aahsnr-work:applications' \
+        'copr:copr.fedorainfracloud.org:aahsnr-work:texlive-packages'
 
     # Negative guards: fonts and waydroid must never reach the published image.
     forbid_rpms \
@@ -769,6 +942,13 @@ verify_final() {
         /usr/lib/systemd/system/uupd.timer \
         /usr/lib/systemd/system/system-flatpak-setup.service \
         /usr/lib/systemd/system/sddm.service \
+        /usr/lib/systemd/system/var-nix.service \
+        /usr/lib/systemd/system/nix.mount \
+        /usr/lib/systemd/system/nix-daemon.service \
+        /usr/lib/systemd/system/nix-daemon.socket \
+        /usr/lib/tmpfiles.d/nix.conf \
+        /etc/profile.d/00-nix-resolve-home-env.sh \
+        /etc/nix/nix.conf \
         /usr/lib/systemd/user/user-setup.service \
         /usr/lib/systemd/user/dynamic-fixes.service \
         /usr/lib/systemd/user/dmemcg-booster-user.service \
@@ -899,6 +1079,11 @@ utils) verify_utils ;;
 removals) verify_removals ;;
 common-packages) verify_common_packages ;;
 gaming) verify_gaming ;;
+fonts) verify_fonts ;;
+base-pkgs) verify_base_pkgs ;;
+applications) verify_applications ;;
+texlive-packages) verify_texlive_packages ;;
+nix) verify_nix ;;
 picker) verify_picker ;;
 media) verify_media ;;
 desktop-integration) verify_desktop_integration ;;

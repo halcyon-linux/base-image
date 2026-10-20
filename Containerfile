@@ -127,6 +127,51 @@ RUN --mount=type=cache,dst=/var/cache \
     /ctx/finalization/verify gaming && \
     /ctx/shared/cleanup
 
+# Install designated typography and font packages.
+RUN --mount=type=cache,dst=/var/cache \
+    --mount=type=cache,dst=/var/log \
+    --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=tmpfs,dst=/tmp \
+    /ctx/packages/install-fonts && \
+    /ctx/finalization/verify fonts && \
+    /ctx/shared/cleanup
+
+# Install Hyprland desktop environment packages.
+RUN --mount=type=cache,dst=/var/cache \
+    --mount=type=cache,dst=/var/log \
+    --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=tmpfs,dst=/tmp \
+    /ctx/packages/install-base-pkgs && \
+    /ctx/finalization/verify base-pkgs && \
+    /ctx/shared/cleanup
+
+# Install desktop applications and bees deduplication daemon.
+RUN --mount=type=cache,dst=/var/cache \
+    --mount=type=cache,dst=/var/log \
+    --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=tmpfs,dst=/tmp \
+    /ctx/packages/install-applications && \
+    /ctx/finalization/verify applications && \
+    /ctx/shared/cleanup
+
+# Install TeX Live distribution packages.
+RUN --mount=type=cache,dst=/var/cache \
+    --mount=type=cache,dst=/var/log \
+    --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=tmpfs,dst=/tmp \
+    /ctx/packages/install-texlive-packages && \
+    /ctx/finalization/verify texlive-packages && \
+    /ctx/shared/cleanup
+
+# Install Nix package manager and multi-user daemon.
+RUN --mount=type=cache,dst=/var/cache \
+    --mount=type=cache,dst=/var/log \
+    --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=tmpfs,dst=/tmp \
+    /ctx/packages/install-nix && \
+    /ctx/finalization/verify nix && \
+    /ctx/shared/cleanup
+
 # Install ujust-picker from the latest GitHub release.
 RUN --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \

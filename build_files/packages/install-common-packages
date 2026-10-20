@@ -32,7 +32,6 @@ common_packages=(
     ScopeBuddy
     python3-pip
     libadwaita
-    bees
     xwininfo
     compsize
     input-remapper
