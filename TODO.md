@@ -5,8 +5,6 @@ Open work first; resolved questions are one-liners, full detail in `git log -p T
 ## Open
 
 - [ ] fzf from fedora repo may have been installed. Remove it and install it from my copr repo
-- [ ] Some vendor packages including vscode, vscodium, brave and brave-origin are missing from my bluebuild setup
-- [ ] Add firefox, google chrome, microsoft edge and vivaldi browser
 - [ ] Remove certain kmods and handheld stuff.
 - [ ] Setup gui pinentry using pinentry-tty and/or pinentry-curses
 - [ ] Make everything as automated as much as possible
@@ -20,6 +18,7 @@ Open work first; resolved questions are one-liners, full detail in `git log -p T
 - [x] `usr/bin` vs `usr/libexec` — `/usr/bin` is the user-facing PATH, `/usr/libexec` holds helpers called by units, ujust recipes and polkit. `system_files/desktop/usr/bin` is intentionally empty: user commands come from RPMs (`brh`, `bruh`, `crh`, `gameclass`, `bbrew-helper`, `ublue-motd`, `uupd-update`); `dlss-swapper` is user-facing too, now provided by its RPM. (10-18)
 - [x] Unneeded in-tree scripts — all `usr/bin` scripts removed (incl. `copr`); dangling refs (Steam wrapper in `configure-desktop-integration`, `bazzite-steam-bpm.desktop`, `setup-boot-windows-steam` recipe + yafti entry, `fix-reset-steam` relaunch) cleaned. (10-18)
 - [x] `bazzite-fork` branch — this is the `containerfile` branch, which builds `alcyone`. (10-18)
+- [x] Vendor developer tools & browsers — `code` (Microsoft), `codium` (Paul Carroty), `brave-browser` (Brave), `firefox` (Fedora), `google-chrome-stable` (Google), `microsoft-edge-stable` (Microsoft Edge), `vivaldi-stable` (Vivaldi) integrated into `install-applications` with strict priority=1, weak deps off, and immediate repository disablement; verified. (10-20)
 
 ### Services and units
 

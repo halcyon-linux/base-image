@@ -378,15 +378,45 @@ verify_applications() {
         ticktick \
         zed \
         zen-browser \
-        zotero
+        zotero \
+        code \
+        codium \
+        brave-browser \
+        firefox \
+        google-chrome-stable \
+        microsoft-edge-stable \
+        vivaldi-stable
 
-    require_repos_disabled 'copr:copr.fedorainfracloud.org:aahsnr-work:applications'
+    require_repos_disabled \
+        'copr:copr.fedorainfracloud.org:aahsnr-work:applications' \
+        'code' \
+        'gitlab.com_paulcarroty_vscodium_repo' \
+        'brave-browser' \
+        'google-chrome' \
+        'microsoft-edge' \
+        'vivaldi'
 
     if [[ -x /usr/bin/beesd ]]; then
         pass "beesd binary present and executable: /usr/bin/beesd"
     else
         fail "beesd binary missing or not executable: /usr/bin/beesd"
     fi
+
+    local app_bin
+    for app_bin in \
+        /usr/bin/code \
+        /usr/bin/codium \
+        /usr/bin/brave-browser \
+        /usr/bin/firefox \
+        /usr/bin/google-chrome \
+        /usr/bin/microsoft-edge \
+        /usr/bin/vivaldi; do
+        if [[ -x "$app_bin" ]]; then
+            pass "application binary present and executable: $app_bin"
+        else
+            fail "application binary missing or not executable: $app_bin"
+        fi
+    done
 
     if [[ -f /usr/lib/systemd/system/beesd@.service ]]; then
         pass "beesd@.service unit present: /usr/lib/systemd/system/beesd@.service"
@@ -790,7 +820,13 @@ verify_final() {
         'copr:copr.fedorainfracloud.org:aahsnr-work:fonts' \
         'copr:copr.fedorainfracloud.org:aahsnr-work:base-pkgs' \
         'copr:copr.fedorainfracloud.org:aahsnr-work:applications' \
-        'copr:copr.fedorainfracloud.org:aahsnr-work:texlive-packages'
+        'copr:copr.fedorainfracloud.org:aahsnr-work:texlive-packages' \
+        'code' \
+        'gitlab.com_paulcarroty_vscodium_repo' \
+        'brave-browser' \
+        'google-chrome' \
+        'microsoft-edge' \
+        'vivaldi'
 
     # Negative guards: fonts and waydroid must never reach the published image.
     forbid_rpms \
@@ -931,7 +967,9 @@ verify_final() {
         /usr/bin/steam /usr/bin/lutris /usr/bin/protonplus /usr/bin/winetricks \
         /usr/bin/bazaar /usr/bin/uupd /usr/bin/fastfetch /usr/bin/btop \
         /usr/bin/input-remapper-control /usr/bin/snapper /usr/bin/btrfs-assistant \
-        /usr/bin/virt-manager /usr/bin/chezmoi /usr/bin/flatpak /usr/bin/sddm; do
+        /usr/bin/virt-manager /usr/bin/chezmoi /usr/bin/flatpak /usr/bin/sddm \
+        /usr/bin/code /usr/bin/codium /usr/bin/brave-browser /usr/bin/firefox \
+        /usr/bin/google-chrome /usr/bin/microsoft-edge /usr/bin/vivaldi; do
         if [[ -x "$required_binary" ]]; then
             pass "command present and executable: $required_binary"
         else

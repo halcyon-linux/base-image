@@ -1,34 +1,31 @@
 #!/usr/bin/env bash
 
 # Enable aahsnr-work/applications COPR at priority=1 and install desktop applications and bees deduplication daemon.
-# bees is installed in a dedicated, strictly verified first transaction.
-# The repository is disabled immediately after successful installation.
+# Install developer tools (vscode, vscodium) and web browsers (firefox, brave, chrome, edge, vivaldi)
+# following strict repository lifecycle: enable with priority=1 and weak deps disabled, install, disable repo.
 
 set -Eeuo pipefail
 
 copr='aahsnr-work/applications'
 repo_id="copr:copr.fedorainfracloud.org:${copr////:}"
-copr_enabled=0
 
-disable_copr() {
+declare -a ENABLED_COPRS=()
+declare -a ENABLED_REPOS=()
+
+cleanup_repos() {
     local status=$?
     trap - EXIT
-    if ((copr_enabled)); then
-        echo "Disabling COPR ${copr}..."
-        dnf5 -y copr disable "$copr" || true
-    fi
+    for c in "${ENABLED_COPRS[@]}"; do
+        echo "Disabling COPR: $c"
+        dnf5 -y copr disable "$c" 2>/dev/null || true
+    done
+    for r in "${ENABLED_REPOS[@]}"; do
+        echo "Disabling repository: $r"
+        dnf5 -y config-manager setopt "${r}.enabled=0" 2>/dev/null || true
+    done
     exit "$status"
 }
-trap disable_copr EXIT
-
-dnf5 -y copr enable "$copr"
-copr_enabled=1
-
-repo_status=$(dnf5 repo list --all | awk -v id="$repo_id" '$1 == id { print $NF }')
-if [[ "$repo_status" != "enabled" ]]; then
-    echo "ERROR: ${repo_id} not found or not enabled (status: '${repo_status}')" >&2
-    exit 1
-fi
+trap cleanup_repos EXIT
 
 # Ensure /opt is a real directory rather than a symlink to /var/opt.
 # Fedora Atomic base images ship /opt -> var/opt; replacing it with a directory avoids
@@ -40,18 +37,34 @@ if [[ -L /opt ]]; then
     chmod 0755 /opt
 fi
 
-INSTALL_OPTS=(
-    --setopt="${repo_id}.priority=1"
+COMMON_INSTALL_OPTS=(
     --setopt='*terra*'.priority=10
     --setopt=install_weak_deps=False
     --setopt='*.skip_if_unavailable=False'
 )
 
 # -----------------------------------------------------------------------------
-# STEP 1: Dedicated bees installation and validation (Section 6)
+# STEP 1: Enable aahsnr-work/applications COPR
+# -----------------------------------------------------------------------------
+dnf5 -y copr enable "$copr"
+ENABLED_COPRS+=("$copr")
+
+repo_status=$(dnf5 repo list --all | awk -v id="$repo_id" '$1 == id { print $NF }')
+if [[ "$repo_status" != "enabled" ]]; then
+    echo "ERROR: ${repo_id} not found or not enabled (status: '${repo_status}')" >&2
+    exit 1
+fi
+
+COPR_INSTALL_OPTS=(
+    --setopt="${repo_id}.priority=1"
+    "${COMMON_INSTALL_OPTS[@]}"
+)
+
+# -----------------------------------------------------------------------------
+# STEP 2: Dedicated bees installation and validation (Section 6)
 # -----------------------------------------------------------------------------
 echo "Installing bees deduplication package from ${copr}..."
-dnf5 -y install "${INSTALL_OPTS[@]}" bees
+dnf5 -y install "${COPR_INSTALL_OPTS[@]}" bees
 
 # Confirm package installed
 rpm -q bees
@@ -90,9 +103,9 @@ if [[ -n "$bees_var" ]]; then
 fi
 
 # -----------------------------------------------------------------------------
-# STEP 2: Install remaining application packages
+# STEP 3: Install remaining COPR application packages
 # -----------------------------------------------------------------------------
-REMAINING_PACKAGES=(
+REMAINING_COPR_PACKAGES=(
     antigravity-cli
     bitwarden
     distroshelf
@@ -116,13 +129,11 @@ REMAINING_PACKAGES=(
 )
 
 echo "Installing remaining packages from ${copr}..."
-dnf5 -y install "${INSTALL_OPTS[@]}" "${REMAINING_PACKAGES[@]}"
+dnf5 -y install "${COPR_INSTALL_OPTS[@]}" "${REMAINING_COPR_PACKAGES[@]}"
 
-# -----------------------------------------------------------------------------
-# STEP 3: Disable COPR and verify repository status
-# -----------------------------------------------------------------------------
+# Disable COPR immediately after successful install
 dnf5 -y copr disable "$copr"
-copr_enabled=0
+ENABLED_COPRS=()
 
 repo_status=$(dnf5 repo list --all | awk -v id="$repo_id" '$1 == id { print $NF }')
 if [[ "$repo_status" != "disabled" ]]; then
@@ -139,16 +150,179 @@ if [[ -n "$repo_file" && -f "$repo_file" ]]; then
 fi
 
 # -----------------------------------------------------------------------------
-# STEP 4: Package verification and filesystem scan
+# STEP 4: Firefox (from official Fedora repositories)
 # -----------------------------------------------------------------------------
-ALL_PACKAGES=(bees "${REMAINING_PACKAGES[@]}")
+echo "Installing Firefox from Fedora repositories..."
+dnf5 -y install "${COMMON_INSTALL_OPTS[@]}" firefox
+rpm -q firefox
+
+# -----------------------------------------------------------------------------
+# STEP 5: Visual Studio Code (Microsoft official repository)
+# -----------------------------------------------------------------------------
+echo "Configuring Visual Studio Code repository..."
+cat << 'EOF' > /etc/yum.repos.d/vscode.repo
+[code]
+name=Visual Studio Code
+baseurl=https://packages.microsoft.com/yumrepos/vscode
+enabled=1
+autorefresh=1
+type=rpm-md
+gpgcheck=1
+gpgkey=https://packages.microsoft.com/keys/microsoft.asc
+EOF
+rpm --import https://packages.microsoft.com/keys/microsoft.asc || true
+ENABLED_REPOS+=(code)
+
+echo "Installing Visual Studio Code..."
+dnf5 -y install --setopt="code.priority=1" "${COMMON_INSTALL_OPTS[@]}" code
+rpm -q code
+
+dnf5 -y config-manager setopt code.enabled=0
+sed -i 's/^enabled\s*=.*/enabled=0/' /etc/yum.repos.d/vscode.repo
+ENABLED_REPOS=("${ENABLED_REPOS[@]/code}")
+
+# -----------------------------------------------------------------------------
+# STEP 6: VSCodium (Paul Carroty GitLab repository)
+# -----------------------------------------------------------------------------
+echo "Configuring VSCodium repository..."
+cat << 'EOF' > /etc/yum.repos.d/vscodium.repo
+[gitlab.com_paulcarroty_vscodium_repo]
+name=gitlab.com_paulcarroty_vscodium_repo
+baseurl=https://paulcarroty.gitlab.io/vscodium-deb-rpm-repo/rpms/
+enabled=1
+gpgcheck=1
+repo_gpgcheck=1
+gpgkey=https://gitlab.com/paulcarroty/vscodium-deb-rpm-repo/raw/master/pub.gpg
+metadata_expire=1h
+EOF
+rpm --import https://gitlab.com/paulcarroty/vscodium-deb-rpm-repo/raw/master/pub.gpg || true
+ENABLED_REPOS+=(gitlab.com_paulcarroty_vscodium_repo)
+
+echo "Installing VSCodium..."
+dnf5 -y install --setopt="gitlab.com_paulcarroty_vscodium_repo.priority=1" "${COMMON_INSTALL_OPTS[@]}" codium
+rpm -q codium
+
+dnf5 -y config-manager setopt gitlab.com_paulcarroty_vscodium_repo.enabled=0
+sed -i 's/^enabled\s*=.*/enabled=0/' /etc/yum.repos.d/vscodium.repo
+ENABLED_REPOS=("${ENABLED_REPOS[@]/gitlab.com_paulcarroty_vscodium_repo}")
+
+# -----------------------------------------------------------------------------
+# STEP 7: Brave Browser (Brave official repository)
+# -----------------------------------------------------------------------------
+echo "Configuring Brave Browser repository..."
+cat << 'EOF' > /etc/yum.repos.d/brave-browser.repo
+[brave-browser]
+name=Brave Browser
+enabled=1
+autorefresh=1
+baseurl=https://brave-browser-rpm-release.s3.brave.com/$basearch
+gpgcheck=1
+gpgkey=https://brave-browser-rpm-release.s3.brave.com/brave-core.asc
+EOF
+rpm --import https://brave-browser-rpm-release.s3.brave.com/brave-core.asc || true
+ENABLED_REPOS+=(brave-browser)
+
+echo "Installing Brave Browser..."
+dnf5 -y install --setopt="brave-browser.priority=1" "${COMMON_INSTALL_OPTS[@]}" brave-browser
+rpm -q brave-browser
+
+dnf5 -y config-manager setopt brave-browser.enabled=0
+sed -i 's/^enabled\s*=.*/enabled=0/' /etc/yum.repos.d/brave-browser.repo
+ENABLED_REPOS=("${ENABLED_REPOS[@]/brave-browser}")
+
+# -----------------------------------------------------------------------------
+# STEP 8: Google Chrome (Google official repository)
+# -----------------------------------------------------------------------------
+echo "Configuring Google Chrome repository..."
+cat << 'EOF' > /etc/yum.repos.d/google-chrome.repo
+[google-chrome]
+name=google-chrome
+baseurl=https://dl.google.com/linux/chrome/rpm/stable/$basearch
+enabled=1
+gpgcheck=1
+gpgkey=https://dl.google.com/linux/linux_signing_key.pub
+EOF
+rpm --import https://dl.google.com/linux/linux_signing_key.pub || true
+ENABLED_REPOS+=(google-chrome)
+
+echo "Installing Google Chrome..."
+dnf5 -y install --setopt="google-chrome.priority=1" "${COMMON_INSTALL_OPTS[@]}" google-chrome-stable
+rpm -q google-chrome-stable
+
+dnf5 -y config-manager setopt google-chrome.enabled=0
+sed -i 's/^enabled\s*=.*/enabled=0/' /etc/yum.repos.d/google-chrome.repo
+ENABLED_REPOS=("${ENABLED_REPOS[@]/google-chrome}")
+
+# -----------------------------------------------------------------------------
+# STEP 9: Microsoft Edge (Microsoft Edge repository)
+# -----------------------------------------------------------------------------
+echo "Configuring Microsoft Edge repository..."
+cat << 'EOF' > /etc/yum.repos.d/microsoft-edge.repo
+[microsoft-edge]
+name=microsoft-edge
+baseurl=https://packages.microsoft.com/yumrepos/edge
+enabled=1
+gpgcheck=1
+gpgkey=https://packages.microsoft.com/keys/microsoft.asc
+EOF
+rpm --import https://packages.microsoft.com/keys/microsoft.asc || true
+ENABLED_REPOS+=(microsoft-edge)
+
+echo "Installing Microsoft Edge..."
+dnf5 -y install --setopt="microsoft-edge.priority=1" "${COMMON_INSTALL_OPTS[@]}" microsoft-edge-stable
+rpm -q microsoft-edge-stable
+
+dnf5 -y config-manager setopt microsoft-edge.enabled=0
+sed -i 's/^enabled\s*=.*/enabled=0/' /etc/yum.repos.d/microsoft-edge.repo
+ENABLED_REPOS=("${ENABLED_REPOS[@]/microsoft-edge}")
+
+# -----------------------------------------------------------------------------
+# STEP 10: Vivaldi (Vivaldi official repository)
+# -----------------------------------------------------------------------------
+echo "Configuring Vivaldi repository..."
+cat << 'EOF' > /etc/yum.repos.d/vivaldi.repo
+[vivaldi]
+name=Vivaldi
+baseurl=https://repo.vivaldi.com/stable/rpm/x86_64
+enabled=1
+gpgcheck=1
+gpgkey=https://repo.vivaldi.com/stable/linux_signing_key.pub
+EOF
+rpm --import https://repo.vivaldi.com/stable/linux_signing_key.pub || true
+ENABLED_REPOS+=(vivaldi)
+
+echo "Installing Vivaldi..."
+dnf5 -y install --setopt="vivaldi.priority=1" "${COMMON_INSTALL_OPTS[@]}" vivaldi-stable
+rpm -q vivaldi-stable
+
+dnf5 -y config-manager setopt vivaldi.enabled=0
+sed -i 's/^enabled\s*=.*/enabled=0/' /etc/yum.repos.d/vivaldi.repo
+ENABLED_REPOS=("${ENABLED_REPOS[@]/vivaldi}")
+
+# -----------------------------------------------------------------------------
+# STEP 11: Package verification and repository status scan
+# -----------------------------------------------------------------------------
+ALL_PACKAGES=(
+    bees
+    "${REMAINING_COPR_PACKAGES[@]}"
+    firefox
+    code
+    codium
+    brave-browser
+    google-chrome-stable
+    microsoft-edge-stable
+    vivaldi-stable
+)
+
+echo "Verifying installation of all requested application packages..."
 rpm -q "${ALL_PACKAGES[@]}"
 
-for pkg in "${REMAINING_PACKAGES[@]}"; do
-    from_repo=$(dnf5 info --installed "$pkg" 2>/dev/null | awk -F': ' '/^From repository/ { print $2 }' || true)
-    echo "Package $pkg installed from: ${from_repo:-<unknown>}"
-    if [[ -n "$from_repo" && "$from_repo" != "<unknown>" && "$from_repo" != "$repo_id" ]]; then
-        echo "WARNING: $pkg was resolved from $from_repo instead of $repo_id" >&2
+# Assert all third-party repos report disabled in dnf5 repo list
+for check_repo in "$repo_id" code gitlab.com_paulcarroty_vscodium_repo brave-browser google-chrome microsoft-edge vivaldi; do
+    status="$(dnf5 repo list --all | awk -v id="$check_repo" '$1 == id { print $NF }')"
+    if [[ "$status" != "disabled" ]]; then
+        echo "ERROR: Repository $check_repo is still reported as '${status}' (must be disabled)" >&2
+        exit 1
     fi
 done
 
@@ -160,4 +334,3 @@ for pkg in "${ALL_PACKAGES[@]}"; do
         echo "$opt_or_var"
     fi
 done
-

@@ -16,6 +16,12 @@ repositories=(
     terra
     terra-extras
     negativo17-fedora-multimedia
+    vscode
+    vscodium
+    brave-browser
+    google-chrome
+    microsoft-edge
+    vivaldi
 )
 for repo in "${repositories[@]}"; do
     if [[ -f "/etc/yum.repos.d/${repo}.repo" ]]; then
