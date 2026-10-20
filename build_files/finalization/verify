@@ -216,7 +216,13 @@ verify_utils() {
 }
 
 verify_removals() {
-    forbid_rpms htop ublue-os-update-services google-noto-sans-cjk-fonts fish greetd greetd-selinux zsh-autosuggestions zsh-syntax-highlighting
+    forbid_rpms \
+        htop ublue-os-update-services google-noto-sans-cjk-fonts fish greetd greetd-selinux \
+        zsh-autosuggestions zsh-syntax-highlighting \
+        jupiter-fan-control jupiter-hw-support-btrfs jupiter-sd-mounting-btrfs \
+        steamdeck-dsp steamdeck-backgrounds steamdeck-gnome-presets steamdeck-kde-presets \
+        inputplumber steamos-manager-powerstation steamos-manager \
+        gamescope-session-ogui-steam powerbuttond vpower sdgyrodsu galileo-mura
 
     local item
     for item in /usr/bin/fish /usr/share/fish /usr/bin/greetd /etc/greetd; do
@@ -832,7 +838,11 @@ verify_final() {
     forbid_rpms \
         nerd-fonts fira-code-fonts lato-fonts google-noto-sans-cjk-fonts twitter-twemoji-fonts \
         google-roboto-fonts google-roboto-mono-fonts \
-        waydroid waydroid-nvidia obs-studio-plugin-vkcapture-hook-libs
+        waydroid waydroid-nvidia obs-studio-plugin-vkcapture-hook-libs \
+        jupiter-fan-control jupiter-hw-support-btrfs jupiter-sd-mounting-btrfs \
+        steamdeck-dsp steamdeck-backgrounds steamdeck-gnome-presets steamdeck-kde-presets \
+        inputplumber steamos-manager-powerstation steamos-manager \
+        gamescope-session-ogui-steam powerbuttond vpower sdgyrodsu galileo-mura
 
     # Device-specific trim: kernel modules for absent hardware must not reappear.
     forbid_rpms \

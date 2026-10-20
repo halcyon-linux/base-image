@@ -5,7 +5,7 @@ Open work first; resolved questions are one-liners, full detail in `git log -p T
 ## Open
 
 - [ ] fzf from fedora repo may have been installed. Remove it and install it from my copr repo
-- [ ] Remove certain kmods and handheld stuff.
+- [x] Remove certain kmods and handheld stuff. (10-20)
 - [ ] Setup gui pinentry using pinentry-tty and/or pinentry-curses
 - [ ] Make everything as automated as much as possible
 

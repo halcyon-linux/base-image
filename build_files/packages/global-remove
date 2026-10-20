@@ -6,7 +6,14 @@ set -Eeuo pipefail
 # it, so removal doesn't cascade). fish is removed because zsh is the designated
 # default shell; greetd is removed because sddm is the display manager;
 # auxiliary zsh packages are removed because only the standalone zsh package is allowed.
-for pkg in htop ublue-os-update-services google-noto-sans-cjk-fonts fish greetd greetd-selinux zsh-autosuggestions zsh-syntax-highlighting; do
+# Handheld-specific packages and unnecessary kmod-related packages are trimmed.
+for pkg in \
+    htop ublue-os-update-services google-noto-sans-cjk-fonts fish greetd greetd-selinux \
+    zsh-autosuggestions zsh-syntax-highlighting \
+    jupiter-fan-control jupiter-hw-support-btrfs jupiter-sd-mounting-btrfs \
+    steamdeck-dsp steamdeck-backgrounds steamdeck-gnome-presets steamdeck-kde-presets \
+    inputplumber steamos-manager-powerstation steamos-manager \
+    gamescope-session-ogui-steam powerbuttond vpower sdgyrodsu galileo-mura; do
     if rpm -q "$pkg" >/dev/null 2>&1; then
         dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y remove "$pkg"
     fi
