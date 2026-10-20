@@ -13,16 +13,20 @@ ARG BASE_IMAGE="${BASE_IMAGE:-ghcr.io/ublue-os/base-main:${FEDORA_VERSION}}"
 ARG KERNEL_FLAVOR="${KERNEL_FLAVOR:-ogc}"
 # Exact kernel version matching pre-built akmods images
 ARG KERNEL_VERSION="${KERNEL_VERSION:-7.2.7-ogc1.1.fc${FEDORA_VERSION}}"
+# Combined akmods tag used across all akmods input stages
+ARG AKMODS_TAG="${AKMODS_TAG:-${KERNEL_FLAVOR}-${FEDORA_VERSION}-${KERNEL_VERSION}}"
+# Homebrew standalone root image
+ARG BREW_IMAGE="${BREW_IMAGE:-ghcr.io/ublue-os/brew:latest}"
 
 # Pull the pre-compiled kernel and akmods rpms for the pinned kernel version
-FROM ghcr.io/ublue-os/akmods:${KERNEL_FLAVOR}-${FEDORA_VERSION}-${KERNEL_VERSION} AS akmods
+FROM ghcr.io/ublue-os/akmods:${AKMODS_TAG} AS akmods
 # Pull the akmods-extra trees (device-specific kmods and their userspace parts;
 # only nct6687d is installed, see build_files/kernel/install-kernel-akmods)
-FROM ghcr.io/ublue-os/akmods-extra:${KERNEL_FLAVOR}-${FEDORA_VERSION}-${KERNEL_VERSION} AS akmods-extra
+FROM ghcr.io/ublue-os/akmods-extra:${AKMODS_TAG} AS akmods-extra
 # Pull the NVIDIA open driver rpms matching the pinned kernel
-FROM ghcr.io/ublue-os/akmods-nvidia-open:${KERNEL_FLAVOR}-${FEDORA_VERSION}-${KERNEL_VERSION} AS akmods-nvidia
-# Pull the pre-packaged Homebrew standalone root (digest-pinned)
-FROM ghcr.io/ublue-os/brew:latest@sha256:5bdf54dc7c21c22db29df6550e3711788719c5123549ea6dc5645d5af47795e3 AS brew
+FROM ghcr.io/ublue-os/akmods-nvidia-open:${AKMODS_TAG} AS akmods-nvidia
+# Pull the pre-packaged Homebrew standalone root
+FROM ${BREW_IMAGE} AS brew
 
 # Build context helper: isolates build scripts so they can be bind-mounted without polluting image layers
 FROM scratch AS ctx

@@ -66,3 +66,37 @@ cat > /etc/skel/.zshrc << 'ZSHRC'
     source /usr/share/zsh/site-functions/zsh-preexec.zsh
 ZSHRC
 
+# 5. Setup GUI pinentry with console/TTY fallback and configure GPG agent skeleton.
+cat > /usr/bin/pinentry-wrapper << 'WRAPPER'
+#!/usr/bin/env bash
+# Halcyon pinentry dispatcher:
+# Automatically selects GUI pinentry (pinentry-gnome3) when a graphical session
+# (Wayland or X11) is active; falls back to pinentry-curses or pinentry-tty
+# when running in a console, TTY, or SSH session.
+
+if [[ -n "${WAYLAND_DISPLAY:-}" || -n "${DISPLAY:-}" ]]; then
+    if [[ -x /usr/bin/pinentry-gnome3 ]]; then
+        exec /usr/bin/pinentry-gnome3 "$@"
+    fi
+fi
+
+if [[ -x /usr/bin/pinentry-curses ]]; then
+    exec /usr/bin/pinentry-curses "$@"
+elif [[ -x /usr/bin/pinentry-tty ]]; then
+    exec /usr/bin/pinentry-tty "$@"
+fi
+
+exec /usr/bin/pinentry "$@"
+WRAPPER
+chmod 0755 /usr/bin/pinentry-wrapper
+
+mkdir -p /etc/skel/.gnupg
+chmod 0700 /etc/skel/.gnupg
+cat > /etc/skel/.gnupg/gpg-agent.conf << 'GPGCONF'
+# /etc/skel/.gnupg/gpg-agent.conf — Halcyon default GPG agent configuration
+pinentry-program /usr/bin/pinentry-wrapper
+default-cache-ttl 28800
+max-cache-ttl 86400
+GPGCONF
+chmod 0600 /etc/skel/.gnupg/gpg-agent.conf
+

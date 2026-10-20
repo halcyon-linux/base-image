@@ -222,7 +222,8 @@ verify_removals() {
         jupiter-fan-control jupiter-hw-support-btrfs jupiter-sd-mounting-btrfs \
         steamdeck-dsp steamdeck-backgrounds steamdeck-gnome-presets steamdeck-kde-presets \
         inputplumber steamos-manager-powerstation steamos-manager \
-        gamescope-session-ogui-steam powerbuttond vpower sdgyrodsu galileo-mura
+        gamescope-session-ogui-steam powerbuttond vpower sdgyrodsu galileo-mura \
+        pinentry-qt
 
     local item
     for item in /usr/bin/fish /usr/share/fish /usr/bin/greetd /etc/greetd; do
@@ -249,7 +250,8 @@ verify_common_packages() {
         edk2-ovmf lsb_release uupd ds-inhibit bazzite-portal kernel-tools kmod \
         ls-iommu virt-manager virt-install libvirt-daemon libvirt-daemon-kvm \
         libvirt-daemon-config-network libvirt-daemon-config-nwfilter virtiofsd \
-        cardwire-gui
+        cardwire-gui \
+        pinentry-gnome3 pinentry-curses pinentry-tty
 
     require_repos_disabled 'copr:copr.fedorainfracloud.org:bieszczaders:kernel-cachyos-addons'
 
@@ -572,6 +574,16 @@ verify_desktop_integration() {
     else
         fail "/etc/skel/.zshrc is missing"
     fi
+    if [[ -x /usr/bin/pinentry-wrapper ]]; then
+        pass "pinentry-wrapper present and executable: /usr/bin/pinentry-wrapper"
+    else
+        fail "pinentry-wrapper missing or not executable: /usr/bin/pinentry-wrapper"
+    fi
+    if [[ -f /etc/skel/.gnupg/gpg-agent.conf ]]; then
+        pass "gpg-agent.conf present: /etc/skel/.gnupg/gpg-agent.conf"
+    else
+        fail "gpg-agent.conf missing: /etc/skel/.gnupg/gpg-agent.conf"
+    fi
     if [[ -f /usr/share/zsh/site-functions/zsh-preexec.zsh ]]; then
         pass "zsh-preexec shim present: /usr/share/zsh/site-functions/zsh-preexec.zsh"
     else
@@ -842,7 +854,8 @@ verify_final() {
         jupiter-fan-control jupiter-hw-support-btrfs jupiter-sd-mounting-btrfs \
         steamdeck-dsp steamdeck-backgrounds steamdeck-gnome-presets steamdeck-kde-presets \
         inputplumber steamos-manager-powerstation steamos-manager \
-        gamescope-session-ogui-steam powerbuttond vpower sdgyrodsu galileo-mura
+        gamescope-session-ogui-steam powerbuttond vpower sdgyrodsu galileo-mura \
+        pinentry-qt
 
     # Device-specific trim: kernel modules for absent hardware must not reappear.
     forbid_rpms \
@@ -886,6 +899,16 @@ verify_final() {
         pass "/etc/skel/.zshrc is present"
     else
         fail "/etc/skel/.zshrc is missing"
+    fi
+    if [[ -x /usr/bin/pinentry-wrapper ]]; then
+        pass "pinentry-wrapper present and executable: /usr/bin/pinentry-wrapper"
+    else
+        fail "pinentry-wrapper missing or not executable: /usr/bin/pinentry-wrapper"
+    fi
+    if [[ -f /etc/skel/.gnupg/gpg-agent.conf ]]; then
+        pass "gpg-agent.conf present: /etc/skel/.gnupg/gpg-agent.conf"
+    else
+        fail "gpg-agent.conf missing: /etc/skel/.gnupg/gpg-agent.conf"
     fi
     if [[ -f /usr/share/zsh/site-functions/zsh-preexec.zsh ]]; then
         pass "zsh-preexec shim present: /usr/share/zsh/site-functions/zsh-preexec.zsh"
@@ -979,7 +1002,8 @@ verify_final() {
         /usr/bin/input-remapper-control /usr/bin/snapper /usr/bin/btrfs-assistant \
         /usr/bin/virt-manager /usr/bin/chezmoi /usr/bin/flatpak /usr/bin/sddm \
         /usr/bin/code /usr/bin/codium /usr/bin/brave-browser /usr/bin/firefox \
-        /usr/bin/google-chrome /usr/bin/microsoft-edge /usr/bin/vivaldi; do
+        /usr/bin/google-chrome /usr/bin/microsoft-edge /usr/bin/vivaldi \
+        /usr/bin/pinentry-wrapper; do
         if [[ -x "$required_binary" ]]; then
             pass "command present and executable: $required_binary"
         else

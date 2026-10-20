@@ -58,14 +58,65 @@ jobs:
 
       - name: Define image variables
         id: base
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
+
+          # Dynamically resolve latest upstream ogc kernel version from ublue-os/bazzite
+          RESOLVED_KVER=$(python3 - << 'EOF'
+          import os, sys, urllib.request, json, base64, re
+
+          token = os.environ.get("GITHUB_TOKEN", "")
+          headers = {"User-Agent": "Mozilla/5.0"}
+          if token:
+              headers["Authorization"] = f"Bearer {token}"
+
+          flavor = os.environ.get("KERNEL_FLAVOR", "ogc")
+          fallback = os.environ.get("KERNEL_VERSION", "")
+
+          resolved = None
+          try:
+              req = urllib.request.Request(
+                  "https://api.github.com/repos/ublue-os/bazzite/contents/.github/workflows/build.yml",
+                  headers=headers
+              )
+              with urllib.request.urlopen(req, timeout=15) as resp:
+                  data = json.loads(resp.read().decode())
+                  content = base64.b64decode(data["content"]).decode()
+                  m = re.search(rf"kernel_flavor:\s*{flavor}\b[\s\S]*?kernel_version:\s*([^\s]+)", content)
+                  if m:
+                      resolved = m.group(1).strip()
+          except Exception as e:
+              print(f"Notice: Failed to query upstream bazzite workflow: {e}", file=sys.stderr)
+
+          if resolved:
+              print(resolved)
+          else:
+              print(fallback)
+          EOF
+          )
+
+          candidate_tag="${KERNEL_FLAVOR}-${FEDORA_VERSION}-${RESOLVED_KVER}"
+          echo "Checking candidate akmods tag: ${candidate_tag}"
+
+          if skopeo inspect --retry-times 2 --creds="${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}" \
+             "docker://ghcr.io/ublue-os/akmods:${candidate_tag}" >/dev/null 2>&1; then
+            echo "Confirmed ghcr.io/ublue-os/akmods:${candidate_tag} is available."
+            FINAL_KVER="${RESOLVED_KVER}"
+            AKMODS_TAG="${candidate_tag}"
+          else
+            echo "Candidate tag ${candidate_tag} not yet ready on ghcr.io; falling back to pinned ${KERNEL_VERSION}."
+            FINAL_KVER="${KERNEL_VERSION}"
+            AKMODS_TAG="${KERNEL_FLAVOR}-${FEDORA_VERSION}-${KERNEL_VERSION}"
+          fi
 
           PUSH_REGISTRY=ghcr.io/${{ steps.repo_owner_case.outputs.lowercase }}
           echo "output_image=${PUSH_REGISTRY}/${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
           echo "base_image=${PULL_REGISTRY}/base-main:${FEDORA_VERSION}" >> "$GITHUB_OUTPUT"
           echo "container_target=${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
-          echo "akmods_tag=${KERNEL_FLAVOR}-${FEDORA_VERSION}-${KERNEL_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "kernel_version=${FINAL_KVER}" >> "$GITHUB_OUTPUT"
+          echo "akmods_tag=${AKMODS_TAG}" >> "$GITHUB_OUTPUT"
 
           echo "Generated the following:"
           cat "$GITHUB_OUTPUT"
@@ -103,7 +154,8 @@ jobs:
           IMAGE_VENDOR=${{ steps.repo_owner_case.outputs.lowercase }}
           IMAGE_BRANCH=stable
           KERNEL_FLAVOR=${KERNEL_FLAVOR}
-          KERNEL_VERSION=${KERNEL_VERSION}
+          KERNEL_VERSION=${{ steps.base.outputs.kernel_version }}
+          AKMODS_TAG=${{ steps.base.outputs.akmods_tag }}
           VERSION_TAG=${{ steps.labels.outputs.tag }}
           VERSION_PRETTY=${{ steps.labels.outputs.pretty }}
           EOF

@@ -19,6 +19,12 @@ disable_copr() {
 }
 trap disable_copr EXIT
 
+# If fzf was pre-installed by the base image from Fedora repos, remove it first
+# so the package is cleanly installed from the aahsnr-work/cli-tools COPR repository.
+if rpm -q fzf >/dev/null 2>&1; then
+    dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y remove fzf
+fi
+
 dnf5 -y copr enable "$copr"
 copr_enabled=1
 dnf5 -y config-manager setopt "${repo_id}.priority=1"

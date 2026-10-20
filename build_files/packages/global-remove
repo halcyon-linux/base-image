@@ -13,7 +13,8 @@ for pkg in \
     jupiter-fan-control jupiter-hw-support-btrfs jupiter-sd-mounting-btrfs \
     steamdeck-dsp steamdeck-backgrounds steamdeck-gnome-presets steamdeck-kde-presets \
     inputplumber steamos-manager-powerstation steamos-manager \
-    gamescope-session-ogui-steam powerbuttond vpower sdgyrodsu galileo-mura; do
+    gamescope-session-ogui-steam powerbuttond vpower sdgyrodsu galileo-mura \
+    pinentry-qt; do
     if rpm -q "$pkg" >/dev/null 2>&1; then
         dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y remove "$pkg"
     fi

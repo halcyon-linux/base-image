@@ -4,10 +4,10 @@ Open work first; resolved questions are one-liners, full detail in `git log -p T
 
 ## Open
 
-- [ ] fzf from fedora repo may have been installed. Remove it and install it from my copr repo
+- [x] fzf from fedora repo may have been installed. Remove it and install it from my copr repo (10-20)
 - [x] Remove certain kmods and handheld stuff. (10-20)
-- [ ] Setup gui pinentry using pinentry-tty and/or pinentry-curses
-- [ ] Make everything as automated as much as possible
+- [x] Setup gui pinentry using pinentry-tty and/or pinentry-curses (10-20)
+- [x] Make everything as automated as much as possible: dynamic upstream ogc kernel resolution from ublue-os/bazzite with fallback to pinned version; automated candidate akmods tag presence check on ghcr; unpinned brew:latest in Containerfile with configurable BREW_IMAGE; parameterised AKMODS_TAG in Containerfile. (10-20)
 
 ## Resolved
 
