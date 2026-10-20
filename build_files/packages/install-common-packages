@@ -84,13 +84,12 @@ common_packages=(
     pinentry
     pinentry-gnome3
     pinentry-tty
-    # Utilities the base image does not ship (dnf5 errors on install of an
-    # already installed package, so every name was checked against the base).
     bleachbit
     bluez-tools
     brightnessctl
     cronie
     fail2ban
+    nautilus
     file-roller
     git
     grim
@@ -112,7 +111,6 @@ common_packages=(
     zathura
     zathura-pdf-poppler
     zathura-plugins-all
-    # Toolchains the base image does not ship (python3 is the only one it has).
     cargo
     cmake
     golang

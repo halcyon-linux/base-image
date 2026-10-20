@@ -49,6 +49,7 @@ PACKAGES=(
     noctalia-git
     nwg-displays
     nwg-look
+    papirus-icon-theme
     pyprland
     qt6ct
     xcur2png
