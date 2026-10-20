@@ -335,11 +335,11 @@ verify_base_pkgs() {
         hyprcursor \
         hyprgraphics \
         hyprland-git \
-        hyprland-guitils \
+        hyprland-guiutils \
         hyprland-protocols \
         hyprland-qt-support \
         hyprlang \
-        hyprpwcen \
+        hyprpwcenter \
         hyprshutdown \
         hyprtoolkit \
         hyprutils \
