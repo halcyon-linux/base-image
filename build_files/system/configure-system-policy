@@ -12,6 +12,7 @@ fi
 repositories=(
     fedora-cisco-openh264
     tailscale
+    gh-cli
     _copr_ublue-os-akmods
     terra
     terra-extras

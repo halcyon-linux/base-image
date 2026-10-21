@@ -171,6 +171,7 @@ verify_repos() {
         fedora-multimedia \
         terra terra-extras terra-mesa \
         tailscale-stable \
+        gh-cli \
         'copr:copr.fedorainfracloud.org:ublue-os:bazzite' \
         'copr:copr.fedorainfracloud.org:ublue-os:bazzite-multilib' \
         'copr:copr.fedorainfracloud.org:ublue-os:staging' \
@@ -182,7 +183,7 @@ verify_cli_tools() {
         bun tealdeer uv atuin bat bat-extras eza gnuplot cava pixi \
         xwiimote-ng zoxide asdf fd-find cliphist topgrade fzf fzy kilo \
         chafa dust lazygit pandoc starship yazi zellij opencode marksman \
-        texlab glow direnv ripgrep
+        texlab glow direnv ripgrep gh
 
     require_repos_disabled 'copr:copr.fedorainfracloud.org:aahsnr-work:cli-tools'
 
@@ -950,7 +951,8 @@ verify_final() {
         'brave-browser' \
         'google-chrome' \
         'microsoft-edge' \
-        'vivaldi'
+        'vivaldi' \
+        'gh-cli'
 
     # Negative guards: fonts and waydroid must never reach the published image.
     forbid_rpms \
