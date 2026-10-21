@@ -12,6 +12,9 @@ Open work first; resolved questions are one-liners, full detail in `git log -p T
 - [x] Visible GRUB menu — `configure-grub` sets `GRUB_TIMEOUT=10` / `GRUB_TIMEOUT_STYLE=menu` in `/etc/default/grub`; `verify grub` gates it. (10-20)
 - [x] Missing utilities and toolchains — git, grim/slurp/imv/swappy, zathura*, pipx, fail2ban, lynis, setools-console, udiskie, file-roller, transmission-gtk, igt-gpu-tools, brightnessctl, bleachbit, cronie, inotify-tools, ninja-build, pymol, xdg-user-dirs-gtk, setroubleshoot, direnv, ripgrep, plus nodejs22/cargo/cmake/golang; `neovim` added so the `EDITOR=nvim` default resolves. (10-20)
 
+- [ ] Switch to uwsm and systemd user units
+- [ ] Determine what toggle automatically mounting disks do and what systemd service is responsible for this
+
 ## Resolved
 
 ### Image and tooling
@@ -47,6 +50,7 @@ Open work first; resolved questions are one-liners, full detail in `git log -p T
 - [x] Merge `install-steam-lutris` + `install-gaming-stack` + mesa-git + protonplus — `install-steam-lutris` removed; `install-gaming-stack` enables `aahsnr-work/gaming` at priority=1, installs `protonplus` (+ `heroic-games-launcher`), then disables the repo; `verify final` asserts the COPR is disabled. mesa-git not installed (kept in the COPR for manual use). (10-19/20)
 - [x] chezmoi — RPM installed in `install-common-packages`; `chezmoi-init.service` force-applies `aahsnr-configs/dotfiles` at login (retry on failure), `chezmoi-update.timer` pulls updates, units enabled, `ujust dotfiles` for manual sync; verified in build. (10-19)
 - [x] Flatpak integration — in bootc system flatpaks live in machine-local `/var/lib/flatpak`, so Containerfile installs do not survive. Done declaratively: Flathub remote file `/etc/flatpak/remotes.d/flathub.flatpakrepo` (embedded key, no build-time network), manifest `/usr/share/ublue-os/flatpak/system-flatpaks.list`, `system-flatpak-setup.service` reconciling declared flatpaks into system storage at boot; verified in build. (10-19)
+- [x] Flatpak default policy (supersedes the 10-19 provisioning above) — the image ships **no** flatpak applications: removed the A-026 machinery (`system-flatpaks.list` manifest, `system-flatpak-setup` helper + service, `configure-system-services` entry); only the system Flathub remote remains declared in `/etc/flatpak/remotes.d/flathub.flatpakrepo` and other remote definitions are forbidden in both `remotes.d` dirs; Bazaar stays the dnf-packaged software center (`bazaar` from the `ublue-os:packages` COPR) and `flatpak` stays installed for runtime installs; verify asserts machinery absence, flathub-only remotes, and zero system flatpak apps. Verify updated; build not yet run. (10-22)
 - [x] sddm instead of greetd, only base `zsh` — `sddm` + `sddm-wayland-generic` installed, `sddm.service` enabled, `graphical.target` default, `greetd` purged; auxiliary `zsh-*` plugins removed and forbidden, `/etc/skel/.zshrc` sources only the in-tree `zsh-preexec.zsh`; chezmoi guards use `ConditionUser=!sddm`; verified. (10-19)
 - [x] What `ublue-os/base-main` pre-packages — distrobox, toolbx, flatpak-spawn, podman, `just` (used by ujust), cosign, RPM Fusion Free/Non-Free, Cisco OpenH264, `ublue-os-udev-rules`, alsa-firmware, ffmpeg (+libs, fdk-aac, thumbnailer), heif-pixbuf-loader, apr(-util), fuse, fzf, grub2-tools-extra, htop (purged), CJK Noto fonts (purged). (10-19)
 - [x] Fonts COPR — `build_files/packages/install-fonts` installs the 6 font packages from `aahsnr-work/fonts` at priority=1, weak deps off; `verify fonts`. (10-20)

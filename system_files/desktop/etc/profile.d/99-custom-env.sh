@@ -17,7 +17,7 @@ export BACKUP_DIR="${HOME}/backup"
 
 # Default Applications
 export TERMINAL="kitty"
-export BROWSER="brave"
+export BROWSER="brave-browser"
 export EDITOR="nvim"
 export VISUAL="emacsclient -c -a emacs"
 export PAGER="bat --paging=always --style=plain"

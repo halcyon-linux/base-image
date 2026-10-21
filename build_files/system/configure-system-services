@@ -14,7 +14,6 @@ system_services=(
     greenboot-set-rollback-trigger.service
     dmemcg-booster-system.service
     cardwired.service
-    system-flatpak-setup.service
     sddm.service
     var-nix.service
     nix.mount

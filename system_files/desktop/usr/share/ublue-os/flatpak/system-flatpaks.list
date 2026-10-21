@@ -1,9 +1,0 @@
-# Halcyon System Flatpaks Manifest
-# List application IDs here (one per line) to automatically provision them
-# system-wide on boot. Lines starting with '#' are ignored.
-#
-# Examples:
-# org.mozilla.firefox
-# com.github.tchx84.Flatseal
-# org.gnome.Firmware
-

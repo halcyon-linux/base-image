@@ -28,6 +28,7 @@ python_packages=(
     boot-remount
     brh
     bruh
+    commitpickle
     crh
     dlss-swapper
     dump-to-markdown

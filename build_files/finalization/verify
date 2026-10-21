@@ -264,7 +264,7 @@ verify_common_packages() {
         cardwire-gui \
         pinentry pinentry-gnome3 pinentry-tty \
         bleachbit bluez-tools brightnessctl cronie fail2ban file-roller git \
-        grim gtk4-layer-shell igt-gpu-tools imv inotify-tools lynis \
+        grim gtk4-layer-shell igt-gpu-tools imv inotify-tools lynis nautilus \
         ninja-build pipx pymol setools-console setroubleshoot slurp swappy \
         transmission-gtk udiskie xdg-user-dirs-gtk zathura zathura-pdf-poppler \
         zathura-plugins-all \
@@ -707,7 +707,7 @@ verify_services() {
         brew-setup.service input-remapper.service uupd.timer hardware-setup.service \
         dev-hugepages1G.mount libvirtd.service ds-inhibit.service \
         greenboot-healthcheck.service greenboot-set-rollback-trigger.service \
-        dmemcg-booster-system.service cardwired.service system-flatpak-setup.service \
+        dmemcg-booster-system.service cardwired.service \
         sddm.service; do
         if [[ -e "/etc/systemd/system/multi-user.target.wants/$svc" || \
               -e "/etc/systemd/system/display-manager.service" || \
@@ -1134,7 +1134,6 @@ verify_final() {
         /usr/lib/systemd/system/greenboot-set-rollback-trigger.service \
         /usr/lib/systemd/system/dmemcg-booster-system.service \
         /usr/lib/systemd/system/uupd.timer \
-        /usr/lib/systemd/system/system-flatpak-setup.service \
         /usr/lib/systemd/system/sddm.service \
         /usr/lib/systemd/system/var-nix.service \
         /usr/lib/systemd/system/nix.mount \
@@ -1232,36 +1231,52 @@ verify_final() {
         fail "chezmoi-update missing --no-tty --force"
     fi
 
-    # Flatpak system configuration and provisioning
+    # Flatpak policy: no applications provisioned, system Flathub remote only,
+    # Bazaar (dnf) is the software center.
     if [[ -f /etc/flatpak/remotes.d/flathub.flatpakrepo ]] && grep -qF 'https://dl.flathub.org/repo/' /etc/flatpak/remotes.d/flathub.flatpakrepo 2>/dev/null; then
         pass "flathub.flatpakrepo remote definition present"
     else
         fail "flathub.flatpakrepo missing or invalid"
     fi
 
-    if [[ -f /usr/share/ublue-os/flatpak/system-flatpaks.list ]]; then
-        pass "system-flatpaks.list manifest present"
+    local extraflatremote
+    extraflatremote=$(find /etc/flatpak/remotes.d -maxdepth 1 -type f ! -name flathub.flatpakrepo 2>/dev/null || true)
+    if [[ -n "$extraflatremote" ]]; then
+        fail "unexpected remote definitions in /etc/flatpak/remotes.d (only flathub is allowed): $extraflatremote"
     else
-        fail "system-flatpaks.list manifest missing"
+        pass "/etc/flatpak/remotes.d declares only flathub"
     fi
 
-    if [[ -x /usr/libexec/system-flatpak-setup ]]; then
-        pass "system-flatpak-setup helper present and executable"
-    else
-        fail "system-flatpak-setup helper missing or not executable"
+    if [[ -d /usr/share/flatpak/remotes.d ]]; then
+        extraflatremote=$(find /usr/share/flatpak/remotes.d -maxdepth 1 -type f ! -name flathub.flatpakrepo 2>/dev/null || true)
+        if [[ -n "$extraflatremote" ]]; then
+            fail "unexpected remote definitions in /usr/share/flatpak/remotes.d (only flathub is allowed): $extraflatremote"
+        else
+            pass "/usr/share/flatpak/remotes.d declares only flathub"
+        fi
     fi
 
-    if [[ -e /usr/lib/systemd/system/system-flatpak-setup.service ]]; then
-        pass "system-flatpak-setup.service present"
+    local flatpak_artifact
+    for flatpak_artifact in \
+        /usr/share/ublue-os/flatpak/system-flatpaks.list \
+        /usr/libexec/system-flatpak-setup \
+        /usr/lib/systemd/system/system-flatpak-setup.service \
+        /etc/systemd/system/multi-user.target.wants/system-flatpak-setup.service; do
+        if [[ -e "$flatpak_artifact" ]]; then
+            fail "removed flatpak provisioning artifact present: $flatpak_artifact"
+        else
+            pass "flatpak provisioning artifact absent: $flatpak_artifact"
+        fi
+    done
+
+    local system_flatpaks
+    if system_flatpaks=$(flatpak list --system --app --columns=application 2>/dev/null || true) && [[ -n "$system_flatpaks" ]]; then
+        fail "system flatpak applications installed by default: $system_flatpaks"
     else
-        fail "system-flatpak-setup.service missing"
+        pass "no system flatpak applications installed"
     fi
 
-    if [[ -e /etc/systemd/system/multi-user.target.wants/system-flatpak-setup.service ]]; then
-        pass "system-flatpak-setup.service enabled"
-    else
-        fail "system-flatpak-setup.service not enabled"
-    fi
+    require_rpms bazaar flatpak
 
     # /opt directory layout: must be an immutable directory in root, not a symlink to /var/opt
     if [[ -d /opt && ! -L /opt ]]; then
