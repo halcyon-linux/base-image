@@ -1219,10 +1219,20 @@ verify_final() {
     done
 
     if grep -qF 'aahsnr-configs/dotfiles' /usr/lib/systemd/user/chezmoi-init.service 2>/dev/null && \
-       grep -qF -- '--force' /usr/lib/systemd/user/chezmoi-init.service 2>/dev/null; then
-        pass "chezmoi-init targets aahsnr-configs/dotfiles with --force"
+       grep -qF -- '--force' /usr/lib/systemd/user/chezmoi-init.service 2>/dev/null && \
+       grep -qF -- '--ssh' /usr/lib/systemd/user/chezmoi-init.service 2>/dev/null && \
+       grep -qF 'core.sshCommand' /usr/lib/systemd/user/chezmoi-init.service 2>/dev/null; then
+        pass "chezmoi-init targets aahsnr-configs/dotfiles with --ssh, --force and the core.sshCommand pin"
     else
-        fail "chezmoi-init does not properly configure dotfiles repository or --force"
+        fail "chezmoi-init does not configure the dotfiles repository over SSH correctly"
+    fi
+
+    if [[ -f /etc/ssh/ssh_config.d/10-halcyon-github.conf ]] && \
+       grep -qF 'Host github.com' /etc/ssh/ssh_config.d/10-halcyon-github.conf 2>/dev/null && \
+       grep -qF 'id_ed25519_aahsnr_configs' /etc/ssh/ssh_config.d/10-halcyon-github.conf 2>/dev/null; then
+        pass "system-wide default github.com SSH identity present"
+    else
+        fail "system-wide default github.com SSH identity missing or wrong key"
     fi
 
     if grep -qF -- '--no-tty --force' /usr/lib/systemd/user/chezmoi-update.service 2>/dev/null; then
