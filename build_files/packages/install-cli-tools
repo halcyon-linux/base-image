@@ -63,6 +63,8 @@ cli_tools_packages=(
     # Not carried by the cli-tools COPR, so these come from Fedora.
     direnv
     ripgrep
+    # Comes from the gh-cli repository added by setup-repositories.
+    gh
 )
 
 # Terra ships a newer fzy release (fzy-1.1-2.fc44), so it has to be pushed

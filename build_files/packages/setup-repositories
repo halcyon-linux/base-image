@@ -39,6 +39,10 @@ dnf5 -y config-manager addrepo \
     --overwrite \
     --from-repofile=https://pkgs.tailscale.com/stable/fedora/tailscale.repo
 
+dnf5 -y config-manager addrepo \
+    --overwrite \
+    --from-repofile=https://cli.github.com/packages/rpm/gh-cli.repo
+
 if [[ -f /etc/yum.repos.d/negativo17-fedora-multimedia.repo ]]; then
     sed -i 's@enabled=0@enabled=1@g' \
         /etc/yum.repos.d/negativo17-fedora-multimedia.repo
