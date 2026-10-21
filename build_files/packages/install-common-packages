@@ -16,107 +16,106 @@ dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y 
 dnf5 -y copr disable bieszczaders/kernel-cachyos-addons
 
 common_packages=(
-    zsh
-    sddm
-    sddm-wayland-generic
-    chezmoi
-    bpftune-gaming
-    fuse-libs
-    uld
-    bazaar
-    mission-center
-    greenboot
-    greenboot-default-health-checks
-    ublue-os-selinux-workarounds
-    bazzite-updater
-    ScopeBuddy
-    python3-pip
-    libadwaita
-    xwininfo
-    compsize
-    input-remapper
-    libinput-utils
-    i2c-tools
-    lm_sensors
-    udica
-    ladspa-caps-plugins
-    pipewire-module-filter-chain-sofa
-    python3-icoextract
-    tailscale
-    webapp-manager
-    btop
-    duf
-    lshw
-    yad
-    f3
-    lzip
     7zip
-    unrar
-    libxcrypt-compat
-    vulkan-tools
-    vulkan-low-latency-layer
-    fastfetch
+    bazaar
+    bazzite-portal
+    bazzite-updater
+    bleachbit
+    bluez-tools
+    bpftune-gaming
+    brightnessctl
+    btop
+    btrfs-assistant
+    cargo
+    chezmoi
+    cmake
+    cockpit-files
     cockpit-networkmanager
     cockpit-podman
     cockpit-selinux
-    cockpit-system
-    cockpit-files
     cockpit-storaged
-    ydotool
-    stress-ng
-    snapper
-    btrfs-assistant
-    edk2-ovmf
-    lsb_release
-    uupd
-    ds-inhibit
-    bazzite-portal
-    kernel-tools
-    kmod
-    ls-iommu
-    virt-manager
-    virt-install
-    libvirt-daemon
-    libvirt-daemon-kvm
-    libvirt-daemon-config-network
-    libvirt-daemon-config-nwfilter
-    virtiofsd
-    pinentry
-    pinentry-gnome3
-    pinentry-tty
-    bleachbit
-    bluez-tools
-    brightnessctl
+    cockpit-system
+    compsize
     cronie
+    ds-inhibit
+    duf
+    edk2-ovmf
+    f3
     fail2ban
-    nautilus
+    fastfetch
     file-roller
+    fuse-libs
     git
+    golang
+    greenboot
+    greenboot-default-health-checks
     grim
     gtk4-layer-shell
+    i2c-tools
     igt-gpu-tools
     imv
     inotify-tools
+    input-remapper
+    kernel-tools
+    kmod
+    ladspa-caps-plugins
+    libadwaita
+    libinput-utils
+    libvirt-daemon
+    libvirt-daemon-config-network
+    libvirt-daemon-config-nwfilter
+    libvirt-daemon-kvm
+    libxcrypt-compat
+    lm_sensors
+    ls-iommu
+    lsb_release
+    lshw
     lynis
+    lzip
+    mission-center
+    nautilus
     ninja-build
+    nodejs22
+    nodejs22-npm
+    pinentry
+    pinentry-gnome3
+    pinentry-tty
+    pipewire-module-filter-chain-sofa
     pipx
     pymol
+    python3-icoextract
+    python3-pip
+    ScopeBuddy
+    sddm
+    sddm-wayland-generic
     setools-console
     setroubleshoot
     slurp
+    snapper
+    stress-ng
     swappy
+    tailscale
     transmission-gtk
+    ublue-os-selinux-workarounds
+    udica
     udiskie
+    uld
+    unrar
+    uupd
+    virt-install
+    virt-manager
+    virtiofsd
+    vulkan-low-latency-layer
+    vulkan-tools
+    webapp-manager
     xdg-user-dirs-gtk
+    xwininfo
+    yad
+    ydotool
     zathura
     zathura-pdf-poppler
     zathura-plugins-all
-    cargo
-    cmake
-    golang
-    nodejs22
-    nodejs22-npm
-    udiskie
+    zsh
 )
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y install "${common_packages[@]}"
 
