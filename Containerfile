@@ -57,6 +57,14 @@ ARG KERNEL_VERSION
 # Keep the shared Bazzite configuration in the image root.
 COPY system_files/desktop/ /
 
+# Install the dnf5 retry shim before the first dnf transaction. The kernel
+# install runs before repository setup, and upstream metadata can be stale
+# immediately after a repo republishes; without the shim that RUN gets no retries.
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    usr_local=$(readlink -f /usr/local) && \
+    mkdir -p "$usr_local/bin" && \
+    install -m0755 /ctx/shared/dnf5 "$usr_local/bin/dnf5"
+
 # Use the standalone files exposed by the Homebrew image's /system_files tree.
 COPY --from=brew /system_files/ /tmp/brew_files/
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
@@ -80,9 +88,6 @@ RUN --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
-    usr_local=$(readlink -f /usr/local) && \
-    mkdir -p "$usr_local/bin" && \
-    install -m0755 /ctx/shared/dnf5 "$usr_local/bin/dnf5" && \
     /ctx/packages/setup-repositories && \
     /ctx/finalization/verify repos && \
     /ctx/shared/cleanup

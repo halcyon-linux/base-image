@@ -27,7 +27,11 @@ done
 # cleanup leftovers that are not covered by kernel-* packages for some reason
 rm -rf /usr/lib/modules
 
-dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y install \
+# The Cisco openh264 repo is optional for this transaction and has served
+# stale repomd metadata that aborts dependency resolution; don't let an
+# upstream mirror hiccup block the kernel swap.
+dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' \
+    --disable-repo=fedora-cisco-openh264 -y install \
     /tmp/kernel-rpms/kernel-[0-9]*.rpm \
     /tmp/kernel-rpms/kernel-core-*.rpm \
     /tmp/kernel-rpms/kernel-modules-*.rpm \

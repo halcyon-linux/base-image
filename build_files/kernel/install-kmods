@@ -10,7 +10,8 @@ for pattern in "$@"; do
 done
 
 if [[ ${#INSTALL_RPMS[@]} -gt 0 ]]; then
-    dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y install "${INSTALL_RPMS[@]}"
+    dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' \
+        --disable-repo=fedora-cisco-openh264 -y install "${INSTALL_RPMS[@]}"
 else
     echo "WARNING: No kmod RPMs found"
 fi
