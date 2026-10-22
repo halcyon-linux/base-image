@@ -247,6 +247,61 @@ bootc status           # booted / staged / rollback deployments
 - `uupd.timer` is enabled. `rpm-ostreed-automatic.timer` is disabled and `AutomaticUpdatePolicy=none`, so `uupd` is the only automatic updater.
 - Recent changes: `ujust changelogs` opens the commit history of the `containerfile` branch.
 
+### Updating to an unverified / development image (one-time)
+
+If you need to switch to the `:latest` tag or a local build **before** the signature is published (e.g., testing a PR build), use the unverified transport. This skips container signature policy checks for that rebase only; your existing verified deployment remains available for rollback.
+
+```bash
+# Check current status
+rpm-ostree status
+
+# Rebase to :latest via unverified transport (skips signature verification for this rebase)
+sudo rpm-ostree rebase ostree-unverified-registry:ghcr.io/halcyon-linux/alcyone:latest
+
+# Or rebase to a local build
+sudo rpm-ostree rebase ostree-unverified-registry:localhost/alcyone-build:44-containerfile
+
+# Reboot into the new deployment
+sudo systemctl reboot
+```
+
+> **Note:** `bootc switch` does not have an `--unverified` flag. Use `rpm-ostree rebase ostree-unverified-registry:…` for the one-time switch, then `bootc` will track that deployment going forward. `bootc upgrade` and `bootc rollback` work normally afterward.
+
+### CVE-2026-16487 mitigation (mutable tags and automatic updates)
+
+A vulnerability (CVE-2026-16487, published 2026-10-19) allows automatic updates of mutable tags (`:latest`, `:stable`) to apply unsigned content under the default containers policy. The image's `AutomaticUpdatePolicy=none` and disabled `rpm-ostreed-automatic.timer` mitigate this, but for defense-in-depth:
+
+```bash
+# 1. Pin bootc updates to digests (recommended)
+#    Instead of: sudo bootc switch ghcr.io/halcyon-linux/alcyone:latest
+#    Use: sudo bootc switch ghcr.io/halcyon-linux/alcyone@sha256:<DIGEST>
+
+# 2. Harden /etc/containers/policy.json to reject unsigned by default
+#    (merge into your existing policy.json; do not overwrite)
+sudo tee /etc/containers/policy.json <<'EOF'
+{
+  "default": [{"type": "reject"}],
+  "transports": {
+    "docker": {
+      "ghcr.io/halcyon-linux": [{
+        "type": "sigstoreSigned",
+        "keyPath": "/etc/pki/containers/halcyon-linux.pub",
+        "signedIdentity": { "type": "matchRepository" }
+      }]
+    }
+  }
+}
+EOF
+
+# Install the verification key (from this repo's cosign.pub)
+sudo install -Dm0644 cosign.pub /etc/pki/containers/halcyon-linux.pub
+
+# 3. Disable automatic updates timer (already done in this image)
+systemctl disable --now bootc-fetch-apply-updates.timer 2>/dev/null || true
+```
+
+> **Reference:** CVE-2026-16487 workaround — "Pin bootc updates to image digests, or configure `/etc/containers/policy.json` to reject unsigned content by default and allow only explicitly trusted signed scopes. Until policy is hardened, disable automatic updates (`bootc-fetch-apply-updates.timer`)."
+
 ### Rollback
 
 ```bash
