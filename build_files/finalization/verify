@@ -1220,11 +1220,11 @@ verify_final() {
 
     if grep -qF 'aahsnr-configs/dotfiles' /usr/lib/systemd/user/chezmoi-init.service 2>/dev/null && \
        grep -qF -- '--force' /usr/lib/systemd/user/chezmoi-init.service 2>/dev/null && \
-       grep -qF -- '--ssh' /usr/lib/systemd/user/chezmoi-init.service 2>/dev/null && \
+       grep -qF 'pushInsteadOf' /usr/lib/systemd/user/chezmoi-init.service 2>/dev/null && \
        grep -qF 'core.sshCommand' /usr/lib/systemd/user/chezmoi-init.service 2>/dev/null; then
-        pass "chezmoi-init targets aahsnr-configs/dotfiles with --ssh, --force and the core.sshCommand pin"
+        pass "chezmoi-init clones aahsnr-configs/dotfiles anonymously (HTTPS) and pins SSH pushes"
     else
-        fail "chezmoi-init does not configure the dotfiles repository over SSH correctly"
+        fail "chezmoi-init does not pin the HTTPS-pull / SSH-push policy for aahsnr-configs/dotfiles"
     fi
 
     if [[ -f /etc/ssh/ssh_config.d/10-halcyon-github.conf ]] && \

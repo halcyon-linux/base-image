@@ -3,22 +3,26 @@ Description=Initialize chezmoi dotfiles from aahsnr-configs/dotfiles
 ConditionUser=!@system
 ConditionUser=!sddm
 ConditionPathExists=!%h/.local/share/chezmoi/.git/
+# Five attempts across five minutes, then give up until the next boot/login
+# (e.g. while SSH keys or network are still missing).
+StartLimitIntervalSec=5m
+StartLimitBurst=5
 
 [Service]
 Type=oneshot
-# --ssh: clone over SSH (git@github.com). The plain github.com identity is the
-# aahsnr-configs key, provided system-wide by
-# /etc/ssh/ssh_config.d/10-halcyon-github.conf so the initial clone also works
-# on fresh machines (the repo does not exist yet to carry core.sshCommand).
-ExecStart=/usr/bin/chezmoi init --apply --force --ssh aahsnr-configs/dotfiles
-# The working copy lives outside git-setup's includeIf tree (~/Git/<account>),
-# so pin the aahsnr-configs SSH command into the repo itself (idempotent;
-# matches the per-account setup of ~/.bin/git-setup).
+# Clone over plain HTTPS: the dotfiles repo is public, so first-login init needs
+# no keys, agent, or credentials at all. Pulls (chezmoi update / the daily timer)
+# ride the same anonymous HTTPS path, so automated units never need credentials.
+ExecStart=/usr/bin/chezmoi init --apply --force aahsnr-configs/dotfiles
+# Pushes are rewritten to SSH (git@github.com:aahsnr-configs/...), so only
+# manual, interactive pushes touch SSH keys.
+ExecStartPost=/usr/bin/git -C %h/.local/share/chezmoi config url.git@github.com:aahsnr-configs/.pushInsteadOf https://github.com/aahsnr-configs/
+# Belt and braces for any SSH traffic from this repo: pin the aahsnr-configs key
+# here because the working copy sits outside git-setup's includeIf tree
+# (~/.local/share/chezmoi is not under ~/Git/<account>/).
 ExecStartPost=/usr/bin/git -C %h/.local/share/chezmoi config core.sshCommand "ssh -i %h/.ssh/id_ed25519_aahsnr_configs -o IdentitiesOnly=yes -o AddKeysToAgent=yes"
 Restart=on-failure
 RestartSec=15s
-StartLimitIntervalSec=5m
-StartLimitBurst=5
 TimeoutStartSec=600
 
 [Install]
