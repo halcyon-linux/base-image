@@ -11,14 +11,17 @@ ARG FEDORA_VERSION="${FEDORA_VERSION:-44}"
 ARG BASE_IMAGE="${BASE_IMAGE:-ghcr.io/ublue-os/base-main:${FEDORA_VERSION}}"
 # Kernel modification flavor (ogc = Open Gaming Collective / fsync gaming kernel)
 ARG KERNEL_FLAVOR="${KERNEL_FLAVOR:-ogc}"
-# Exact kernel version matching pre-built akmods images
-ARG KERNEL_VERSION="${KERNEL_VERSION:-7.2.7-ogc1.1.fc${FEDORA_VERSION}}"
-# Combined akmods tag used across all akmods input stages
-ARG AKMODS_TAG="${AKMODS_TAG:-${KERNEL_FLAVOR}-${FEDORA_VERSION}-${KERNEL_VERSION}}"
+# Exact kernel version matching the selected akmods images. Resolved by the
+# build tooling from the newest published tag; empty skips the version check.
+ARG KERNEL_VERSION=""
+# Combined akmods tag used across all akmods input stages. The local build
+# scripts and CI pass the exact newest complete tag; a bare podman build falls
+# back to the upstream floating tag so it still tracks the latest kernel.
+ARG AKMODS_TAG="${AKMODS_TAG:-${KERNEL_FLAVOR}-${FEDORA_VERSION}-x86_64}"
 # Homebrew standalone root image
 ARG BREW_IMAGE="${BREW_IMAGE:-ghcr.io/ublue-os/brew:latest}"
 
-# Pull the pre-compiled kernel and akmods rpms for the pinned kernel version
+# Pull the pre-compiled kernel and akmods rpms for the selected akmods tag
 FROM ghcr.io/ublue-os/akmods:${AKMODS_TAG} AS akmods
 # Pull the akmods-extra trees (device-specific kmods and their userspace parts;
 # only nct6687d is installed, see build_files/kernel/install-kernel-akmods)

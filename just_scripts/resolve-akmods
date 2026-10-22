@@ -1,0 +1,71 @@
+#!/usr/bin/bash
+# Resolve the newest published akmods tag for a kernel flavor whose
+# akmods-extra payload really contains the required device kmod.
+#
+# Prints the exact tag on stdout; progress goes to stderr so callers can use
+# command substitution. The tag encodes the kernel version, e.g.
+# ogc-44-7.2.11-ogc1.1.fc44.
+
+set -Eeuo pipefail
+
+flavor=${1:-ogc}
+fedora=${2:-44}
+arch=${3:-$(uname -m)}
+required_kmod=${4:-nct6687d}
+
+repo_base=ghcr.io/ublue-os
+tags_repo=akmods-extra
+
+creds=()
+if [[ -n ${GITHUB_TOKEN:-} ]]; then
+    creds=(--creds="${GITHUB_ACTOR:-x-access-token}:${GITHUB_TOKEN}")
+fi
+
+skopeo_inspect() {
+    skopeo inspect --retry-times 2 "${creds[@]}" "docker://$1" >/dev/null 2>&1
+}
+
+tag_has_kmod() {
+    local tag=$1
+    local ref="${repo_base}/${tags_repo}:${tag}"
+    local cid status=1
+
+    podman pull --quiet "${ref}" >/dev/null 2>&1 || return 1
+    cid=$(podman create "${ref}") || return 1
+    if podman export "${cid}" | tar -tf - | grep -F -- "${required_kmod}" >/dev/null; then
+        status=0
+    fi
+    podman rm -f "${cid}" >/dev/null 2>&1 || true
+    return "${status}"
+}
+
+tag_complete() {
+    local tag=$1 repo
+    for repo in akmods akmods-extra akmods-nvidia-open; do
+        if ! skopeo_inspect "${repo_base}/${repo}:${tag}"; then
+            printf 'Skipping %s: %s is not published.\n' "${tag}" "${repo}" >&2
+            return 1
+        fi
+    done
+    tag_has_kmod "${tag}"
+}
+
+mapfile -t tags < <(
+    skopeo list-tags --retry-times 2 "${creds[@]}" "docker://${repo_base}/${tags_repo}" |
+        jq -r '.Tags[]' |
+        grep -E "^${flavor}-${fedora}-[0-9]" |
+        grep -v "\\.${arch}$" |
+        sort -Vr
+)
+
+for tag in "${tags[@]}"; do
+    printf 'Checking akmods tag: %s\n' "${tag}" >&2
+    if tag_complete "${tag}"; then
+        printf '%s\n' "${tag}"
+        exit 0
+    fi
+done
+
+printf 'No published %s tag for %s-%s ships %s; refusing to build.\n' \
+    "${tags_repo}" "${flavor}" "${fedora}" "${required_kmod}" >&2
+exit 1

@@ -25,7 +25,6 @@ env:
   REPO_OWNER: ${{ github.repository_owner }}
   FEDORA_VERSION: "44"
   KERNEL_FLAVOR: "ogc"
-  KERNEL_VERSION: "7.2.7-ogc1.1.fc44"
   IMAGE_NAME: "alcyone"
   PULL_REGISTRY: "ghcr.io/ublue-os"
 
@@ -71,97 +70,12 @@ jobs:
           # only when its akmods-extra image really carries the kmod RPMs.
           REQUIRED_KMOD='nct6687d'
 
-          akmods_tag_has_kmod() {
-            local tag="$1" cid status=1
-            podman pull --quiet "ghcr.io/ublue-os/akmods-extra:${tag}" >/dev/null 2>&1 || return 1
-            cid="$(podman create "ghcr.io/ublue-os/akmods-extra:${tag}")" || return 1
-            if podman export "$cid" | tar -tf - | grep -F -- "${REQUIRED_KMOD}" >/dev/null; then
-              status=0
-            fi
-            podman rm "$cid" >/dev/null 2>&1 || true
-            return "${status}"
-          }
-
-          akmods_tag_complete() {
-            local tag="$1" repo
-            for repo in akmods akmods-extra akmods-nvidia-open; do
-              if ! skopeo inspect --retry-times 2 --creds="${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}" \
-                   "docker://ghcr.io/ublue-os/${repo}:${tag}" >/dev/null 2>&1; then
-                echo "ghcr.io/ublue-os/${repo}:${tag} is not published."
-                return 1
-              fi
-            done
-            akmods_tag_has_kmod "${tag}"
-          }
-
-          # Dynamically resolve latest upstream ogc kernel version from ublue-os/bazzite
-          RESOLVED_KVER=$(python3 - << 'EOF'
-          import os, sys, urllib.request, json, base64, re
-
-          token = os.environ.get("GITHUB_TOKEN", "")
-          headers = {"User-Agent": "Mozilla/5.0"}
-          if token:
-              headers["Authorization"] = f"Bearer {token}"
-
-          flavor = os.environ.get("KERNEL_FLAVOR", "ogc")
-          fallback = os.environ.get("KERNEL_VERSION", "")
-
-          resolved = None
-          try:
-              req = urllib.request.Request(
-                  "https://api.github.com/repos/ublue-os/bazzite/contents/.github/workflows/build.yml",
-                  headers=headers
-              )
-              with urllib.request.urlopen(req, timeout=15) as resp:
-                  data = json.loads(resp.read().decode())
-                  content = base64.b64decode(data["content"]).decode()
-                  # The flavor must match exactly: "ogc" also matches "ogc-lts".
-                  m = re.search(rf"kernel_flavor:[ \t]*{re.escape(flavor)}[ \t]*\n[ \t]*kernel_version:[ \t]*([^\s]+)", content)
-                  if m:
-                      resolved = m.group(1).strip()
-          except Exception as e:
-              print(f"Notice: Failed to query upstream bazzite workflow: {e}", file=sys.stderr)
-
-          if resolved:
-              print(resolved)
-          else:
-              print(fallback)
-          EOF
-          )
-
-          # Candidate 1: the kernel version bazzite pins for this flavor.
-          candidates=("${KERNEL_FLAVOR}-${FEDORA_VERSION}-${RESOLVED_KVER}")
-
-          # Candidate 2: the newest kernel upstream published for this flavor.
-          NEWEST_TAG=$(skopeo list-tags --retry-times 2 \
-            --creds="${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}" \
-            "docker://ghcr.io/ublue-os/akmods-extra" 2>/dev/null \
-            | jq -r '.Tags[]' \
-            | grep -E "^${KERNEL_FLAVOR}-${FEDORA_VERSION}-[0-9]" \
-            | grep -v '\.x86_64$' \
-            | sort -V \
-            | tail -n 1)
-          if [ -n "${NEWEST_TAG}" ]; then
-            candidates+=("${NEWEST_TAG}")
-          fi
-
-          # Candidate 3: the kernel pinned in this workflow, known to ship the kmod.
-          candidates+=("${KERNEL_FLAVOR}-${FEDORA_VERSION}-${KERNEL_VERSION}")
-
-          AKMODS_TAG=''
-          for tag in "${candidates[@]}"; do
-            echo "Checking akmods tag: ${tag}"
-            if akmods_tag_complete "${tag}"; then
-              AKMODS_TAG="${tag}"
-              break
-            fi
-            echo "akmods tag ${tag} is incomplete; trying the next candidate."
-          done
-
-          if [ -z "${AKMODS_TAG}" ]; then
-            echo "No published akmods tag ships ${REQUIRED_KMOD}; refusing to build without the board kmod." >&2
-            exit 1
-          fi
+          # Walk published tags newest-first and select the first complete one
+          # whose akmods-extra payload ships the required kmod. This deliberately
+          # ignores the Containerfile defaults: the workflow must always build
+          # the latest usable kernel, not the version pinned in the repository.
+          AKMODS_TAG="$(just_scripts/resolve-akmods \
+            "${KERNEL_FLAVOR}" "${FEDORA_VERSION}" x86_64 "${REQUIRED_KMOD}")"
 
           FINAL_KVER="${AKMODS_TAG#"${KERNEL_FLAVOR}-${FEDORA_VERSION}-"}"
           echo "Selected akmods tag ${AKMODS_TAG} (kernel ${FINAL_KVER})."

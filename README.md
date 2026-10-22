@@ -39,7 +39,7 @@ The local Just defaults build the published image target:
 just build
 ```
 
-The Containerfile starts from `base-main`, installs the shared gaming and system packages, then applies NVIDIA driver setup and finalization. The source for those build steps is under `build_files/`.
+The Containerfile starts from `base-main`, installs the shared gaming and system packages, then applies NVIDIA driver setup and finalization. The source for those build steps is under `build_files/`. Both `just build` and the GitHub workflow resolve the newest published OGC akmods tag that actually carries the required `nct6687d` kmod; CI passes that exact tag (and its kernel version) to the build instead of relying on a version pinned in the Containerfile.
 
 ## Workflows
 
