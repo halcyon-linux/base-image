@@ -34,6 +34,7 @@ FROM ${BREW_IMAGE} AS brew
 # Build context helper: isolates build scripts so they can be bind-mounted without polluting image layers
 FROM scratch AS ctx
 COPY build_files /
+COPY packages.json /
 
 ################
 # BAZZITE BASE
