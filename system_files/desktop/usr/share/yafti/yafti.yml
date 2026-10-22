@@ -24,7 +24,7 @@ screens:
     actions:
       - id: "android-platform-tools"
         title: "Android Platform Tools"
-        description: "Command-line tools for interfacing with the Android operating system — intalled using Brew."
+        description: "Command-line tools for interfacing with the Android operating system — installed using Brew."
         default: false
         script: 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" && brew install --cask android-platform-tools'
       - id: "antigravity-linux"
@@ -32,18 +32,6 @@ screens:
         description: "AI-powered IDE from Google — installed using Brew."
         default: false
         script: 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" && brew trust ublue-os/tap && brew tap ublue-os/tap && brew install --cask antigravity-linux'
-      - id: "asus"
-        title: "asusctl & ROG Control Center"
-        description: "Utilities for management of ASUS hardware."
-        default: false
-        status_script: "ujust asus status"
-        options:
-          - id: "install"
-            label: "Install asusctl & ROG Control Center"
-            script: 'ujust asus install; status=$?; echo; echo "Press Enter to close..."; read -r _; exit $status'
-          - id: "uninstall"
-            label: "Uninstall asusctl & ROG Control Center"
-            script: 'ujust asus uninstall; status=$?; echo; echo "Press Enter to close..."; read -r _; exit $status'
       - id: "bazzite-cli"
         title: "Bazzite CLI"
         description: "Setup a Bluefin-style command-line interface (CLI) experience with various utilities."
@@ -67,18 +55,6 @@ screens:
           - id: "uninstall"
             label: "Uninstall Boxtron"
             script: 'ujust install-boxtron uninstall; status=$?; echo; echo "Press Enter to close..."; read -r _; exit $status'
-      - id: "coolercontrol"
-        title: "CoolerControl"
-        description: "Software center for surveying sensors and setting up thermal profiles."
-        default: false
-        status_script: "ujust install-coolercontrol status"
-        options:
-          - id: "install"
-            label: "Install CoolerControl"
-            script: 'ujust install-coolercontrol install; status=$?; echo; echo "Press Enter to close..."; read -r _; exit $status'
-          - id: "uninstall"
-            label: "Uninstall CoolerControl"
-            script: 'ujust install-coolercontrol uninstall; status=$?; echo; echo "Press Enter to close..."; read -r _; exit $status'
       - id: "jetbrains-toolbox-linux"
         title: "JetBrains Toolbox"
         description: "Utility for managing IDE installs from JetBrains — installed using Brew."
@@ -101,42 +77,6 @@ screens:
           - id: "uninstall"
             label: "Uninstall «lsfg-vk v2»"
             script: 'ujust get-lsfg uninstall; status=$?; echo; echo "Press Enter to close..."; read -r _; exit $status'
-      - id: "openrazer"
-        title: "OpenRazer"
-        description: "Community-led Linux support software for Razer gaming hardware."
-        default: false
-        status_script: "ujust install-openrazer status"
-        options:
-          - id: "install"
-            label: "Install OpenRazer"
-            script: 'ujust install-openrazer install; status=$?; echo; echo "Press Enter to close..."; read -r _; exit $status'
-          - id: "uninstall"
-            label: "Uninstall All"
-            script: 'ujust install-openrazer uninstall; status=$?; echo; echo "Press Enter to close..."; read -r _; exit $status'
-      - id: "openrgb"
-        title: "OpenRGB"
-        description: "Vendor agnostic, open source RGB lighting control."
-        default: false
-        status_script: "ujust openrgb status"
-        options:
-          - id: "install"
-            label: "Install OpenRGB"
-            script: "ujust openrgb install"
-          - id: "uninstall"
-            label: "Uninstall OpenRGB"
-            script: "ujust openrgb uninstall"
-      - id: "opentabletdriver"
-        title: "OpenTabletDriver"
-        description: "Open source, configurable, and highly compatible drawing tablet driver."
-        default: false
-        status_script: "ujust opentabletdriver status"
-        options:
-          - id: "install"
-            label: "Install OpenTabletDriver"
-            script: "ujust opentabletdriver install"
-          - id: "uninstall"
-            label: "Uninstall OpenTabletDriver"
-            script: "ujust opentabletdriver uninstall"
       - id: "resilio-sync"
         title: "Resilio Sync"
         description: "File synchronization utility powered by BitTorrent."
@@ -146,8 +86,8 @@ screens:
           - id: "install"
             label: "Install Resilio Sync"
             script: "ujust resilio-sync install"
-          - id: "Uninstall Resilio Sync"
-            label: "Uninstall"
+          - id: "uninstall"
+            label: "Uninstall Resilio Sync"
             script: "ujust resilio-sync uninstall"
       - id: "steamcmd"
         title: "SteamCMD"
@@ -371,18 +311,6 @@ screens:
           - id: "disable"
             label: "Disable Autoupgrading FSR"
             script: "ujust global-fsr4 disable"
-      - id: "configure-amd-hdmi21"
-        title: "Enable HDMI 2.1 for AMD graphics cards"
-        description: "Set a kernel argument for booting AMD graphics with additional functionality. Currently, this may induce flickering and/or signal instability to some displays."
-        status_script: "ujust configure-amd-hdmi21 status"
-        default: false
-        options:
-          - id: "enable"
-            label: "Enable HDMI 2.1 for AMD Graphics Cards"
-            script: "ujust configure-amd-hdmi21 enable"
-          - id: "disable"
-            label: "Disable HDMI 2.1 for AMD Graphics Cards"
-            script: "ujust configure-amd-hdmi21 disable"
       - id: "password-asterisks"
         title: "Enable visible password asterisks in CLI"
         description: "Toggle showing feedback for characters typed in «sudo» password prompts."
@@ -394,18 +322,6 @@ screens:
           - id: "off"
             label: "Hide Password Asterisks"
             script: "ujust password-feedback off"
-      - id: "displaylink"
-        title: "Install support for DisplayLink"
-        description: "Manage DisplayLink support for laptop docks and USB display adapters."
-        default: false
-        status_script: "ujust install-displaylink status"
-        options:
-          - id: "install"
-            label: "Install DisplayLink Support"
-            script: 'ujust install-displaylink install; status=$?; echo; echo "Press Enter to close..."; read -r _; exit $status'
-          - id: "uninstall"
-            label: "Uninstall DisplayLink Support"
-            script: 'ujust install-displaylink uninstall; status=$?; echo; echo "Press Enter to close..."; read -r _; exit $status'
       - id: "configure-beesd"
         title: "Setup btrfs deduplication"
         description: "Configure «beesd» for deduplication of btrfs file systems."
@@ -545,33 +461,6 @@ screens:
           - id: "disable"
             label: "Disable InputPlumber"
             script: "sudo systemctl disable --now inputplumber.service"
-      - id: "intel-i915-sleep-fix"
-        title: "Configure power saving for Intel HD Graphics"
-        description: "Manage the «i915.enable_dc» power-saving setting for older i915 Intel GPUs with suspend issues."
-        default: false
-        status_script: "ujust toggle-i915-sleep-fix status"
-        options:
-          - id: "auto"
-            label: "Set to Auto (i915.enable_dc=-1)"
-            script: 'ujust toggle-i915-sleep-fix auto; status=$?; echo; echo "Press Enter to close..."; read -r _; exit $status'
-          - id: "disable"
-            label: "Disable Power Saving (i915.enable_dc=0)"
-            script: 'ujust toggle-i915-sleep-fix disable; status=$?; echo; echo "Press Enter to close..."; read -r _; exit $status'
-          - id: "level-1"
-            label: "Set to Level 1 (i915.enable_dc=1)"
-            script: 'ujust toggle-i915-sleep-fix level-1; status=$?; echo; echo "Press Enter to close..."; read -r _; exit $status'
-          - id: "level-2"
-            label: "Set to Level 2 (i915.enable_dc=2)"
-            script: 'ujust toggle-i915-sleep-fix level-2; status=$?; echo; echo "Press Enter to close..."; read -r _; exit $status'
-          - id: "level-3"
-            label: "Set to Level 3 (i915.enable_dc=3)"
-            script: 'ujust toggle-i915-sleep-fix level-3; status=$?; echo; echo "Press Enter to close..."; read -r _; exit $status'
-          - id: "level-4"
-            label: "Set to Level 4 (i915.enable_dc=4)"
-            script: 'ujust toggle-i915-sleep-fix level-4; status=$?; echo; echo "Press Enter to close..."; read -r _; exit $status'
-          - id: "unset"
-            label: "Unset Parameter"
-            script: 'ujust toggle-i915-sleep-fix unset; status=$?; echo; echo "Press Enter to close..."; read -r _; exit $status'
       - id: "benchmark"
         title: "Run basic processor benchmark"
         description: "Start a one-minute CPU performance assessment."
@@ -594,5 +483,3 @@ screens:
         description: "Use the current parameters to generate a new GRUB configuration file. This will probe again for a Windows installation to appear as a boot option."
         default: false
         script: "ujust regenerate-grub"
-
-        

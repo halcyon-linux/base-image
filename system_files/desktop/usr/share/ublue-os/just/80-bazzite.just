@@ -615,30 +615,6 @@ automounting ACTION="":
     fi
     enable_automounting
 
-# Enable framework automounting udev rules.
-[group("automounting")]
-enable-framework-automount:
-    #!/usr/bin/pkexec /usr/bin/bash
-    set -eo pipefail
-    rm -f /etc/udev/rules.d/99-framework-steam-automount.rules
-
-# Disable framework automounting udev rules.
-[group("automounting")]
-disable-framework-automount:
-    #!/usr/bin/pkexec /usr/bin/bash
-    set -eo pipefail
-    ln -sf /dev/null /etc/udev/rules.d/99-framework-steam-automount.rules
-
-# Disable all partition automounting. This might increase boot times.
-[group("automounting")]
-disable-automount-all:
-    @ujust disable-framework-automount
-
-# Enable all automounting.
-[group("automounting")]
-enable-automount-all:
-    @ujust enable-framework-automount
-
 alias enable-tailscale := tailscale
 
 # Enable support for Tailscale. Options: status | enable | disable
@@ -690,11 +666,6 @@ tailscale ACTION="":
         echo "No changes made."
         ;;
     esac
-
-# Enable Framework Fan Control
-[group("hardware")]
-enable-framework-fan-control:
-    systemctl enable --now fw-fanctrl.service
 
 # Configure watchdog (default: enabled, recovers the system in the event of a malfunction)
 [group("system")]
@@ -756,53 +727,7 @@ configure-watchdog ACTION="":
 # Configure AMD HDMI 2.1 (default: disabled, enables additional HDMI 2.1 features on AMD GPUs)
 [group("hardware")]
 configure-amd-hdmi21 ACTION="":
-    #!/usr/bin/bash
-    source /usr/lib/ujust/ujust.sh
-    OPTION={{ ACTION }}
-    get_status_token() {
-      if [[ "$(cat /proc/cmdline)" =~ amdgpu\.dcfeaturemask=0x402 ]]; then
-        echo "enable"
-      else
-        echo "disable"
-      fi
-    }
-    get_current_status() {
-      AMD_HDMI21_STATE="$(rpm-ostree kargs)"
-      if [[ "$AMD_HDMI21_STATE" =~ amdgpu\.dcfeaturemask=0x402 ]]; then
-        echo "${green}${bold}Enabled${normal}"
-      else
-        echo "${yellow}${bold}Disabled${normal}"
-      fi
-    }
-    if [ "$OPTION" == "help" ]; then
-      echo "Usage: ujust configure-amd-hdmi21 <option>"
-      echo "  <option>: Specify the quick option to skip the prompt"
-      echo "  Use 'status' to print the current status"
-      echo "  Use 'enable' to select Enable AMD HDMI 2.1"
-      echo "  Use 'disable' to select Disable AMD HDMI 2.1"
-      exit 0
-    elif [ "$OPTION" == "status" ]; then
-      get_status_token
-      exit 0
-    elif [ "$OPTION" == "" ]; then
-      echo "${bold}AMD HDMI 2.1 configuration${normal}"
-      echo "Enabling this sets amdgpu.dcfeaturemask=0x402, which unlocks additional FreeSync"
-      echo "functionality on AMD GPUs, however it may cause flickering or instability on some displays"
-      echo "AMD HDMI 2.1 is $(get_current_status)"
-      OPTION=$(Choose "Enable AMD HDMI 2.1" "Disable AMD HDMI 2.1")
-    fi
-    if [[ "${OPTION,,}" =~ ^enable ]]; then
-      if [[ "$(rpm-ostree kargs)" =~ "amdgpu.dcfeaturemask" ]]; then
-        echo "Kernel argument already present or has conflicts, aborting..."
-        sleep 5
-        exit 1
-      fi
-      rpm-ostree kargs --append-if-missing=amdgpu.dcfeaturemask=0x402
-    elif [[ "${OPTION,,}" =~ ^disable ]]; then
-      rpm-ostree kargs --delete-if-present=amdgpu.dcfeaturemask=0x402
-    fi
-
-# Configure snapshotting for /var/home
+    # Configure snapshotting for /var/home
 [group("system")]
 configure-snapshots ACTION="":
     #!/usr/bin/bash
