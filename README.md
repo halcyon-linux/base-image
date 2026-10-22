@@ -632,6 +632,7 @@ Deliberate guardrails (Waydroid, bundled fonts/docs, trimmed kmods, renamed help
 - [ ] Determine what the automatic disk-mount toggle does and which systemd service is responsible (`ublue-os-media-automount`).
 - [ ] Trace where Flatpak apps get installed and make sure Flatpak removal behaves correctly; removing Flatpak apps should not be a build action.
 - [ ] Close audit items A-002 and A-008.
+- [ ] Dracut should not be run multiple times
 
 ---
 
