@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Enable aahsnr-work/applications COPR at priority=1 and install desktop applications and bees deduplication daemon.
-# Install developer tools (vscode, vscodium) and web browsers (firefox, brave, chrome, edge, vivaldi)
+# Install developer tools (vscode, vscodium) and web browsers (firefox, brave, brave-origin, chrome, edge, vivaldi)
 # following strict repository lifecycle: enable with priority=1 and weak deps disabled, install, disable repo.
 
 set -Eeuo pipefail
@@ -209,7 +209,7 @@ sed -i 's/^enabled\s*=.*/enabled=0/' /etc/yum.repos.d/vscodium.repo
 ENABLED_REPOS=()
 
 # -----------------------------------------------------------------------------
-# STEP 7: Brave Browser (Brave official repository)
+# STEP 7: Brave Browser and Brave Origin (Brave official repository)
 # -----------------------------------------------------------------------------
 echo "Configuring Brave Browser repository..."
 cat << 'EOF' > /etc/yum.repos.d/brave-browser.repo
@@ -224,9 +224,9 @@ EOF
 rpm --import https://brave-browser-rpm-release.s3.brave.com/brave-core.asc || true
 ENABLED_REPOS+=(brave-browser)
 
-echo "Installing Brave Browser..."
-dnf5 -y install --setopt="brave-browser.priority=1" "${COMMON_INSTALL_OPTS[@]}" brave-browser
-rpm -q brave-browser
+echo "Installing Brave Browser and Brave Origin..."
+dnf5 -y install --setopt="brave-browser.priority=1" "${COMMON_INSTALL_OPTS[@]}" brave-browser brave-origin
+rpm -q brave-browser brave-origin
 
 echo "Disabling repository: brave-browser"
 dnf5 -y config-manager setopt brave-browser.enabled=0
@@ -315,6 +315,7 @@ ALL_PACKAGES=(
     code
     codium
     brave-browser
+    brave-origin
     google-chrome-stable
     microsoft-edge-stable
     vivaldi-stable
