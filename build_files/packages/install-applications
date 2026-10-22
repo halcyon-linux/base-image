@@ -160,7 +160,7 @@ rpm -q firefox neovim
 # STEP 5: Visual Studio Code (Microsoft official repository)
 # -----------------------------------------------------------------------------
 echo "Configuring Visual Studio Code repository..."
-cat << 'EOF' > /etc/yum.repos.d/vscode.repo
+cat <<'EOF' >/etc/yum.repos.d/vscode.repo
 [code]
 name=Visual Studio Code
 baseurl=https://packages.microsoft.com/yumrepos/vscode
@@ -186,7 +186,7 @@ ENABLED_REPOS=()
 # STEP 6: VSCodium (Paul Carroty GitLab repository)
 # -----------------------------------------------------------------------------
 echo "Configuring VSCodium repository..."
-cat << 'EOF' > /etc/yum.repos.d/vscodium.repo
+cat <<'EOF' >/etc/yum.repos.d/vscodium.repo
 [gitlab.com_paulcarroty_vscodium_repo]
 name=gitlab.com_paulcarroty_vscodium_repo
 baseurl=https://paulcarroty.gitlab.io/vscodium-deb-rpm-repo/rpms/
@@ -212,7 +212,7 @@ ENABLED_REPOS=()
 # STEP 7: Brave Browser and Brave Origin (Brave official repository)
 # -----------------------------------------------------------------------------
 echo "Configuring Brave Browser repository..."
-cat << 'EOF' > /etc/yum.repos.d/brave-browser.repo
+cat <<'EOF' >/etc/yum.repos.d/brave-browser.repo
 [brave-browser]
 name=Brave Browser
 enabled=1
@@ -237,7 +237,7 @@ ENABLED_REPOS=()
 # STEP 8: Google Chrome (Google official repository)
 # -----------------------------------------------------------------------------
 echo "Configuring Google Chrome repository..."
-cat << 'EOF' > /etc/yum.repos.d/google-chrome.repo
+cat <<'EOF' >/etc/yum.repos.d/google-chrome.repo
 [google-chrome]
 name=google-chrome
 baseurl=https://dl.google.com/linux/chrome/rpm/stable/$basearch
@@ -261,7 +261,7 @@ ENABLED_REPOS=()
 # STEP 9: Microsoft Edge (Microsoft Edge repository)
 # -----------------------------------------------------------------------------
 echo "Configuring Microsoft Edge repository..."
-cat << 'EOF' > /etc/yum.repos.d/microsoft-edge.repo
+cat <<'EOF' >/etc/yum.repos.d/microsoft-edge.repo
 [microsoft-edge]
 name=microsoft-edge
 baseurl=https://packages.microsoft.com/yumrepos/edge
@@ -285,7 +285,7 @@ ENABLED_REPOS=()
 # STEP 10: Vivaldi (Vivaldi official repository)
 # -----------------------------------------------------------------------------
 echo "Configuring Vivaldi repository..."
-cat << 'EOF' > /etc/yum.repos.d/vivaldi.repo
+cat <<'EOF' >/etc/yum.repos.d/vivaldi.repo
 [vivaldi]
 name=Vivaldi
 baseurl=https://repo.vivaldi.com/stable/rpm/x86_64
