@@ -5,6 +5,13 @@
 
 set -Eeuo pipefail
 
+# Read package list from packages.json
+PACKAGES_JSON="/ctx/packages.json"
+if [[ ! -f "$PACKAGES_JSON" ]]; then
+    echo "ERROR: packages.json not found at $PACKAGES_JSON" >&2
+    exit 1
+fi
+
 copr='aahsnr-work/base-pkgs'
 repo_id="copr:copr.fedorainfracloud.org:${copr////:}"
 copr_enabled=0
@@ -29,32 +36,8 @@ if [[ "$repo_status" != "enabled" ]]; then
     exit 1
 fi
 
-PACKAGES=(
-    adw-gtk3
-    aquamarine
-    glaze
-    hyprcursor
-    hyprgraphics
-    hyprland-git
-    hyprland-guiutils
-    hyprland-protocols
-    hyprland-qt-support
-    hyprlang
-    hyprpwcenter
-    hyprshutdown
-    hyprtoolkit
-    hyprutils
-    hyprwayland-scanner
-    hyprwire
-    noctalia-git
-    nwg-displays
-    nwg-look
-    papirus-icon-theme
-    pyprland
-    qt6ct
-    xcur2png
-    xdg-desktop-portal-hyprland
-)
+# Read packages from packages.json
+mapfile -t PACKAGES < <(jq -r '."base-pkgs".packages[]' "$PACKAGES_JSON")
 
 INSTALL_OPTS=(
     --setopt="${repo_id}.priority=1"

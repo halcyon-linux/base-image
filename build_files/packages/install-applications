@@ -6,6 +6,13 @@
 
 set -Eeuo pipefail
 
+# Read package list from packages.json
+PACKAGES_JSON="/ctx/packages.json"
+if [[ ! -f "$PACKAGES_JSON" ]]; then
+    echo "ERROR: packages.json not found at $PACKAGES_JSON" >&2
+    exit 1
+fi
+
 copr='aahsnr-work/applications'
 repo_id="copr:copr.fedorainfracloud.org:${copr////:}"
 
@@ -61,75 +68,12 @@ COPR_INSTALL_OPTS=(
 )
 
 # -----------------------------------------------------------------------------
-# STEP 2: Dedicated bees installation and validation (Section 6)
+# STEP 2: Read COPR packages from packages.json
 # -----------------------------------------------------------------------------
-echo "Installing bees deduplication package from ${copr}..."
-dnf5 -y install "${COPR_INSTALL_OPTS[@]}" bees
+mapfile -t COPR_PACKAGES < <(jq -r '."applications".copr_packages[]' "$PACKAGES_JSON")
 
-# Confirm package installed
-rpm -q bees
-
-# Confirm package came from intended COPR
-from_repo=$(dnf5 info --installed bees 2>/dev/null | awk -F': ' '/^From repository/ { print $2 }' || true)
-echo "bees installed from repository: ${from_repo:-<unknown>}"
-if [[ -n "$from_repo" && "$from_repo" != "<unknown>" && "$from_repo" != "$repo_id" ]]; then
-    echo "ERROR: bees was resolved from ${from_repo} instead of ${repo_id}" >&2
-    exit 1
-fi
-
-# Discover and assert files shipped by bees
-echo "Files shipped by bees package:"
-rpm -ql bees
-
-if [[ ! -x /usr/bin/beesd ]]; then
-    echo "ERROR: /usr/bin/beesd missing or not executable after bees installation" >&2
-    exit 1
-fi
-
-if [[ ! -f /usr/lib/systemd/system/beesd@.service ]]; then
-    echo "ERROR: /usr/lib/systemd/system/beesd@.service template unit missing after bees installation" >&2
-    exit 1
-fi
-
-if [[ ! -f /usr/etc/bees/beesd.conf.sample && ! -f /etc/bees/beesd.conf.sample ]]; then
-    echo "WARNING: bees sample configuration (beesd.conf.sample) not found at expected paths" >&2
-fi
-
-# Check whether bees ships anything under /var
-bees_var=$(rpm -ql bees 2>/dev/null | grep -E '^/var' || true)
-if [[ -n "$bees_var" ]]; then
-    echo "INFO: bees package ships files under /var:"
-    echo "$bees_var"
-fi
-
-# -----------------------------------------------------------------------------
-# STEP 3: Install remaining COPR application packages
-# -----------------------------------------------------------------------------
-REMAINING_COPR_PACKAGES=(
-    antigravity-cli
-    bitwarden
-    distroshelf
-    emacs-pgtk
-    ferdium
-    kitty
-    mullvad-vpn
-    obsidian
-    onlyoffice-desktopeditors
-    opencode-desktop
-    private-internet-access
-    proton-vpn-daemon
-    proton-vpn-gtk-app
-    python3-proton-core
-    python3-proton-keyring-linux
-    python3-proton-vpn-api-core
-    ticktick
-    zed
-    zen-browser
-    zotero
-)
-
-echo "Installing remaining packages from ${copr}..."
-dnf5 -y install "${COPR_INSTALL_OPTS[@]}" "${REMAINING_COPR_PACKAGES[@]}"
+echo "Installing packages from ${copr}..."
+dnf5 -y install "${COPR_INSTALL_OPTS[@]}" "${COPR_PACKAGES[@]}"
 
 # Disable COPR immediately after successful install
 dnf5 -y copr disable "$copr"
@@ -150,182 +94,70 @@ if [[ -n "$repo_file" && -f "$repo_file" ]]; then
 fi
 
 # -----------------------------------------------------------------------------
-# STEP 4: Firefox and neovim (from official Fedora repositories)
+# STEP 3: Install Fedora repository packages (firefox, neovim)
 # -----------------------------------------------------------------------------
-echo "Installing Firefox and neovim from Fedora repositories..."
-dnf5 -y install "${COMMON_INSTALL_OPTS[@]}" firefox neovim
-rpm -q firefox neovim
+mapfile -t FEDORA_PACKAGES < <(jq -r '."applications".fedora_packages[]' "$PACKAGES_JSON")
+
+echo "Installing Fedora repository packages..."
+dnf5 -y install "${COMMON_INSTALL_OPTS[@]}" "${FEDORA_PACKAGES[@]}"
+rpm -q "${FEDORA_PACKAGES[@]}"
 
 # -----------------------------------------------------------------------------
-# STEP 5: Visual Studio Code (Microsoft official repository)
+# STEP 4: Install external repository packages (VS Code, VSCodium, browsers)
 # -----------------------------------------------------------------------------
-echo "Configuring Visual Studio Code repository..."
-cat <<'EOF' >/etc/yum.repos.d/vscode.repo
-[code]
-name=Visual Studio Code
-baseurl=https://packages.microsoft.com/yumrepos/vscode
-enabled=1
-autorefresh=1
-type=rpm-md
-gpgcheck=1
-gpgkey=https://packages.microsoft.com/keys/microsoft.asc
-EOF
-rpm --import https://packages.microsoft.com/keys/microsoft.asc || true
-ENABLED_REPOS+=(code)
+# Read external repos from packages.json
+EXTERNAL_REPOS_COUNT=$(jq '.["applications"].external_repos | length' "$PACKAGES_JSON")
 
-echo "Installing Visual Studio Code..."
-dnf5 -y install --setopt="code.priority=1" "${COMMON_INSTALL_OPTS[@]}" code
-rpm -q code
+for ((i=0; i<EXTERNAL_REPOS_COUNT; i++)); do
+    repo_id=$(jq -r ".applications.external_repos[$i].id" "$PACKAGES_JSON")
+    repo_name=$(jq -r ".applications.external_repos[$i].name" "$PACKAGES_JSON")
+    repo_baseurl=$(jq -r ".applications.external_repos[$i].baseurl" "$PACKAGES_JSON")
+    repo_gpgkey=$(jq -r ".applications.external_repos[$i].gpgkey" "$PACKAGES_JSON")
+    mapfile -t repo_packages < <(jq -r ".applications.external_repos[$i].packages[]" "$PACKAGES_JSON")
 
-echo "Disabling repository: code"
-dnf5 -y config-manager setopt code.enabled=0
-sed -i 's/^enabled\s*=.*/enabled=0/' /etc/yum.repos.d/vscode.repo
-ENABLED_REPOS=()
-
-# -----------------------------------------------------------------------------
-# STEP 6: VSCodium (Paul Carroty GitLab repository)
-# -----------------------------------------------------------------------------
-echo "Configuring VSCodium repository..."
-cat <<'EOF' >/etc/yum.repos.d/vscodium.repo
-[gitlab.com_paulcarroty_vscodium_repo]
-name=gitlab.com_paulcarroty_vscodium_repo
-baseurl=https://paulcarroty.gitlab.io/vscodium-deb-rpm-repo/rpms/
+    echo "Configuring ${repo_name} repository..."
+    cat <<EOF >"/etc/yum.repos.d/${repo_id}.repo"
+[${repo_id}]
+name=${repo_name}
+baseurl=${repo_baseurl}
 enabled=1
 gpgcheck=1
-repo_gpgcheck=1
-gpgkey=https://gitlab.com/paulcarroty/vscodium-deb-rpm-repo/raw/master/pub.gpg
-metadata_expire=1h
+gpgkey=${repo_gpgkey}
 EOF
-rpm --import https://gitlab.com/paulcarroty/vscodium-deb-rpm-repo/raw/master/pub.gpg || true
-ENABLED_REPOS+=(gitlab.com_paulcarroty_vscodium_repo)
 
-echo "Installing VSCodium..."
-dnf5 -y install --setopt="gitlab.com_paulcarroty_vscodium_repo.priority=1" "${COMMON_INSTALL_OPTS[@]}" codium
-rpm -q codium
+    rpm --import "${repo_gpgkey}" || true
+    ENABLED_REPOS+=("${repo_id}")
 
-echo "Disabling repository: gitlab.com_paulcarroty_vscodium_repo"
-dnf5 -y config-manager setopt gitlab.com_paulcarroty_vscodium_repo.enabled=0
-sed -i 's/^enabled\s*=.*/enabled=0/' /etc/yum.repos.d/vscodium.repo
-ENABLED_REPOS=()
+    echo "Installing ${repo_name} packages..."
+    dnf5 -y install --setopt="${repo_id}.priority=1" "${COMMON_INSTALL_OPTS[@]}" "${repo_packages[@]}"
+    rpm -q "${repo_packages[@]}"
 
-# -----------------------------------------------------------------------------
-# STEP 7: Brave Browser and Brave Origin (Brave official repository)
-# -----------------------------------------------------------------------------
-echo "Configuring Brave Browser repository..."
-cat <<'EOF' >/etc/yum.repos.d/brave-browser.repo
-[brave-browser]
-name=Brave Browser
-enabled=1
-autorefresh=1
-baseurl=https://brave-browser-rpm-release.s3.brave.com/$basearch
-gpgcheck=1
-gpgkey=https://brave-browser-rpm-release.s3.brave.com/brave-core.asc
-EOF
-rpm --import https://brave-browser-rpm-release.s3.brave.com/brave-core.asc || true
-ENABLED_REPOS+=(brave-browser)
-
-echo "Installing Brave Browser and Brave Origin..."
-dnf5 -y install --setopt="brave-browser.priority=1" "${COMMON_INSTALL_OPTS[@]}" brave-browser brave-origin
-rpm -q brave-browser brave-origin
-
-echo "Disabling repository: brave-browser"
-dnf5 -y config-manager setopt brave-browser.enabled=0
-sed -i 's/^enabled\s*=.*/enabled=0/' /etc/yum.repos.d/brave-browser.repo
-ENABLED_REPOS=()
+    echo "Disabling repository: ${repo_id}"
+    dnf5 -y config-manager setopt "${repo_id}.enabled=0"
+    sed -i 's/^enabled\s*=.*/enabled=0/' "/etc/yum.repos.d/${repo_id}.repo"
+    ENABLED_REPOS=()
+done
 
 # -----------------------------------------------------------------------------
-# STEP 8: Google Chrome (Google official repository)
+# STEP 5: Package verification and repository status scan
 # -----------------------------------------------------------------------------
-echo "Configuring Google Chrome repository..."
-cat <<'EOF' >/etc/yum.repos.d/google-chrome.repo
-[google-chrome]
-name=google-chrome
-baseurl=https://dl.google.com/linux/chrome/rpm/stable/$basearch
-enabled=1
-gpgcheck=1
-gpgkey=https://dl.google.com/linux/linux_signing_key.pub
-EOF
-rpm --import https://dl.google.com/linux/linux_signing_key.pub || true
-ENABLED_REPOS+=(google-chrome)
-
-echo "Installing Google Chrome..."
-dnf5 -y install --setopt="google-chrome.priority=1" "${COMMON_INSTALL_OPTS[@]}" google-chrome-stable
-rpm -q google-chrome-stable
-
-echo "Disabling repository: google-chrome"
-dnf5 -y config-manager setopt google-chrome.enabled=0
-sed -i 's/^enabled\s*=.*/enabled=0/' /etc/yum.repos.d/google-chrome.repo
-ENABLED_REPOS=()
-
-# -----------------------------------------------------------------------------
-# STEP 9: Microsoft Edge (Microsoft Edge repository)
-# -----------------------------------------------------------------------------
-echo "Configuring Microsoft Edge repository..."
-cat <<'EOF' >/etc/yum.repos.d/microsoft-edge.repo
-[microsoft-edge]
-name=microsoft-edge
-baseurl=https://packages.microsoft.com/yumrepos/edge
-enabled=1
-gpgcheck=1
-gpgkey=https://packages.microsoft.com/keys/microsoft.asc
-EOF
-rpm --import https://packages.microsoft.com/keys/microsoft.asc || true
-ENABLED_REPOS+=(microsoft-edge)
-
-echo "Installing Microsoft Edge..."
-dnf5 -y install --setopt="microsoft-edge.priority=1" "${COMMON_INSTALL_OPTS[@]}" microsoft-edge-stable
-rpm -q microsoft-edge-stable
-
-echo "Disabling repository: microsoft-edge"
-dnf5 -y config-manager setopt microsoft-edge.enabled=0
-sed -i 's/^enabled\s*=.*/enabled=0/' /etc/yum.repos.d/microsoft-edge.repo
-ENABLED_REPOS=()
-
-# -----------------------------------------------------------------------------
-# STEP 10: Vivaldi (Vivaldi official repository)
-# -----------------------------------------------------------------------------
-echo "Configuring Vivaldi repository..."
-cat <<'EOF' >/etc/yum.repos.d/vivaldi.repo
-[vivaldi]
-name=Vivaldi
-baseurl=https://repo.vivaldi.com/stable/rpm/x86_64
-enabled=1
-gpgcheck=1
-gpgkey=https://repo.vivaldi.com/stable/linux_signing_key.pub
-EOF
-rpm --import https://repo.vivaldi.com/stable/linux_signing_key.pub || true
-ENABLED_REPOS+=(vivaldi)
-
-echo "Installing Vivaldi..."
-dnf5 -y install --setopt="vivaldi.priority=1" "${COMMON_INSTALL_OPTS[@]}" vivaldi-stable
-rpm -q vivaldi-stable
-
-echo "Disabling repository: vivaldi"
-dnf5 -y config-manager setopt vivaldi.enabled=0
-sed -i 's/^enabled\s*=.*/enabled=0/' /etc/yum.repos.d/vivaldi.repo
-ENABLED_REPOS=()
-
-# -----------------------------------------------------------------------------
-# STEP 11: Package verification and repository status scan
-# -----------------------------------------------------------------------------
-ALL_PACKAGES=(
-    bees
-    "${REMAINING_COPR_PACKAGES[@]}"
-    firefox
-    code
-    codium
-    brave-browser
-    brave-origin
-    google-chrome-stable
-    microsoft-edge-stable
-    vivaldi-stable
-)
+# Collect all packages for verification
+ALL_PACKAGES=("${COPR_PACKAGES[@]}" "${FEDORA_PACKAGES[@]}")
+for ((i=0; i<EXTERNAL_REPOS_COUNT; i++)); do
+    mapfile -t repo_packages < <(jq -r ".applications.external_repos[$i].packages[]" "$PACKAGES_JSON")
+    ALL_PACKAGES+=("${repo_packages[@]}")
+done
 
 echo "Verifying installation of all requested application packages..."
 rpm -q "${ALL_PACKAGES[@]}"
 
 # Assert all third-party repos report disabled in dnf5 repo list
-for check_repo in "$repo_id" code gitlab.com_paulcarroty_vscodium_repo brave-browser google-chrome microsoft-edge vivaldi; do
+REPO_IDS_TO_CHECK=("$repo_id")
+for ((i=0; i<EXTERNAL_REPOS_COUNT; i++)); do
+    REPO_IDS_TO_CHECK+=("$(jq -r ".applications.external_repos[$i].id" "$PACKAGES_JSON")")
+done
+
+for check_repo in "${REPO_IDS_TO_CHECK[@]}"; do
     status="$(dnf5 repo list --all | awk -v id="$check_repo" '$1 == id { print $NF }')"
     if [[ "$status" != "disabled" ]]; then
         echo "ERROR: Repository $check_repo is still reported as '${status}' (must be disabled)" >&2

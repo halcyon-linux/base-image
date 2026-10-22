@@ -2,6 +2,13 @@
 
 set -Eeuo pipefail
 
+# Read package list from packages.json
+PACKAGES_JSON="/ctx/packages.json"
+if [[ ! -f "$PACKAGES_JSON" ]]; then
+    echo "ERROR: packages.json not found at $PACKAGES_JSON" >&2
+    exit 1
+fi
+
 copr='aahsnr-work/gaming'
 repo_id="copr:copr.fedorainfracloud.org:${copr////:}"
 copr_enabled=0
@@ -17,6 +24,7 @@ disable_copr() {
 }
 trap 'disable_copr || true' EXIT
 
+# Remove packages that conflict with gaming stack
 for pkg in pipewire-config-raop mesa-va-drivers; do
     if rpm -q "$pkg" >/dev/null 2>&1; then
         dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y remove "$pkg"
@@ -44,6 +52,11 @@ dnf5 -y copr enable "$copr"
 copr_enabled=1
 dnf5 -y config-manager setopt "${repo_id}.priority=1"
 
+# Read packages from packages.json
+mapfile -t gaming_packages < <(jq -r '."gaming".packages[]' "$PACKAGES_JSON")
+mapfile -t removal_packages < <(jq -r '."gaming".removals[]' "$PACKAGES_JSON")
+
+# Install gaming packages from COPR (protonplus, heroic-games-launcher)
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' \
     -y install protonplus heroic-games-launcher
 
@@ -62,56 +75,21 @@ dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y 
 # Gaming middleware, Steam, and Lutris
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y install dmemcg-booster
 
-gaming_packages=(
-    terra-gamescope.x86_64
-    terra-gamescope-libs.x86_64
-    terra-gamescope-libs.i686
-    # jupiter-sd-mounting-btrfs
-    umu-wrapper
-    umu-launcher
-    dbus-x11
-    xrandr
-    evtest
-    # xdg-user-dirs
-    xdg-terminal-exec
-    gobject-introspection
-    libFAudio.x86_64
-    libFAudio.i686
-    vkBasalt.x86_64
-    vkBasalt.i686
-    terra-mangohud.x86_64
-    terra-mangohud.i686
-    openxr
-    openxr-libs
-)
-
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' --enable-repo=terra-mesa --enable-repo=terra --enable-repo=terra-extras \
     -y install "${gaming_packages[@]}"
 
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y --enable-repo=terra-mesa --enable-repo=terra \
     install steam lutris
 
-if rpm -q gamemode >/dev/null 2>&1; then
-    dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y remove gamemode
-fi
+# Remove unwanted packages
+for pkg in "${removal_packages[@]}"; do
+    if rpm -q "$pkg" >/dev/null 2>&1; then
+        dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y remove "$pkg"
+    fi
+done
 
 # Versionlock core graphics and system packages
-versionlocked_packages=(
-    bluez
-    bluez-cups
-    bluez-libs
-    bluez-obexd
-    xorg-x11-server-Xwayland
-    mesa-dri-drivers
-    mesa-filesystem
-    mesa-libEGL
-    mesa-libGL
-    mesa-libgbm
-    mesa-vulkan-drivers
-    NetworkManager
-    NetworkManager-wifi
-    NetworkManager-libnm
-)
+mapfile -t versionlocked_packages < <(jq -r '."gaming".versionlocks[]' "$PACKAGES_JSON")
 dnf5 versionlock add "${versionlocked_packages[@]}"
 
 # Download winetricks and mark component attribute

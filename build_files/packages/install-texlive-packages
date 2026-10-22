@@ -5,6 +5,13 @@
 
 set -Eeuo pipefail
 
+# Read package list from packages.json
+PACKAGES_JSON="/ctx/packages.json"
+if [[ ! -f "$PACKAGES_JSON" ]]; then
+    echo "ERROR: packages.json not found at $PACKAGES_JSON" >&2
+    exit 1
+fi
+
 copr='aahsnr-work/texlive-packages'
 repo_id="copr:copr.fedorainfracloud.org:${copr////:}"
 copr_enabled=0
@@ -29,28 +36,8 @@ if [[ "$repo_status" != "enabled" ]]; then
     exit 1
 fi
 
-PACKAGES=(
-    texlive-basic
-    texlive-bibtexextra
-    texlive-bin
-    texlive-binextra
-    texlive-fontsrecommended
-    texlive-fontutils
-    texlive-formatsextra
-    texlive-humanities
-    texlive-latex
-    texlive-latexextra
-    texlive-latexrecommended
-    texlive-luatex
-    texlive-mathscience
-    texlive-meta
-    texlive-metapost
-    texlive-pictures
-    texlive-plaingeneric
-    texlive-pstricks
-    texlive-publishers
-    texlive-xetex
-)
+# Read packages from packages.json
+mapfile -t PACKAGES < <(jq -r '."texlive-packages".packages[]' "$PACKAGES_JSON")
 
 INSTALL_OPTS=(
     --setopt="${repo_id}.priority=1"
@@ -99,4 +86,3 @@ for pkg in "${PACKAGES[@]}"; do
         echo "$opt_or_var"
     fi
 done
-

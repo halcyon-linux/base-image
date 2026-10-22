@@ -5,6 +5,13 @@
 
 set -Eeuo pipefail
 
+# Read package list from packages.json
+PACKAGES_JSON="/ctx/packages.json"
+if [[ ! -f "$PACKAGES_JSON" ]]; then
+    echo "ERROR: packages.json not found at $PACKAGES_JSON" >&2
+    exit 1
+fi
+
 copr='aahsnr-work/fonts'
 repo_id="copr:copr.fedorainfracloud.org:${copr////:}"
 copr_enabled=0
@@ -29,14 +36,8 @@ if [[ "$repo_status" != "enabled" ]]; then
     exit 1
 fi
 
-PACKAGES=(
-    google-noto-color-emoji-fonts
-    jetbrains-mono-fonts-all
-    nerd-fonts-jetbrainsmono
-    nerd-fonts-symbols-only
-    nerd-fonts-ubuntu
-    nerd-fonts-ubuntu-mono
-)
+# Read packages from packages.json
+mapfile -t PACKAGES < <(jq -r '."fonts".packages[]' "$PACKAGES_JSON")
 
 INSTALL_OPTS=(
     --setopt="${repo_id}.priority=1"
@@ -82,4 +83,3 @@ for pkg in "${PACKAGES[@]}"; do
         echo "$opt_or_var"
     fi
 done
-

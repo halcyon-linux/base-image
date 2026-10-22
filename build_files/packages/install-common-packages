@@ -4,6 +4,16 @@ set -Eeuo pipefail
 
 : "${FEDORA_VERSION:?FEDORA_VERSION must be set by the Containerfile}"
 
+# Read package list from packages.json
+PACKAGES_JSON="/ctx/packages.json"
+if [[ ! -f "$PACKAGES_JSON" ]]; then
+    echo "ERROR: packages.json not found at $PACKAGES_JSON" >&2
+    exit 1
+fi
+
+# Extract common-packages list from JSON
+mapfile -t common_packages < <(jq -r '."common-packages".packages[]' "$PACKAGES_JSON")
+
 cicpoffs_url=$(
     /ctx/shared/ghcurl https://api.github.com/repos/ublue-os/cicpoffs/releases/latest |
         jq -er --arg name "cicpoffs-fc${FEDORA_VERSION}.rpm" \
@@ -15,108 +25,6 @@ dnf5 -y copr enable bieszczaders/kernel-cachyos-addons
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y install scx-scheds scx-tools
 dnf5 -y copr disable bieszczaders/kernel-cachyos-addons
 
-common_packages=(
-    7zip
-    bazaar
-    bazzite-portal
-    bazzite-updater
-    bleachbit
-    bluez-tools
-    bpftune-gaming
-    brightnessctl
-    btop
-    btrfs-assistant
-    cargo
-    chezmoi
-    cmake
-    cockpit-files
-    cockpit-networkmanager
-    cockpit-podman
-    cockpit-selinux
-    cockpit-storaged
-    cockpit-system
-    compsize
-    cronie
-    ds-inhibit
-    duf
-    edk2-ovmf
-    f3
-    fail2ban
-    fastfetch
-    file-roller
-    fuse-libs
-    git
-    golang
-    greenboot
-    greenboot-default-health-checks
-    grim
-    gtk4-layer-shell
-    i2c-tools
-    igt-gpu-tools
-    imv
-    inotify-tools
-    input-remapper
-    kernel-tools
-    kmod
-    ladspa-caps-plugins
-    libadwaita
-    libinput-utils
-    libvirt-daemon
-    libvirt-daemon-config-network
-    libvirt-daemon-config-nwfilter
-    libvirt-daemon-kvm
-    libxcrypt-compat
-    lm_sensors
-    ls-iommu
-    lsb_release
-    lshw
-    lynis
-    lzip
-    mission-center
-    nautilus
-    ninja-build
-    nodejs22
-    nodejs22-npm
-    pinentry
-    pinentry-gnome3
-    pinentry-tty
-    pipewire-module-filter-chain-sofa
-    pipx
-    pymol
-    python3-icoextract
-    python3-pip
-    ScopeBuddy
-    sddm
-    sddm-wayland-generic
-    setools-console
-    setroubleshoot
-    slurp
-    snapper
-    stress-ng
-    swappy
-    tailscale
-    transmission-gtk
-    ublue-os-selinux-workarounds
-    udica
-    udiskie
-    uld
-    unrar
-    uupd
-    virt-install
-    virt-manager
-    virtiofsd
-    vulkan-low-latency-layer
-    vulkan-tools
-    webapp-manager
-    xdg-user-dirs-gtk
-    xwininfo
-    yad
-    ydotool
-    zathura
-    zathura-pdf-poppler
-    zathura-plugins-all
-    zsh
-)
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y install "${common_packages[@]}"
 
 # dnf5 -y swap --repo terra switcheroo-control cardwire

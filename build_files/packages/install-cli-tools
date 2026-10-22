@@ -2,6 +2,13 @@
 
 set -Eeuo pipefail
 
+# Read package list from packages.json
+PACKAGES_JSON="/ctx/packages.json"
+if [[ ! -f "$PACKAGES_JSON" ]]; then
+    echo "ERROR: packages.json not found at $PACKAGES_JSON" >&2
+    exit 1
+fi
+
 copr='aahsnr-work/cli-tools'
 repo_id="copr:copr.fedorainfracloud.org:${copr////:}"
 copr_enabled=0
@@ -29,46 +36,12 @@ dnf5 -y copr enable "$copr"
 copr_enabled=1
 dnf5 -y config-manager setopt "${repo_id}.priority=1"
 
-cli_tools_packages=(
-    bun
-    tealdeer
-    uv
-    atuin
-    bat
-    bat-extras
-    eza
-    gnuplot
-    cava
-    pixi
-    xwiimote-ng
-    zoxide
-    asdf
-    fd-find
-    cliphist
-    topgrade
-    fzf
-    fzy
-    kilo
-    chafa
-    dust
-    lazygit
-    pandoc
-    starship
-    yazi
-    zellij
-    opencode
-    marksman
-    texlab
-    glow
-    # Not carried by the cli-tools COPR, so these come from Fedora.
-    direnv
-    ripgrep
-    # Comes from the gh-cli repository added by setup-repositories.
-    gh
-)
+# Read packages from packages.json
+mapfile -t cli_tools_packages < <(jq -r '."cli-tools".packages[]' "$PACKAGES_JSON")
+mapfile -t fedora_packages < <(jq -r '."cli-tools".fedora_packages[]' "$PACKAGES_JSON")
 
 # Terra ships a newer fzy release (fzy-1.1-2.fc44), so it has to be pushed
 # behind the COPR or it shadows the cli-tools build.
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' \
     --setopt='*terra*'.priority=10 \
-    -y install "${cli_tools_packages[@]}"
+    -y install "${cli_tools_packages[@]}" "${fedora_packages[@]}"

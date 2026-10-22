@@ -2,6 +2,13 @@
 
 set -Eeuo pipefail
 
+# Read package list from packages.json
+PACKAGES_JSON="/ctx/packages.json"
+if [[ ! -f "$PACKAGES_JSON" ]]; then
+    echo "ERROR: packages.json not found at $PACKAGES_JSON" >&2
+    exit 1
+fi
+
 copr='aahsnr-work/python-packages'
 repo_id="copr:copr.fedorainfracloud.org:${copr////:}"
 copr_enabled=0
@@ -23,36 +30,8 @@ dnf5 -y copr enable "$copr"
 copr_enabled=1
 dnf5 -y config-manager setopt "${repo_id}.priority=1"
 
-python_packages=(
-    bbrew-helper
-    boot-remount
-    brh
-    bruh
-    commitpickle
-    crh
-    dlss-swapper
-    dump-to-markdown
-    dynamic-fixes
-    fconf
-    fe
-    fetch-image
-    ff
-    fkill
-    fp
-    fssh
-    gameclass
-    hardware-setup
-    nvidia-flatpak-runtime
-    powersave
-    rmi
-    rmtmp
-    screenshot
-    se
-    snapper-config
-    ublue-motd
-    user-setup
-    uupd-update
-)
+# Read packages from packages.json
+mapfile -t python_packages < <(jq -r '."utils".packages[]' "$PACKAGES_JSON")
 
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' \
     -y install "${python_packages[@]}"

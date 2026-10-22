@@ -6,10 +6,15 @@
 
 set -Eeuo pipefail
 
-nix_packages=(
-    nix
-    nix-daemon
-)
+# Read package list from packages.json
+PACKAGES_JSON="/ctx/packages.json"
+if [[ ! -f "$PACKAGES_JSON" ]]; then
+    echo "ERROR: packages.json not found at $PACKAGES_JSON" >&2
+    exit 1
+fi
+
+# Read packages from packages.json
+mapfile -t nix_packages < <(jq -r '."nix".packages[]' "$PACKAGES_JSON")
 
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' \
     -y install "${nix_packages[@]}"
@@ -19,4 +24,3 @@ mkdir -p /nix
 chmod 0755 /nix
 
 rpm -q "${nix_packages[@]}"
-
