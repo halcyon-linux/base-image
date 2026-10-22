@@ -30,36 +30,41 @@ copr_enabled=1
 dnf5 -y config-manager setopt "${repo_id}.priority=1"
 
 cli_tools_packages=(
-    asdf
+    bun
+    tealdeer
+    uv
     atuin
     bat
     bat-extras
-    cava
-    chafa
-    cliphist
-    direnv
-    dust
     eza
+    gnuplot
+    cava
+    pixi
+    xwiimote-ng
+    zoxide
+    asdf
     fd-find
+    cliphist
+    topgrade
     fzf
     fzy
-    gh
-    glow
     kilo
+    chafa
+    dust
     lazygit
-    marksman
-    opencode
     pandoc
-    pixi
-    ripgrep
     starship
-    tealdeer
-    topgrade
-    uv
-    xwiimote-ng
     yazi
     zellij
-    zoxide
+    opencode
+    marksman
+    texlab
+    glow
+    # Not carried by the cli-tools COPR, so these come from Fedora.
+    direnv
+    ripgrep
+    # Comes from the gh-cli repository added by setup-repositories.
+    gh
 )
 
 # Terra ships a newer fzy release (fzy-1.1-2.fc44), so it has to be pushed
