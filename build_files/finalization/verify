@@ -24,6 +24,13 @@ trap 'echo "::endgroup::"' EXIT
 
 declare -a failures=()
 
+# Path to packages.json
+PACKAGES_JSON="/ctx/packages.json"
+if [[ ! -f "$PACKAGES_JSON" ]]; then
+    printf 'ERROR: packages.json not found at %s\n' "$PACKAGES_JSON" >&2
+    exit 1
+fi
+
 fail() {
     printf 'FAIL: %s\n' "$*" >&2
     failures+=("$*")
@@ -56,6 +63,44 @@ forbid_rpms() {
             pass "package absent: $pkg"
         fi
     done
+}
+
+# Read package array from packages.json
+read_packages_from_json() {
+    local section="$1"
+    local key="${2:-packages}"
+    mapfile -t PKG_ARRAY < <(jq -r ".${section}.${key}[]" "$PACKAGES_JSON" 2>/dev/null)
+    printf '%s\n' "${PKG_ARRAY[@]}"
+}
+
+# Require packages from a JSON section
+require_rpms_from_json() {
+    local section="$1"
+    local key="${2:-packages}"
+    local pkg
+    while IFS= read -r pkg; do
+        [[ -z "$pkg" ]] && continue
+        if rpm -q "$pkg" >/dev/null 2>&1; then
+            pass "package installed: $pkg"
+        else
+            fail "package missing: $pkg"
+        fi
+    done < <(read_packages_from_json "$section" "$key")
+}
+
+# Forbid packages from a JSON section
+forbid_rpms_from_json() {
+    local section="$1"
+    local key="${2:-packages}"
+    local pkg
+    while IFS= read -r pkg; do
+        [[ -z "$pkg" ]] && continue
+        if rpm -q "$pkg" >/dev/null 2>&1; then
+            fail "forbidden package installed: $pkg"
+        else
+            pass "package absent: $pkg"
+        fi
+    done < <(read_packages_from_json "$section" "$key")
 }
 
 # Require every listed repo id to be known to dnf5.
@@ -147,8 +192,7 @@ verify_kernel() {
         fail "expected exactly one kernel modules dir, found ${#dirs[@]}: ${dirs[*]:-none}"
     fi
 
-    require_rpms kernel-core kernel-modules kernel-devel
-    require_rpms kmod-nct6687d nct6687d
+    require_rpms_from_json "kernel" "packages"
 
     actual="$(rpm -q kernel-core --qf '%{VERSION}-%{RELEASE}' 2>/dev/null || true)"
     actual="${actual%.x86_64}"
@@ -179,11 +223,8 @@ verify_repos() {
 }
 
 verify_cli_tools() {
-    require_rpms \
-        bun tealdeer uv atuin bat bat-extras eza gnuplot cava pixi \
-        xwiimote-ng zoxide asdf fd-find cliphist topgrade fzf fzy kilo \
-        chafa dust lazygit pandoc starship yazi zellij opencode marksman \
-        texlab glow direnv ripgrep gh
+    require_rpms_from_json "cli-tools" "packages"
+    require_rpms_from_json "cli-tools" "fedora_packages"
 
     require_repos_disabled 'copr:copr.fedorainfracloud.org:aahsnr-work:cli-tools'
 
@@ -208,11 +249,7 @@ verify_cli_tools() {
 }
 
 verify_utils() {
-    require_rpms \
-        bbrew-helper boot-remount brh bruh crh dlss-swapper dump-to-markdown \
-        dynamic-fixes fconf fe fetch-image ff fkill fp fssh gameclass \
-        hardware-setup nvidia-flatpak-runtime powersave rmi rmtmp screenshot \
-        se snapper-config ublue-motd user-setup uupd-update
+    require_rpms_from_json "utils" "packages"
 
     require_repos_disabled 'copr:copr.fedorainfracloud.org:aahsnr-work:python-packages'
 
@@ -247,28 +284,7 @@ verify_removals() {
 }
 
 verify_common_packages() {
-    require_rpms \
-        zsh sddm sddm-wayland-generic chezmoi bpftune-gaming fuse-libs uld \
-        bazaar mission-center greenboot greenboot-default-health-checks \
-        ublue-os-selinux-workarounds bazzite-updater ScopeBuddy python3-pip \
-        libadwaita xwininfo compsize input-remapper libinput-utils \
-        i2c-tools lm_sensors udica ladspa-caps-plugins \
-        pipewire-module-filter-chain-sofa python3-icoextract tailscale \
-        webapp-manager btop duf lshw yad f3 lzip 7zip unrar \
-        libxcrypt-compat vulkan-tools vulkan-low-latency-layer fastfetch \
-        cockpit-networkmanager cockpit-podman cockpit-selinux cockpit-system \
-        cockpit-files cockpit-storaged ydotool stress-ng snapper btrfs-assistant \
-        edk2-ovmf lsb_release uupd ds-inhibit bazzite-portal kernel-tools kmod \
-        ls-iommu virt-manager virt-install libvirt-daemon libvirt-daemon-kvm \
-        libvirt-daemon-config-network libvirt-daemon-config-nwfilter virtiofsd \
-        cardwire-gui \
-        pinentry pinentry-gnome3 pinentry-tty \
-        bleachbit bluez-tools brightnessctl cronie fail2ban file-roller git \
-        grim gtk4-layer-shell igt-gpu-tools imv inotify-tools lynis nautilus \
-        ninja-build pipx pymol setools-console setroubleshoot slurp swappy \
-        transmission-gtk udiskie xdg-user-dirs-gtk zathura zathura-pdf-poppler \
-        zathura-plugins-all \
-        cargo cmake golang nodejs22 nodejs22-npm
+    require_rpms_from_json "common-packages" "packages"
 
     # Fedora ships the curses variant inside the `pinentry` package (it only
     # Provides pinentry-curses), so assert the executables the wrapper needs.
@@ -315,18 +331,11 @@ verify_common_packages() {
 }
 
 verify_gaming() {
-    require_rpms \
-        protonplus steam lutris dmemcg-booster \
-        terra-gamescope terra-gamescope-libs umu-wrapper umu-launcher \
-        dbus-x11 xrandr evtest xdg-terminal-exec gobject-introspection \
-        libFAudio vkBasalt terra-mangohud openxr openxr-libs terra-wireplumber \
-        openh264 libfreeaptx intel-opencl clinfo \
-        mesa-filesystem mesa-dri-drivers mesa-libEGL mesa-libGL \
-        mesa-libgbm mesa-vulkan-drivers
+    require_rpms_from_json "gaming" "packages"
 
     require_repos_disabled 'copr:copr.fedorainfracloud.org:aahsnr-work:gaming'
 
-    forbid_rpms gamemode pipewire-config-raop mesa-va-drivers
+    forbid_rpms_from_json "gaming" "removals"
 
     if [[ -x /usr/bin/winetricks ]]; then
         pass "winetricks present and executable: /usr/bin/winetricks"
@@ -343,9 +352,7 @@ verify_gaming() {
     local locks
     locks="$(dnf5 versionlock list 2>/dev/null || true)"
     local locked_pkg
-    for locked_pkg in mesa-filesystem mesa-dri-drivers mesa-libEGL mesa-libGL \
-                     mesa-libgbm mesa-vulkan-drivers xorg-x11-server-Xwayland \
-                     bluez NetworkManager; do
+    for locked_pkg in $(read_packages_from_json "gaming" "versionlocks"); do
         if grep -qF "$locked_pkg" <<<"$locks"; then
             pass "versionlock active for: $locked_pkg"
         else
@@ -368,77 +375,34 @@ verify_gaming() {
 }
 
 verify_fonts() {
-    require_rpms \
-        google-noto-color-emoji-fonts \
-        jetbrains-mono-fonts-all \
-        nerd-fonts-jetbrainsmono \
-        nerd-fonts-symbols-only \
-        nerd-fonts-ubuntu \
-        nerd-fonts-ubuntu-mono
+    require_rpms_from_json "fonts" "packages"
 
     require_repos_disabled 'copr:copr.fedorainfracloud.org:aahsnr-work:fonts'
 }
 
 verify_base_pkgs() {
-    require_rpms \
-        adw-gtk3 \
-        aquamarine \
-        glaze \
-        hyprcursor \
-        hyprgraphics \
-        hyprland-git \
-        hyprland-guiutils \
-        hyprland-protocols \
-        hyprland-qt-support \
-        hyprlang \
-        hyprpwcenter \
-        hyprshutdown \
-        hyprtoolkit \
-        hyprutils \
-        hyprwayland-scanner \
-        hyprwire \
-        noctalia-git \
-        nwg-displays \
-        nwg-look \
-        pyprland \
-        qt6ct \
-        xcur2png \
-        xdg-desktop-portal-hyprland
+    require_rpms_from_json "base-pkgs" "packages"
 
     require_repos_disabled 'copr:copr.fedorainfracloud.org:aahsnr-work:base-pkgs'
 }
 
 verify_applications() {
-    require_rpms \
-        bees \
-        antigravity-cli \
-        bitwarden \
-        distroshelf \
-        emacs-pgtk \
-        ferdium \
-        kitty \
-        mullvad-vpn \
-        obsidian \
-        onlyoffice-desktopeditors \
-        opencode-desktop \
-        private-internet-access \
-        proton-vpn-daemon \
-        proton-vpn-gtk-app \
-        python3-proton-core \
-        python3-proton-keyring-linux \
-        python3-proton-vpn-api-core \
-        ticktick \
-        zed \
-        zen-browser \
-        zotero \
-        code \
-        codium \
-        brave-browser \
-        firefox \
-        neovim \
-        google-chrome-stable \
-        microsoft-edge-stable \
-        vivaldi-stable
+    require_rpms_from_json "applications" "copr_packages"
+    require_rpms_from_json "applications" "fedora_packages"
+
+    # External repo packages
+    local ext_repo_count
+    ext_repo_count=$(jq '.["applications"].external_repos | length' "$PACKAGES_JSON")
+    for ((i=0; i<ext_repo_count; i++)); do
+        mapfile -t repo_packages < <(jq -r ".applications.external_repos[$i].packages[]" "$PACKAGES_JSON")
+        for pkg in "${repo_packages[@]}"; do
+            if rpm -q "$pkg" >/dev/null 2>&1; then
+                pass "package installed: $pkg"
+            else
+                fail "package missing: $pkg"
+            fi
+        done
+    done
 
     require_repos_disabled \
         'copr:copr.fedorainfracloud.org:aahsnr-work:applications' \
@@ -485,27 +449,7 @@ verify_applications() {
 }
 
 verify_texlive_packages() {
-    require_rpms \
-        texlive-basic \
-        texlive-bibtexextra \
-        texlive-bin \
-        texlive-binextra \
-        texlive-fontsrecommended \
-        texlive-fontutils \
-        texlive-formatsextra \
-        texlive-humanities \
-        texlive-latex \
-        texlive-latexextra \
-        texlive-latexrecommended \
-        texlive-luatex \
-        texlive-mathscience \
-        texlive-meta \
-        texlive-metapost \
-        texlive-pictures \
-        texlive-plaingeneric \
-        texlive-pstricks \
-        texlive-publishers \
-        texlive-xetex
+    require_rpms_from_json "texlive-packages" "packages"
 
     require_repos_disabled 'copr:copr.fedorainfracloud.org:aahsnr-work:texlive-packages'
 
@@ -548,7 +492,7 @@ verify_texlive_packages() {
 }
 
 verify_nix() {
-    require_rpms nix nix-daemon
+    require_rpms_from_json "nix" "packages"
 
     local bin
     for bin in /usr/bin/nix /usr/bin/nix-daemon; do
