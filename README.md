@@ -19,9 +19,9 @@ A signed, bootc-native Fedora Atomic image for an NVIDIA gaming workstation. Bui
 ## Contents
 
 1. [Quickstart](#quickstart)
-2. [Verify with cosign](#verify-with-cosign)
-3. [Enforce signatures on the host](#enforce-signatures-on-the-host)
-4. [Install, update, roll back](#install-update-roll-back)
+2. [Install and verify](#install-and-verify)
+3. [Update and roll back](#update-and-roll-back)
+4. [Enforce signatures on the host](#enforce-signatures-on-the-host)
 5. [Architecture](#architecture)
 6. [Build locally](#build-locally)
 7. [CI/CD](#cicd)
@@ -44,18 +44,13 @@ IMAGE=ghcr.io/halcyon-linux/alcyone:latest
 cosign verify --key cosign.pub "$IMAGE" && sudo bootc switch "$IMAGE" && sudo systemctl reboot
 ```
 
-The system then follows `:latest` for every later update (see [Updates](#updates)). cosign warns that the reference is a tag, not a digest; that is expected here. The steps below explain each part.
+The system then follows `:latest` for every later update (see [Updates](#updates)). [Install and verify](#install-and-verify) explains each step.
 
 ---
 
-## Verify with cosign
+## Install and verify
 
-### How signing works
-
-- CI pushes the image, then signs the **manifest digest** with a self-managed ECDSA P-256 key (`SIGNING_SECRET` in GitHub Actions).
-- `latest` points at the freshly signed digest, so verifying `:latest` checks the signature of whatever digest the tag currently resolves to. CI also publishes other tags; this guide does not use them.
-- Signing uses `cosign sign --key … --new-bundle-format=false --use-signing-config=false`, which stores a **legacy-format** signature in the registry (tag `sha256-<digest>.sig`). Cosign v3 deprecates these flags and plans to remove them in v4; when that happens the signing format and the steps below must change together.
-- Use cosign **v3.1.3 or newer** (the version CI uses; it fixes a verification bypass involving legacy bundles, GHSA-fx35-mq7g-6g98).
+Do these steps in order: verify first, then switch, then reboot. They work on an existing Fedora Atomic or bootc-capable system. This repository does not build installer ISOs or disk images; for a fresh machine, install any such system first (or generate a disk image externally with `bootc-image-builder`).
 
 ### 1. Check your tools
 
@@ -63,11 +58,15 @@ The system then follows `:latest` for every later update (see [Updates](#updates
 command -v cosign skopeo curl openssl jq && cosign version
 ```
 
-Install cosign from <https://docs.sigstore.dev/cosign/system_config/installation/>. On Atomic hosts where you cannot install packages, run the verification inside Toolbx or Distrobox.
+Use cosign **v3.1.3 or newer**; install it from <https://docs.sigstore.dev/cosign/system_config/installation/>. On Atomic hosts where you cannot install packages, run steps 1–4 inside Toolbx or Distrobox.
 
 ### 2. Get `cosign.pub`
 
-Download it (as in the quickstart) or use a checkout (`git clone --branch containerfile https://github.com/halcyon-linux/base-image.git`). Expected contents:
+```bash
+curl -fsSLO https://raw.githubusercontent.com/halcyon-linux/base-image/containerfile/cosign.pub
+```
+
+Or use a checkout (`git clone --branch containerfile https://github.com/halcyon-linux/base-image.git`). Expected contents:
 
 ```text
 -----BEGIN PUBLIC KEY-----
@@ -92,11 +91,32 @@ IMAGE=ghcr.io/halcyon-linux/alcyone:latest
 cosign verify --key cosign.pub "$IMAGE"
 ```
 
-Success means exit code `0` and a report that the signatures were verified against the supplied public key. A non-zero exit means **do not deploy**.
+Success means exit code `0` and a report that the signatures were verified against the supplied public key. cosign warns that the reference is a tag, not a digest; that is expected here. A non-zero exit means **do not continue**; see [Troubleshooting](#troubleshooting).
 
-Verification and the later pull are separate steps, and `latest` can advance between them (it is rebuilt daily). Run them back to back, and use [host signature enforcement](#enforce-signatures-on-the-host) so every pull and update is checked, not just this one.
+`latest` is rebuilt daily and can advance between this check and the pull in step 5, so run the two back to back. [Host signature enforcement](#enforce-signatures-on-the-host) checks every pull, not just this one.
 
-### 5. Inspect (optional)
+### 5. Switch to the image
+
+```bash
+# bootc hosts
+sudo bootc switch "$IMAGE"
+
+# rpm-ostree hosts (unverified transport; this is why step 4 comes first)
+sudo rpm-ostree rebase "ostree-unverified-registry:$IMAGE"
+```
+
+Add `--apply` to `bootc switch` to reboot immediately. The system then follows `:latest` for every later update (see [Updates](#updates)).
+
+### 6. Reboot and confirm
+
+```bash
+sudo systemctl reboot
+# after the reboot
+bootc status
+jq . /usr/share/ublue-os/image-info.json
+```
+
+### Optional: inspect the image
 
 ```bash
 skopeo inspect "docker://$IMAGE" | jq '.Labels'
@@ -104,91 +124,27 @@ skopeo inspect "docker://$IMAGE" | jq '.Labels'
 
 Useful labels: `org.opencontainers.image.version`, `.revision` (git SHA), `.created`, and `ostree.linux` (kernel).
 
-### 6. Deploy
-
-See [Switch an existing system](#switch-an-existing-system). After the reboot, confirm:
-
-```bash
-bootc status
-jq . /usr/share/ublue-os/image-info.json
-```
-
 ### Troubleshooting
 
 | Symptom | Likely cause and action |
 | --- | --- |
 | `no signatures found` | Your cosign may look for the new bundle format first. Retry with `cosign verify --key cosign.pub --new-bundle-format=false "$IMAGE"`. |
 | Transparency-log errors | The signing flags are in `.github/workflows/build.yml`. Check how the signature was recorded before relaxing tlog checks (`--insecure-ignore-tlog`), and only do so deliberately. |
-| `invalid signature` / fingerprint mismatch | Wrong or rotated key. Re-check step 3 and treat it as a security event until explained. |
+| `invalid signature` / fingerprint mismatch | Wrong or rotated key. Re-check step 3 above and treat it as a security event until explained. |
 | Registry errors (`denied`, `unauthorized`, rate limits) | Retry later or authenticate with `podman login ghcr.io` / `skopeo login ghcr.io`. |
 
-Verify immediately before you switch; `latest` may have advanced since an earlier check.
+Always verify immediately before you switch; `latest` may have advanced since an earlier check.
+
+### How signing works
+
+- CI pushes the image, then signs the **manifest digest** with a self-managed ECDSA P-256 key (`SIGNING_SECRET` in GitHub Actions).
+- `latest` points at the freshly signed digest, so verifying `:latest` checks the signature of whatever digest the tag currently resolves to. CI also publishes other tags; this guide does not use them.
+- Signing uses `cosign sign --key … --new-bundle-format=false --use-signing-config=false`, which stores a **legacy-format** signature in the registry (tag `sha256-<digest>.sig`). Cosign v3 deprecates these flags and plans to remove them in v4; when that happens the signing format and the steps above must change together.
+- cosign v3.1.3 is the version CI uses; it fixes a verification bypass involving legacy bundles (GHSA-fx35-mq7g-6g98).
 
 ---
 
-## Enforce signatures on the host
-
-**Nothing enforces signatures by default.** bootc and rpm-ostree fetch images under the host's `/etc/containers/policy.json`, and the usual default accepts registries that have no rule. `uupd` is enabled on this image and keeps updating whichever tag you track, so unsigned content would be accepted unless your host policy says otherwise. The image's baked reference is `ostree-image-signed:docker://ghcr.io/halcyon-linux/alcyone`, but **this repository ships no `policy.json` or `registries.d` entry for `ghcr.io/halcyon-linux`**.
-
-Recommended: add a rule scoped to this image. Merge it into your existing policy; do not overwrite the file.
-
-```bash
-sudo install -Dm0644 cosign.pub /etc/pki/containers/halcyon-linux.pub
-
-sudo tee /etc/containers/registries.d/halcyon-linux.yaml >/dev/null <<'EOF'
-docker:
-  ghcr.io/halcyon-linux:
-    use-sigstore-attachments: true
-EOF
-
-# If /etc/containers/policy.json does not exist, start from your distribution's default policy.
-sudo cp /etc/containers/policy.json /etc/containers/policy.json.bak
-sudo jq '.transports.docker["ghcr.io/halcyon-linux/alcyone"] = [{
-  "type": "sigstoreSigned",
-  "keyPath": "/etc/pki/containers/halcyon-linux.pub",
-  "signedIdentity": { "type": "matchRepository" }
-}]' /etc/containers/policy.json.bak | sudo tee /etc/containers/policy.json >/dev/null
-```
-
-Pulls of this image then fail unless the legacy `.sig` signature matches `cosign.pub`.
-
-**Strict mode (optional).** `bootc switch --enforce-container-sigpolicy` requires `policy.json` to have a *default* policy that requires signatures (bootc man page), and `ostree-image-signed:` references make a best-effort check that the default is not `insecureAcceptAnything` (ostree-rs-ext docs). The scoped rule above may therefore not satisfy them. A default of `reject` blocks everything not explicitly allowed (other registries, `containers-storage`, …), so add allow entries for what you use before switching it on:
-
-```bash
-sudo bootc switch --enforce-container-sigpolicy ghcr.io/halcyon-linux/alcyone:latest
-# rpm-ostree equivalent
-sudo rpm-ostree rebase ostree-image-signed:docker://ghcr.io/halcyon-linux/alcyone:latest
-```
-
-> `ujust verify-image` only rewrites an `ostree-unverified-registry:` deployment reference to `ostree-image-signed:docker://…` and rebases to it. It does **not** run cosign. Use [Verify with cosign](#verify-with-cosign) for cryptographic verification.
-
-### CVE-2026-16487 and CVE-2026-16460 (bootc signature policy)
-
-CVE-2026-16487 (published 2026-10-19, CVSS 8.1, Red Hat) describes bootc upgrades of a mutable tag such as `:latest` applying unsigned content under the default containers policy. Red Hat Product Security has since stated that this is not a vulnerability in bootc or containers-common: deferring to `policy.json` is by design, and requiring signatures is opt-in through policy. Treat it as a hardening item for your host, not as a defect in this image. The published workaround is to pin updates to digests or to configure `policy.json` to reject unsigned content except from explicitly trusted signed scopes, and to disable automatic updates until then. Because this guide follows only `:latest`, the host policy is the control that applies.
-
-- **Enforce the policy above.** It checks every pull of `:latest`, including the ones `uupd` makes.
-- **Timers.** This image sets `AutomaticUpdatePolicy=none` and disables `rpm-ostreed-automatic.timer`; `uupd.timer` stays enabled. The repository does not touch `bootc-fetch-apply-updates.timer`, so check `systemctl is-enabled bootc-fetch-apply-updates.timer` and disable it if you do not use it.
-- **Staged deployments.** CVE-2026-16460 (bootc/ostree): a deployment staged under a permissive policy is not re-validated when finalized and stays bootable after you tighten the policy. After enabling enforcement, check `bootc status` and discard any staged deployment (`sudo rpm-ostree cleanup --pending`).
-
----
-
-## Install, update, roll back
-
-### Switch an existing system
-
-After [verifying](#verify-with-cosign):
-
-```bash
-# bootc hosts
-sudo bootc switch ghcr.io/halcyon-linux/alcyone:latest
-
-# rpm-ostree hosts (unverified transport; verify with cosign first)
-sudo rpm-ostree rebase ostree-unverified-registry:ghcr.io/halcyon-linux/alcyone:latest
-```
-
-Add `--apply` to `bootc switch` to reboot immediately.
-
-This repository does not build installer ISOs or disk images. For a fresh machine, install any Fedora Atomic or bootc-capable system and switch to this image, or generate a disk image externally with `bootc-image-builder`.
+## Update and roll back
 
 ### Updates
 
@@ -222,6 +178,52 @@ brh                    # guided rollback / rebase helper
 ```
 
 GRUB shows its menu for 10 seconds (`GRUB_TIMEOUT=10`, `GRUB_TIMEOUT_STYLE=menu`), so you can boot an older deployment or edit kernel arguments. The greenboot health-check and rollback-trigger services are enabled.
+
+---
+
+## Enforce signatures on the host
+
+This is optional hardening; do it after your first successful install above. **Nothing enforces signatures by default.** bootc and rpm-ostree fetch images under the host's `/etc/containers/policy.json`, and the usual default accepts registries that have no rule. `uupd` is enabled on this image and keeps updating whichever tag you track, so unsigned content would be accepted unless your host policy says otherwise. The image's baked reference is `ostree-image-signed:docker://ghcr.io/halcyon-linux/alcyone`, but **this repository ships no `policy.json` or `registries.d` entry for `ghcr.io/halcyon-linux`**.
+
+Recommended: add a rule scoped to this image. Merge it into your existing policy; do not overwrite the file.
+
+```bash
+sudo install -Dm0644 cosign.pub /etc/pki/containers/halcyon-linux.pub
+
+sudo tee /etc/containers/registries.d/halcyon-linux.yaml >/dev/null <<'EOF'
+docker:
+  ghcr.io/halcyon-linux:
+    use-sigstore-attachments: true
+EOF
+
+# If /etc/containers/policy.json does not exist, start from your distribution's default policy.
+sudo cp /etc/containers/policy.json /etc/containers/policy.json.bak
+sudo jq '.transports.docker["ghcr.io/halcyon-linux/alcyone"] = [{
+  "type": "sigstoreSigned",
+  "keyPath": "/etc/pki/containers/halcyon-linux.pub",
+  "signedIdentity": { "type": "matchRepository" }
+}]' /etc/containers/policy.json.bak | sudo tee /etc/containers/policy.json >/dev/null
+```
+
+Pulls of this image then fail unless the legacy `.sig` signature matches `cosign.pub`.
+
+**Strict mode (optional).** `bootc switch --enforce-container-sigpolicy` requires `policy.json` to have a *default* policy that requires signatures (bootc man page), and `ostree-image-signed:` references make a best-effort check that the default is not `insecureAcceptAnything` (ostree-rs-ext docs). The scoped rule above may therefore not satisfy them. A default of `reject` blocks everything not explicitly allowed (other registries, `containers-storage`, …), so add allow entries for what you use before switching it on:
+
+```bash
+sudo bootc switch --enforce-container-sigpolicy ghcr.io/halcyon-linux/alcyone:latest
+# rpm-ostree equivalent
+sudo rpm-ostree rebase ostree-image-signed:docker://ghcr.io/halcyon-linux/alcyone:latest
+```
+
+> `ujust verify-image` only rewrites an `ostree-unverified-registry:` deployment reference to `ostree-image-signed:docker://…` and rebases to it. It does **not** run cosign. Use [Install and verify](#install-and-verify) for cryptographic verification.
+
+### CVE-2026-16487 and CVE-2026-16460 (bootc signature policy)
+
+CVE-2026-16487 (published 2026-10-19, CVSS 8.1, Red Hat) describes bootc upgrades of a mutable tag such as `:latest` applying unsigned content under the default containers policy. Red Hat Product Security has since stated that this is not a vulnerability in bootc or containers-common: deferring to `policy.json` is by design, and requiring signatures is opt-in through policy. Treat it as a hardening item for your host, not as a defect in this image. The published workaround is to pin updates to digests or to configure `policy.json` to reject unsigned content except from explicitly trusted signed scopes, and to disable automatic updates until then. Because this guide follows only `:latest`, the host policy is the control that applies.
+
+- **Enforce the policy above.** It checks every pull of `:latest`, including the ones `uupd` makes.
+- **Timers.** This image sets `AutomaticUpdatePolicy=none` and disables `rpm-ostreed-automatic.timer`; `uupd.timer` stays enabled. The repository does not touch `bootc-fetch-apply-updates.timer`, so check `systemctl is-enabled bootc-fetch-apply-updates.timer` and disable it if you do not use it.
+- **Staged deployments.** CVE-2026-16460 (bootc/ostree): a deployment staged under a permissive policy is not re-validated when finalized and stays bootable after you tighten the policy. After enabling enforcement, check `bootc status` and discard any staged deployment (`sudo rpm-ostree cleanup --pending`).
 
 ---
 
