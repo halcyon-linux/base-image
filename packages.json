@@ -2,7 +2,12 @@
   "common-packages": {
     "description": "Common system packages installed from Fedora repos and Terra",
     "copr": null,
-    "repos": ["fedora", "updates", "terra", "terra-extras"],
+    "repos": [
+      "fedora",
+      "updates",
+      "terra",
+      "terra-extras"
+    ],
     "packages": [
       "7zip",
       "bazaar",
@@ -349,42 +354,55 @@
         "name": "Brave Browser",
         "baseurl": "https://brave-browser-rpm-release.s3.brave.com/$basearch",
         "gpgkey": "https://brave-browser-rpm-release.s3.brave.com/brave-core.asc",
-        "packages": ["brave-browser", "brave-origin"]
+        "packages": [
+          "brave-browser",
+          "brave-origin"
+        ]
       },
       {
         "id": "code",
         "name": "Visual Studio Code",
         "baseurl": "https://packages.microsoft.com/yumrepos/vscode",
         "gpgkey": "https://packages.microsoft.com/keys/microsoft.asc",
-        "packages": ["code"]
+        "packages": [
+          "code"
+        ]
       },
       {
         "id": "gitlab.com_paulcarroty_vscodium_repo",
         "name": "VSCodium",
         "baseurl": "https://paulcarroty.gitlab.io/vscodium-deb-rpm-repo/rpms/",
         "gpgkey": "https://gitlab.com/paulcarroty/vscodium-deb-rpm-repo/raw/master/pub.gpg",
-        "packages": ["codium"]
+        "packages": [
+          "codium"
+        ]
       },
       {
         "id": "google-chrome",
         "name": "Google Chrome",
         "baseurl": "https://dl.google.com/linux/chrome/rpm/stable/$basearch",
         "gpgkey": "https://dl.google.com/linux/linux_signing_key.pub",
-        "packages": ["google-chrome-stable"]
+        "packages": [
+          "google-chrome-stable"
+        ]
       },
       {
         "id": "microsoft-edge",
         "name": "Microsoft Edge",
         "baseurl": "https://packages.microsoft.com/yumrepos/edge",
         "gpgkey": "https://packages.microsoft.com/keys/microsoft.asc",
-        "packages": ["microsoft-edge-stable"]
+        "packages": [
+          "microsoft-edge-stable"
+        ]
       },
       {
         "id": "vivaldi",
         "name": "Vivaldi",
         "baseurl": "https://repo.vivaldi.com/stable/rpm/x86_64",
         "gpgkey": "https://repo.vivaldi.com/stable/linux_signing_key.pub",
-        "packages": ["vivaldi-stable"]
+        "packages": [
+          "vivaldi-stable"
+        ]
       }
     ]
   },

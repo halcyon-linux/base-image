@@ -17,7 +17,7 @@ A signed, bootc-native Fedora Atomic image for an NVIDIA gaming workstation. Bui
 
 ## Contents
 
-1. [Quickstart](#quickstart)
+1. [Quickstart (TL;DR)](#quickstart-tldr)
 2. [Pull and verify with cosign](#pull-and-verify-with-cosign)
 3. [Install, update, roll back](#install-update-roll-back)
 4. [Architecture](#architecture)
@@ -44,26 +44,16 @@ Both report `NAME="Halcyon"` in `/etc/os-release`; `VARIANT_ID` is `alcyone` or 
 
 ---
 
-## Quickstart
-
-Prerequisites: a bootc-capable Fedora Atomic host (Silverblue, Kinoite, Universal Blue, …), plus `cosign`, `skopeo` and `curl` (see [Step 1](#step-1--check-your-tools) if any are missing).
+## Quickstart (TL;DR)
 
 ```bash
-# 1. Fetch the signing public key
 curl -fsSLO https://raw.githubusercontent.com/halcyon-linux/base-image/containerfile/cosign.pub
-
-# 2. Resolve the tag to an immutable digest, then verify the signature on that digest
 IMAGE=ghcr.io/halcyon-linux/alcyone
 DIGEST=$(skopeo inspect --format '{{.Digest}}' docker://$IMAGE:stable)
-cosign verify --key cosign.pub "$IMAGE@$DIGEST"
-
-# 3. Deploy the verified image and boot into it
-sudo bootc switch "$IMAGE@$DIGEST"      # pinned to exactly what you verified
-# sudo bootc switch "$IMAGE:stable"     # or track the channel (the tag may have advanced)
-sudo systemctl reboot
+cosign verify --key cosign.pub "$IMAGE@$DIGEST" && sudo bootc switch "$IMAGE@$DIGEST" && sudo systemctl reboot
 ```
 
-Only run step 3 if step 2 exits `0`. Pinning to the digest means no automatic updates until you switch back to a tag. The full procedure, including fingerprint checks and troubleshooting, is in the next section.
+Full procedure, fingerprint check, troubleshooting, and unverified/development rebases below.
 
 ---
 
@@ -174,17 +164,22 @@ jq . /usr/share/ublue-os/image-info.json
 
 ### Troubleshooting
 
-| Symptom                                                   | Likely cause and action                                                                                                                                                                          |
-| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `no signatures found`                                     | Your cosign version may look for the new bundle format first. CI signs with `--new-bundle-format=false`; retry with `cosign verify --key cosign.pub --new-bundle-format=false "$IMAGE@$DIGEST"`. |
-| Transparency-log errors                                   | The signing flags are in `.github/workflows/build.yml`. Check how the signature was recorded before relaxing tlog checks (`--insecure-ignore-tlog`), and only do so deliberately.                |
-| `invalid signature` / fingerprint mismatch                | Wrong key or rotated key. Re-check Step 3. Treat as a security event until explained.                                                                                                            |
-| Registry errors (`denied`, `unauthorized`, rate limiting) | Retry later, or authenticate with `podman login ghcr.io` / `skopeo login ghcr.io`.                                                                                                               |
-| Signature verifies but you deployed a different image     | Always verify the same `@sha256:` digest you deploy.                                                                                                                                             |
+| Symptom                            | Likely cause and action                                                                                                                                                                          |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `no signatures found`              | Your cosign version may look for the new bundle format first. CI signs with `--new-bundle-format=false`; retry with `cosign verify --key cosign.pub --new-bundle-format=false "$IMAGE@$DIGEST"`. |
+| Transparency-log errors            | The signing flags are in `.github/workflows/build.yml`. Check how the signature was recorded before relaxing tlog checks (`--insecure-ignore-tlog`), and only do so deliberately.                |
+| `invalid signature` / fingerprint mismatch | Wrong key or rotated key. Re-check Step 3. Treat as a security event until explained.                                                                                                            |
+
+> Registry errors (`denied`, `unauthorized`, rate limiting): retry later or authenticate with `podman login ghcr.io` / `skopeo login ghcr.io`.  
+> Signature verifies but deployed a different image: always verify the same `@sha256:` digest you deploy.
 
 ### Enforcing the signature on the host (optional)
 
-`bootc switch` and `rpm-ostree rebase ostree-unverified-registry:` do not enforce a container signature policy unless you ask them to. The image's baked reference is `ostree-image-signed:docker://ghcr.io/halcyon-linux/alcyone`, but **this repository does not ship a `policy.json` or `registries.d` entry for `ghcr.io/halcyon-linux`**, so enforcement depends on your host's `/etc/containers` configuration. To enforce this key, add the following on the host (merge into your existing `policy.json`; do not overwrite it) and test on a throwaway deployment first:
+`bootc switch` and `rpm-ostree rebase ostree-unverified-registry:` do not enforce a container signature policy unless you ask them to. The image's baked reference is `ostree-image-signed:docker://ghcr.io/halcyon-linux/alcyone`, but **this repository does not ship a `policy.json` or `registries.d` entry for `ghcr.io/halcyon-linux`**, so enforcement depends on your host's `/etc/containers` configuration.
+
+For the recommended `policy.json` hardening (reject unsigned by default, allow only this key), see [CVE-2026-16487 mitigation](#cve-2026-16487-mitigation-mutable-tags-and-automatic-updates).
+
+To enforce signatures without the full hardening, add the registries.d entry and a minimal policy rule:
 
 ```bash
 sudo install -Dm0644 cosign.pub /etc/pki/containers/halcyon-linux.pub
@@ -224,9 +219,12 @@ sudo rpm-ostree rebase ostree-image-signed:docker://ghcr.io/halcyon-linux/alcyon
 
 ### Switch an existing system
 
+After verifying (see [Pull and verify](#pull-and-verify-with-cosign)):
+
 ```bash
-# bootc hosts (after verifying, see above)
-sudo bootc switch ghcr.io/halcyon-linux/alcyone:stable
+# bootc hosts — pin to digest for no auto-updates, or :stable to track
+sudo bootc switch ghcr.io/halcyon-linux/alcyone@sha256:<DIGEST>
+# sudo bootc switch ghcr.io/halcyon-linux/alcyone:stable
 
 # rpm-ostree hosts (unverified transport; verify with cosign first)
 sudo rpm-ostree rebase ostree-unverified-registry:ghcr.io/halcyon-linux/alcyone:stable
@@ -249,23 +247,20 @@ bootc status           # booted / staged / rollback deployments
 
 ### Updating to an unverified / development image (one-time)
 
-If you need to switch to the `:latest` tag or a local build **before** the signature is published (e.g., testing a PR build), use the unverified transport. This skips container signature policy checks for that rebase only; your existing verified deployment remains available for rollback.
+If you need to switch to `:latest` or a local build **before** the signature is published (e.g., testing a PR build), use the unverified transport. This skips container signature policy checks for that rebase only; your existing verified deployment remains available for rollback.
 
 ```bash
-# Check current status
-rpm-ostree status
-
-# Rebase to :latest via unverified transport (skips signature verification for this rebase)
+# Rebase to :latest via unverified transport (skips signature verification)
 sudo rpm-ostree rebase ostree-unverified-registry:ghcr.io/halcyon-linux/alcyone:latest
 
 # Or rebase to a local build
 sudo rpm-ostree rebase ostree-unverified-registry:localhost/alcyone-build:44-containerfile
 
-# Reboot into the new deployment
+# Reboot to activate
 sudo systemctl reboot
 ```
 
-> **Note:** `bootc switch` does not have an `--unverified` flag. Use `rpm-ostree rebase ostree-unverified-registry:…` for the one-time switch, then `bootc` will track that deployment going forward. `bootc upgrade` and `bootc rollback` work normally afterward.
+> **Note:** `bootc switch` has no `--unverified` flag. Use `rpm-ostree rebase ostree-unverified-registry:…` for the one-time switch; `bootc upgrade`/`bootc rollback` work normally afterward.
 
 ### CVE-2026-16487 mitigation (mutable tags and automatic updates)
 
