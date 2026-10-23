@@ -33,15 +33,6 @@ A signed, bootc-native Fedora Atomic image for an NVIDIA gaming workstation. Bui
 14. [Contributing](#contributing)
 15. [Upstream and license](#upstream-and-license)
 
-## Halcyon family
-
-| Image     | Built with    | Branch          | Reference                              |
-| --------- | ------------- | --------------- | -------------------------------------- |
-| `alcyone` | Containerfile | `containerfile` | `ghcr.io/halcyon-linux/alcyone:stable` |
-| `ceyx`    | BlueBuild     | `bluebuild`     | `ghcr.io/halcyon-linux/ceyx:latest`    |
-
-Both report `NAME="Halcyon"` in `/etc/os-release`; `VARIANT_ID` is `alcyone` or `ceyx`. This repository and branch build **only `alcyone`**.
-
 ---
 
 ## Quickstart (TL;DR)
@@ -502,122 +493,84 @@ Sundays 00:15 UTC (and manual): deletes `alcyone` package versions older than 90
 
 Run `ujust` for the full list. Commonly used:
 
-| Recipe                                                                | Purpose                                                                                |
-| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `update` (alias `upgrade`)                                            | Update the OS image and apps via `uupd`                                                |
-| `changelogs`                                                          | Open recent image changes                                                              |
-| `verify-image`                                                        | Rebase an unverified official ref to its `ostree-image-signed:` form (no cosign check) |
-| `dotfiles`                                                            | chezmoi menu: `status`, `sync`, `diff`, `edit`                                         |
-| `configure-grub`, `regenerate-grub`, `grub-timeout`                   | GRUB maintenance                                                                       |
-| `configure-snapshots`, `configure-beesd`                              | Btrfs snapshots and deduplication                                                      |
-| `setup-virtualization`                                                | Repair or disable the libvirt/KVM setup                                                |
-| `cockpit`                                                             | Toggle the Cockpit container (Quadlet)                                                 |
-| `tailscale`                                                           | Manage Tailscale                                                                       |
-| `update-nvidia-runtime`                                               | Check and sync the NVIDIA Flatpak runtime                                              |
-| `restore-input-remapper`, `get-logs`, `benchmark`, `toggle-user-motd` | Misc utilities                                                                         |
+| Recipe | Purpose |
+| ------ | ------- |
+| `update` / `upgrade` | Update OS image and apps via `uupd` |
+| `changelogs` | Open recent image changes |
+| `verify-image` | Rebase unverified ref to `ostree-image-signed:` form |
+| `dotfiles` | chezmoi menu: `status`, `sync`, `diff`, `edit` |
+| `configure-grub`, `regenerate-grub`, `grub-timeout` | GRUB maintenance |
+| `configure-snapshots`, `configure-beesd` | Btrfs snapshots and deduplication |
+| `setup-virtualization` | Repair or disable libvirt/KVM |
+| `cockpit` | Toggle Cockpit container (Quadlet) |
+| `tailscale` | Manage Tailscale |
+| `update-nvidia-runtime` | Sync NVIDIA Flatpak runtime |
 
 ### Software installation guidance
 
-Keep the image clean: prefer Homebrew, Flatpak, Nix, Distrobox or containers over layering RPMs, which can pin your deployment. System Flatpaks live in machine-local `/var/lib/flatpak`; the image declares only the Flathub remote and ships zero Flatpak applications.
+Keep the image clean: prefer Homebrew, Flatpak, Nix, Distrobox or containers over layering RPMs. System Flatpaks live in `/var/lib/flatpak`; the image declares only Flathub and ships zero Flatpak apps.
 
 ### Useful runtime facts
 
-- Root on Btrfs with zstd compression and `bees` deduplication is the assumed layout; use `compsize` to measure savings.
-- The kernel and NVIDIA driver are built against the same akmods tag and move together.
+- Root on Btrfs with zstd + `bees` deduplication; use `compsize` to measure savings.
+- Kernel and NVIDIA driver built against the same akmods tag; they move together.
 - Steam does not autostart on first login.
 
----
+### Dotfiles with chezmoi
 
-## Dotfiles with chezmoi
+The image installs `chezmoi` and wires it via systemd user units to [`aahsnr-configs/dotfiles`](https://github.com/aahsnr-configs/dotfiles). Upstream docs: <https://chezmoi.io>.
 
-`chezmoi` keeps dotfiles in a git-backed source directory (`~/.local/share/chezmoi`) and applies them to `$HOME`. This image installs it as an RPM and wires it into systemd user units, using [`aahsnr-configs/dotfiles`](https://github.com/aahsnr-configs/dotfiles) as the repository. Upstream docs: <https://chezmoi.io>.
+**What the image sets up**
 
-### What the image sets up
+| Component | When it runs | What it does |
+| --- | --- | --- |
+| `chezmoi-init.service` | At login, if `~/.local/share/chezmoi/.git` missing | `chezmoi init --apply --force aahsnr-configs/dotfiles` (retries up to 5×/5 min) |
+| `chezmoi-update.timer` | 5 min after boot, then daily | Triggers the update service |
+| `chezmoi-update.service` | By the timer | `chezmoi update --no-tty --force` (pull + apply) |
+| `ujust dotfiles` | Manual | Menu: `status` / `sync` / `diff` / `edit` |
 
-| Component                | When it runs                                               | What it does                                                                                              |
-| ------------------------ | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `chezmoi-init.service`   | At login, only if `~/.local/share/chezmoi/.git` is missing | `chezmoi init --apply --force aahsnr-configs/dotfiles` (retries on failure, up to 5 starts per 5 minutes) |
-| `chezmoi-update.timer`   | 5 minutes after boot, then daily                           | Triggers the update service                                                                               |
-| `chezmoi-update.service` | By the timer                                               | `chezmoi update --no-tty --force` (pull + apply)                                                          |
-| `ujust dotfiles`         | Manual                                                     | Menu: `status` / `sync` / `diff` / `edit`                                                                 |
+Units live in `/usr/lib/systemd/user/` (read-only, replaced on image updates). They skip system accounts and the `sddm` greeter (`ConditionUser=!@system`, `ConditionUser=!sddm`).
 
-The units live in `/usr/lib/systemd/user/` (read-only, replaced by image updates). They skip system accounts and the `sddm` greeter (`ConditionUser=!@system`, `ConditionUser=!sddm`), and the update units run only once the source repo exists.
-
-The dotfiles repo is public, so clones and pulls use anonymous HTTPS and automation needs no credentials. After init, the service sets two repo-local git options: a `pushInsteadOf` rule that rewrites only **pushes** to SSH, and a `core.sshCommand` pinned to `~/.ssh/id_ed25519_aahsnr_configs`. Manual pushes therefore need that key. `/etc/ssh/ssh_config.d/10-halcyon-github.conf` uses the same key as the default `github.com` identity elsewhere.
+The dotfiles repo is public; clones/pulls use anonymous HTTPS. After init, the service sets a `pushInsteadOf` rule rewriting only **pushes** to SSH, and `core.sshCommand` pinned to `~/.ssh/id_ed25519_aahsnr_configs`. Manual pushes need that key. `/etc/ssh/ssh_config.d/10-halcyon-github.conf` uses the same key for `github.com`.
 
 ```bash
 systemctl --user list-timers chezmoi-update.timer     # next scheduled update
 journalctl --user -u chezmoi-update.service -e        # last update's log
 ```
 
-### Mental model
+**Daily operations**
 
-```text
-~/.local/share/chezmoi  (git clone = source directory)
-        │  render templates, resolve attributes
-        ▼
-   target state ── chezmoi apply ──▶ $HOME
-```
+| Command | Effect |
+| --- | --- |
+| `chezmoi status` / `diff` | What `apply` would change |
+| `chezmoi apply --force` | Make `$HOME` match the source |
+| `chezmoi add ~/.zshrc` | Copy a `$HOME` file into the source |
+| `chezmoi re-add` | Re-snapshot every managed file that differs |
+| `chezmoi edit [--apply] ~/.zshrc` | Edit the source copy |
+| `chezmoi update --force` | `git pull --autostash --rebase`, then apply |
+| `chezmoi forget` / `remove` | Stop managing / delete source and target |
+| `chezmoi managed` / `unmanaged` / `doctor` / `cd` / `source-path` | Inspection helpers |
+| `chezmoi git -- <args>` | Run git in the source dir from anywhere |
 
-- `apply` uses the source directory as it is on disk, including uncommitted edits.
-- It touches only managed entries that differ; unmanaged files are never touched.
-- chezmoi never commits or pushes for you; its commands only pull (`update`, `init`).
+**Source naming**
 
-### Source naming
+| Source name | Target |
+| --- | --- |
+| `dot_zshrc` | `~/.zshrc` |
+| `private_dot_ssh/` | `~/.ssh` with group/world bits cleared |
+| `exact_dot_gnupg/` | `~/.gnupg`, also removes untracked files |
+| `create_dot_zprofile` | Created only if missing |
+| `run_once_*.sh` / `run_onchange_*.sh` | Scripts: once per content / on content change |
+| `*.tmpl` | Rendered as a template |
 
-| Source name                           | Target                                               |
-| ------------------------------------- | ---------------------------------------------------- |
-| `dot_zshrc`                           | `~/.zshrc`                                           |
-| `private_dot_ssh/`                    | `~/.ssh` with group/world bits cleared               |
-| `exact_dot_gnupg/`                    | `~/.gnupg`, also removes untracked files             |
-| `create_dot_zprofile`                 | Created only if missing                              |
-| `run_once_*.sh` / `run_onchange_*.sh` | Scripts: once per content / whenever content changes |
-| `*.tmpl`                              | Rendered as a template                               |
+**Gotchas**
 
-### Daily operations
-
-| Command                                                           | Effect                                                                 |
-| ----------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `chezmoi status` / `diff`                                         | What `apply` would change                                              |
-| `chezmoi apply --force`                                           | Make `$HOME` match the source                                          |
-| `chezmoi add ~/.zshrc`                                            | Copy a `$HOME` file into the source (replaces existing source content) |
-| `chezmoi re-add`                                                  | Re-snapshot every managed file that differs in `$HOME`                 |
-| `chezmoi edit [--apply] ~/.zshrc`                                 | Edit the source copy                                                   |
-| `chezmoi update --force`                                          | `git pull --autostash --rebase`, then apply                            |
-| `chezmoi forget` / `remove`                                       | Stop managing / delete source and target                               |
-| `chezmoi managed` / `unmanaged` / `doctor` / `cd` / `source-path` | Inspection helpers                                                     |
-| `chezmoi git -- <args>`                                           | Run git in the source dir from anywhere                                |
-
-After any apply, `chezmoi diff` should print nothing.
-
-### Recipes
-
-```bash
-# Edited the source directory (uncommitted)
-chezmoi diff && chezmoi apply --force && chezmoi diff
-git -C ~/.local/share/chezmoi add -A
-git -C ~/.local/share/chezmoi commit -m "Update dotfiles"
-git -C ~/.local/share/chezmoi push
-
-# Hand-edited a file in $HOME
-chezmoi add ~/.zshrc            # then commit and push as above
-
-# Pull changes from another machine
-chezmoi update --force          # or: ujust dotfiles sync
-
-# Discard local source edits and match the remote
-git -C ~/.local/share/chezmoi restore .
-chezmoi update --force
-```
-
-### Gotchas
-
-- The daily timer **silently reverts** `$HOME` edits that were not `add`ed back. Prefer `chezmoi edit` + `chezmoi apply --force`.
+- The daily timer **silently reverts** `$HOME` edits not `add`ed back. Prefer `chezmoi edit` + `chezmoi apply --force`.
 - First apply overwrites managed files that differ; always `chezmoi diff` first on an existing machine.
-- Update conflicts are git conflicts in the source dir: `chezmoi cd`, resolve, commit, push, then `chezmoi apply --force`.
-- Deleting `~/.local/share/chezmoi` is recoverable: the next login re-clones and force-applies.
+- Update conflicts = git conflicts in the source dir: `chezmoi cd`, resolve, commit, push, then `chezmoi apply --force`.
+- Deleting `~/.local/share/chezmoi` is recoverable: next login re-clones and force-applies.
 - Never `chezmoi add` plaintext secrets; use `chezmoi add --encrypt` (age/GPG) or a password manager via templates.
-- chezmoi owns `$HOME` only. Machine-level configuration belongs in this image's build files.
+- chezmoi owns `$HOME` only. Machine-level config belongs in this image's build files.
 
 ---
 
