@@ -67,6 +67,7 @@ dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' --e
     mesa-libEGL.i686 \
     mesa-libGL-devel \
     mesa-libGLES-devel \
+    glslang-devel \
     intel-opencl \
     clinfo
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y install libfreeaptx
