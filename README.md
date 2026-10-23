@@ -4,7 +4,7 @@ A signed, bootc-native Fedora Atomic image for an NVIDIA gaming workstation. Bui
 
 |                   |                                                                            |
 | ----------------- | -------------------------------------------------------------------------- |
-| **Image**         | `ghcr.io/halcyon-linux/alcyone` (tags: `stable`, `latest`, `YYYYMMDD`)     |
+| **Image**         | `ghcr.io/halcyon-linux/alcyone:latest` (the only tag this guide uses)       |
 | **Base**          | `ghcr.io/ublue-os/base-main:44` (Fedora 44, x86_64)                        |
 | **Kernel**        | OGC (Open Gaming Collective) kernel from `ublue-os/akmods`, version-locked |
 | **GPU**           | NVIDIA open modules (`akmods-nvidia-open`), multilib                       |
@@ -40,12 +40,11 @@ A signed, bootc-native Fedora Atomic image for an NVIDIA gaming workstation. Bui
 
 ```bash
 curl -fsSLO https://raw.githubusercontent.com/halcyon-linux/base-image/containerfile/cosign.pub
-IMAGE=ghcr.io/halcyon-linux/alcyone
-DIGEST=$(skopeo inspect --format '{{.Digest}}' docker://$IMAGE:stable)
-cosign verify --key cosign.pub "$IMAGE@$DIGEST" && sudo bootc switch "$IMAGE@$DIGEST" && sudo systemctl reboot
+IMAGE=ghcr.io/halcyon-linux/alcyone:latest
+cosign verify --key cosign.pub "$IMAGE" && sudo bootc switch "$IMAGE" && sudo systemctl reboot
 ```
 
-This pins the system to the verified digest, so `bootc upgrade` will not move it (see [Updates](#updates)). The steps below explain each part.
+The system then follows `:latest` for every later update (see [Updates](#updates)). cosign warns that the reference is a tag, not a digest; that is expected here. The steps below explain each part.
 
 ---
 
@@ -54,7 +53,7 @@ This pins the system to the verified digest, so `bootc upgrade` will not move it
 ### How signing works
 
 - CI pushes the image, then signs the **manifest digest** with a self-managed ECDSA P-256 key (`SIGNING_SECRET` in GitHub Actions).
-- `stable`, `latest` and the dated tag point at the same digest at push time, so one signature covers all three.
+- `latest` points at the freshly signed digest, so verifying `:latest` checks the signature of whatever digest the tag currently resolves to. CI also publishes other tags; this guide does not use them.
 - Signing uses `cosign sign --key … --new-bundle-format=false --use-signing-config=false`, which stores a **legacy-format** signature in the registry (tag `sha256-<digest>.sig`). Cosign v3 deprecates these flags and plans to remove them in v4; when that happens the signing format and the steps below must change together.
 - Use cosign **v3.1.3 or newer** (the version CI uses; it fixes a verification bypass involving legacy bundles, GHSA-fx35-mq7g-6g98).
 
@@ -86,29 +85,21 @@ openssl pkey -pubin -in cosign.pub -outform DER | sha256sum
 
 If the hash differs, stop: the key was rotated or the file was tampered with. Compare against a second source (a different clone, the git history) before trusting it. A deliberate key rotation must update this fingerprint in the same change.
 
-### 4. Resolve the tag to a digest and verify
-
-Verifying a digest rather than a tag avoids a race where the tag moves between verification and pull.
+### 4. Verify `latest`
 
 ```bash
-IMAGE=ghcr.io/halcyon-linux/alcyone
-DIGEST=$(skopeo inspect --format '{{.Digest}}' docker://$IMAGE:stable)
-cosign verify --key cosign.pub "$IMAGE@$DIGEST"
+IMAGE=ghcr.io/halcyon-linux/alcyone:latest
+cosign verify --key cosign.pub "$IMAGE"
 ```
 
-Success means exit code `0` and JSON whose `critical.image.docker-manifest-digest` equals `$DIGEST`. To check that in a script:
+Success means exit code `0` and a report that the signatures were verified against the supplied public key. A non-zero exit means **do not deploy**.
 
-```bash
-cosign verify --key cosign.pub "$IMAGE@$DIGEST" \
-  | jq -e --arg d "$DIGEST" '.[0].critical.image["docker-manifest-digest"] == $d'
-```
-
-A non-zero exit means **do not deploy**.
+Verification and the later pull are separate steps, and `latest` can advance between them (it is rebuilt daily). Run them back to back, and use [host signature enforcement](#enforce-signatures-on-the-host) so every pull and update is checked, not just this one.
 
 ### 5. Inspect (optional)
 
 ```bash
-skopeo inspect "docker://$IMAGE@$DIGEST" | jq '.Labels'
+skopeo inspect "docker://$IMAGE" | jq '.Labels'
 ```
 
 Useful labels: `org.opencontainers.image.version`, `.revision` (git SHA), `.created`, and `ostree.linux` (kernel).
@@ -126,12 +117,12 @@ jq . /usr/share/ublue-os/image-info.json
 
 | Symptom | Likely cause and action |
 | --- | --- |
-| `no signatures found` | Your cosign may look for the new bundle format first. Retry with `cosign verify --key cosign.pub --new-bundle-format=false "$IMAGE@$DIGEST"`. |
+| `no signatures found` | Your cosign may look for the new bundle format first. Retry with `cosign verify --key cosign.pub --new-bundle-format=false "$IMAGE"`. |
 | Transparency-log errors | The signing flags are in `.github/workflows/build.yml`. Check how the signature was recorded before relaxing tlog checks (`--insecure-ignore-tlog`), and only do so deliberately. |
 | `invalid signature` / fingerprint mismatch | Wrong or rotated key. Re-check step 3 and treat it as a security event until explained. |
 | Registry errors (`denied`, `unauthorized`, rate limits) | Retry later or authenticate with `podman login ghcr.io` / `skopeo login ghcr.io`. |
 
-Always verify the same `@sha256:` digest you deploy; a tag may have advanced since you verified it.
+Verify immediately before you switch; `latest` may have advanced since an earlier check.
 
 ---
 
@@ -164,19 +155,18 @@ Pulls of this image then fail unless the legacy `.sig` signature matches `cosign
 **Strict mode (optional).** `bootc switch --enforce-container-sigpolicy` requires `policy.json` to have a *default* policy that requires signatures (bootc man page), and `ostree-image-signed:` references make a best-effort check that the default is not `insecureAcceptAnything` (ostree-rs-ext docs). The scoped rule above may therefore not satisfy them. A default of `reject` blocks everything not explicitly allowed (other registries, `containers-storage`, …), so add allow entries for what you use before switching it on:
 
 ```bash
-sudo bootc switch --enforce-container-sigpolicy ghcr.io/halcyon-linux/alcyone:stable
+sudo bootc switch --enforce-container-sigpolicy ghcr.io/halcyon-linux/alcyone:latest
 # rpm-ostree equivalent
-sudo rpm-ostree rebase ostree-image-signed:docker://ghcr.io/halcyon-linux/alcyone:stable
+sudo rpm-ostree rebase ostree-image-signed:docker://ghcr.io/halcyon-linux/alcyone:latest
 ```
 
 > `ujust verify-image` only rewrites an `ostree-unverified-registry:` deployment reference to `ostree-image-signed:docker://…` and rebases to it. It does **not** run cosign. Use [Verify with cosign](#verify-with-cosign) for cryptographic verification.
 
 ### CVE-2026-16487 and CVE-2026-16460 (bootc signature policy)
 
-CVE-2026-16487 (published 2026-10-19, CVSS 8.1, Red Hat) describes bootc upgrades of mutable tags (`:stable`, `:latest`) applying unsigned content under the default containers policy. Red Hat Product Security has since stated that this is not a vulnerability in bootc or containers-common: deferring to `policy.json` is by design, and requiring signatures is opt-in through policy. Treat it as a hardening item for your host, not as a defect in this image. The published workaround is to pin updates to digests, or to configure `policy.json` to reject unsigned content except from explicitly trusted signed scopes, and to disable automatic updates until then.
+CVE-2026-16487 (published 2026-10-19, CVSS 8.1, Red Hat) describes bootc upgrades of a mutable tag such as `:latest` applying unsigned content under the default containers policy. Red Hat Product Security has since stated that this is not a vulnerability in bootc or containers-common: deferring to `policy.json` is by design, and requiring signatures is opt-in through policy. Treat it as a hardening item for your host, not as a defect in this image. The published workaround is to pin updates to digests or to configure `policy.json` to reject unsigned content except from explicitly trusted signed scopes, and to disable automatic updates until then. Because this guide follows only `:latest`, the host policy is the control that applies.
 
-- **Pin to a digest.** `bootc upgrade` then does nothing; you move forward by running `bootc switch` to each newly verified digest. `uupd` will not advance a pinned system.
-- **Or enforce the policy above.**
+- **Enforce the policy above.** It checks every pull of `:latest`, including the ones `uupd` makes.
 - **Timers.** This image sets `AutomaticUpdatePolicy=none` and disables `rpm-ostreed-automatic.timer`; `uupd.timer` stays enabled. The repository does not touch `bootc-fetch-apply-updates.timer`, so check `systemctl is-enabled bootc-fetch-apply-updates.timer` and disable it if you do not use it.
 - **Staged deployments.** CVE-2026-16460 (bootc/ostree): a deployment staged under a permissive policy is not re-validated when finalized and stays bootable after you tighten the policy. After enabling enforcement, check `bootc status` and discard any staged deployment (`sudo rpm-ostree cleanup --pending`).
 
@@ -189,12 +179,11 @@ CVE-2026-16487 (published 2026-10-19, CVSS 8.1, Red Hat) describes bootc upgrade
 After [verifying](#verify-with-cosign):
 
 ```bash
-# bootc hosts — pin to a digest, or track a tag
-sudo bootc switch ghcr.io/halcyon-linux/alcyone@sha256:<DIGEST>
-sudo bootc switch ghcr.io/halcyon-linux/alcyone:stable
+# bootc hosts
+sudo bootc switch ghcr.io/halcyon-linux/alcyone:latest
 
 # rpm-ostree hosts (unverified transport; verify with cosign first)
-sudo rpm-ostree rebase ostree-unverified-registry:ghcr.io/halcyon-linux/alcyone:stable
+sudo rpm-ostree rebase ostree-unverified-registry:ghcr.io/halcyon-linux/alcyone:latest
 ```
 
 Add `--apply` to `bootc switch` to reboot immediately.
@@ -405,9 +394,9 @@ for f in build_files/*/* just_scripts/* tests/*.sh; do bash -n "$f"; done
 | Concurrency | Per trigger; pushes cancel older pushes, manual dispatches are never cancelled by a push |
 | Action pinning | Every action pinned to a full commit SHA |
 
-Steps: checkout → `just` syntax check → dnf5 shim test → resolve akmods tag → pull base and akmods images and read the upstream version → `buildah build --target alcyone --build-arg-file build_args.txt --secret id=GITHUB_TOKEN` → compute OCI labels (including `ostree.bootable=true` and `ostree.linux`) → rechunk → log in to GHCR → **push** (`:stable`, then `:latest` and `:YYYYMMDD` copied by digest, with retry) → install cosign `v3.1.3` → **sign the digest**.
+Steps: checkout → `just` syntax check → dnf5 shim test → resolve akmods tag → pull base and akmods images and read the upstream version → `buildah build --target alcyone --build-arg-file build_args.txt --secret id=GITHUB_TOKEN` → compute OCI labels (including `ostree.bootable=true` and `ostree.linux`) → rechunk → log in to GHCR → **push** (`:latest` is the tag users follow; CI also publishes other tags, copied by digest, with retry) → install cosign `v3.1.3` → **sign the digest**.
 
-Publishing and signing run **only** when `github.ref == refs/heads/containerfile`, so a manual dispatch on another ref cannot overwrite `stable` or `latest`.
+Publishing and signing run **only** when `github.ref == refs/heads/containerfile`, so a manual dispatch on another ref cannot overwrite `latest`.
 
 Secrets: `SIGNING_SECRET` (cosign private key) and the automatic `GITHUB_TOKEN`.
 
