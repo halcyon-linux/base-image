@@ -2,228 +2,319 @@
 
 A signed, bootc-native Fedora Atomic image for an NVIDIA gaming workstation. Built from a single `Containerfile` on top of Universal Blue `base-main`, with the OGC gaming kernel, the NVIDIA **open** kernel modules, and a Hyprland + Noctalia desktop.
 
-|                   |                                                                            |
-| ----------------- | -------------------------------------------------------------------------- |
-| **Image**         | `ghcr.io/halcyon-linux/alcyone:latest` (the only tag this guide uses)       |
-| **Base**          | `ghcr.io/ublue-os/base-main:44` (Fedora 44, x86_64)                        |
-| **Kernel**        | OGC (Open Gaming Collective) kernel from `ublue-os/akmods`, version-locked |
-| **GPU**           | NVIDIA open modules (`akmods-nvidia-open`), multilib                       |
-| **Extra kmod**    | `nct6687d` only (NCT6687 sensors, MSI Z790-P target)                       |
-| **Desktop**       | SDDM + Hyprland (git) + Noctalia shell                                     |
-| **Packages**      | Declared in [`packages.json`](packages.json), read by the installers and by `verify` |
-| **Update stack**  | bootc / rpm-ostree, `uupd`, greenboot                                      |
-| **Signing**       | cosign key pair; the public key is [`cosign.pub`](cosign.pub)              |
-| **Branch**        | `containerfile` (the only branch; default and release)                     |
-| **License**       | Apache-2.0                                                                 |
+|                   |                                                                                       |
+| ----------------- | ------------------------------------------------------------------------------------- |
+| **Image**         | `ghcr.io/halcyon-linux/alcyone` (tags `stable`, `latest`, `YYYYMMDD`: same digest)    |
+| **Base**          | `ghcr.io/ublue-os/base-main:44` (Fedora 44, x86_64)                                   |
+| **Kernel**        | OGC (Open Gaming Collective) kernel from `ublue-os/akmods`, version-locked            |
+| **GPU**           | NVIDIA open modules (`akmods-nvidia-open`), multilib                                  |
+| **Extra kmod**    | `nct6687d` only (NCT6687 sensors, MSI Z790-P target)                                  |
+| **Desktop**       | SDDM + Hyprland (git) + Noctalia shell                                                |
+| **Update stack**  | bootc / rpm-ostree, `uupd`, greenboot                                                 |
+| **Signing**       | cosign key pair; the public key is [`cosign.pub`](cosign.pub)                         |
+| **Source branch** | `containerfile` (default and release branch)                                          |
+| **License**       | Apache-2.0                                                                            |
 
 ## Contents
 
-1. [Quickstart](#quickstart)
-2. [Install and verify](#install-and-verify)
-3. [Update and roll back](#update-and-roll-back)
-4. [Enforce signatures on the host](#enforce-signatures-on-the-host)
-5. [Architecture](#architecture)
-6. [Build locally](#build-locally)
-7. [CI/CD](#cicd)
-8. [Using the system](#using-the-system)
-9. [Build-time verification gates](#build-time-verification-gates)
-10. [Security and supply chain](#security-and-supply-chain)
-11. [Design decisions](#design-decisions)
-12. [Roadmap](#roadmap)
-13. [Repository layout](#repository-layout)
-14. [Contributing](#contributing)
-15. [Upstream and license](#upstream-and-license)
+1. [Before you switch](#before-you-switch)
+2. [Install: verify and switch](#install-verify-and-switch)
+3. [Enforce signature checks on your host](#enforce-signature-checks-on-your-host)
+4. [Update and roll back](#update-and-roll-back)
+5. [Test a local build](#test-a-local-build)
+6. [Using the system](#using-the-system)
+7. [What's in the image](#whats-in-the-image)
+8. [Architecture](#architecture)
+9. [Build locally](#build-locally)
+10. [CI/CD](#cicd)
+11. [Build-time verification gates](#build-time-verification-gates)
+12. [Security and supply-chain posture](#security-and-supply-chain-posture)
+13. [Design decisions](#design-decisions)
+14. [Roadmap](#roadmap)
+15. [Repository layout](#repository-layout)
+16. [Contributing](#contributing)
+17. [Upstream and license](#upstream-and-license)
 
 ---
 
-## Quickstart
+## Before you switch
 
-```bash
-curl -fsSLO https://raw.githubusercontent.com/halcyon-linux/base-image/containerfile/cosign.pub
-IMAGE=ghcr.io/halcyon-linux/alcyone:latest
-cosign verify --key cosign.pub "$IMAGE" && sudo bootc switch "$IMAGE" && sudo systemctl reboot
-```
+This is a personal, opinionated image. Check these first:
 
-The system then follows `:latest` for every later update (see [Updates](#updates)). [Install and verify](#install-and-verify) explains each step.
+- **NVIDIA GPU required.** The open kernel modules support Turing (GTX 16 / RTX 20) and newer cards only.
+- **Your dotfiles will be replaced.** On first login the image clones the maintainer's dotfiles ([`aahsnr-configs/dotfiles`](https://github.com/aahsnr-configs/dotfiles)) and applies them to `$HOME` with `--force`. To opt out, run `sudo systemctl --global disable chezmoi-init.service chezmoi-update.timer` before your first login (details in [Dotfiles with chezmoi](#dotfiles-with-chezmoi)).
+- **Signatures are not enforced by default.** Stock hosts accept any image from `ghcr.io`. Verify before installing, and read [Enforce signature checks](#enforce-signature-checks-on-your-host) if you want automatic updates.
+- **No installer.** This repository builds neither ISOs nor disk images. Install any bootc-capable Fedora Atomic system (Silverblue, Kinoite, Bazzite, Bluefin, …) and switch to this image, or build a disk image yourself with `bootc-image-builder`.
 
 ---
 
-## Install and verify
+## Install: verify and switch
 
-Do these steps in order: verify first, then switch, then reboot. They work on an existing Fedora Atomic or bootc-capable system. This repository does not build installer ISOs or disk images; for a fresh machine, install any such system first (or generate a disk image externally with `bootc-image-builder`).
+Run these on the Atomic host you are converting. The steps verify the image's signature, then pin your host to the exact digest you verified.
 
 ### 1. Check your tools
 
 ```bash
-command -v cosign skopeo curl openssl jq && cosign version
+command -v cosign skopeo curl openssl jq
+cosign version        # use v3.1.3 or newer
 ```
 
-Use cosign **v3.1.3 or newer**; install it from <https://docs.sigstore.dev/cosign/system_config/installation/>. On Atomic hosts where you cannot install packages, run steps 1–4 inside Toolbx or Distrobox.
+- `base-main` ships `cosign`; check that its version is v3.1.3 or newer. v3.1.3 fixes GHSA-fx35-mq7g-6g98, a verification bypass involving legacy-format bundles, which is the format this image uses.
+- Elsewhere, install it from <https://docs.sigstore.dev/cosign/system_config/installation/>.
+- If you cannot install packages on the host, run the verification inside a Toolbx or Distrobox container.
 
-### 2. Get `cosign.pub`
+### 2. Get the public key and check its fingerprint
 
 ```bash
 curl -fsSLO https://raw.githubusercontent.com/halcyon-linux/base-image/containerfile/cosign.pub
-```
-
-Or use a checkout (`git clone --branch containerfile https://github.com/halcyon-linux/base-image.git`). Expected contents:
-
-```text
------BEGIN PUBLIC KEY-----
-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAErR+XTgkFFRqVcpRrfuLOiZqYl0XD
-i7XfYkkUm+i1cDqGVRA2jV6As4M2mIkIgkYbQuHeLqqkXH5/Zc5vUQLBvg==
------END PUBLIC KEY-----
-```
-
-### 3. Check the key fingerprint
-
-```bash
 openssl pkey -pubin -in cosign.pub -outform DER | sha256sum
-# 9410658270bd845ed529f5f2a2f6a1a62bc5c28a49456b6cc4d97d57b1dca240  -
+# expected: 9410658270bd845ed529f5f2a2f6a1a62bc5c28a49456b6cc4d97d57b1dca240  -
 ```
 
-If the hash differs, stop: the key was rotated or the file was tampered with. Compare against a second source (a different clone, the git history) before trusting it. A deliberate key rotation must update this fingerprint in the same change.
+If the hash differs, stop: the key was rotated, or the file was tampered with. This README and `cosign.pub` live in the same repository, so for independent confirmation compare against a second source (a different clone, the git history). After a deliberate key rotation, update the fingerprint here.
 
-### 4. Verify `latest`
+### 3. Resolve the tag to a digest
+
+Verifying a digest instead of a tag avoids a race where the tag moves between verification and deployment.
 
 ```bash
-IMAGE=ghcr.io/halcyon-linux/alcyone:latest
-cosign verify --key cosign.pub "$IMAGE"
+IMAGE=ghcr.io/halcyon-linux/alcyone
+DIGEST=$(skopeo inspect --format '{{.Digest}}' docker://$IMAGE:stable)
+echo "$DIGEST"      # sha256:…
 ```
 
-Success means exit code `0` and a report that the signatures were verified against the supplied public key. cosign warns that the reference is a tag, not a digest; that is expected here. A non-zero exit means **do not continue**; see [Troubleshooting](#troubleshooting).
-
-`latest` is rebuilt daily and can advance between this check and the pull in step 5, so run the two back to back. [Host signature enforcement](#enforce-signatures-on-the-host) checks every pull, not just this one.
-
-### 5. Switch to the image
+### 4. Verify the signature
 
 ```bash
-# bootc hosts
-sudo bootc switch "$IMAGE"
-
-# rpm-ostree hosts (unverified transport; this is why step 4 comes first)
-sudo rpm-ostree rebase "ostree-unverified-registry:$IMAGE"
+cosign verify --key cosign.pub "$IMAGE@$DIGEST"
 ```
 
-Add `--apply` to `bootc switch` to reboot immediately. The system then follows `:latest` for every later update (see [Updates](#updates)).
-
-### 6. Reboot and confirm
+Success means exit code `0`, a report that the signatures were verified against the supplied public key, and JSON whose `critical.image.docker-manifest-digest` equals `$DIGEST`. To check that field in a script:
 
 ```bash
+cosign verify --key cosign.pub "$IMAGE@$DIGEST" \
+  | jq -e --arg d "$DIGEST" '.[0].critical.image["docker-manifest-digest"] == $d'
+```
+
+A non-zero exit means **do not deploy**.
+
+### 5. Inspect the image (optional)
+
+```bash
+skopeo inspect "docker://$IMAGE@$DIGEST" | jq '.Labels'
+```
+
+Useful labels: `org.opencontainers.image.version`, `org.opencontainers.image.revision` (git SHA), `org.opencontainers.image.created`, `ostree.linux` (kernel).
+
+### 6. Switch and reboot
+
+```bash
+sudo bootc switch "$IMAGE@$DIGEST"
 sudo systemctl reboot
-# after the reboot
+```
+
+After the reboot, confirm:
+
+```bash
 bootc status
 jq . /usr/share/ublue-os/image-info.json
 ```
 
-### Optional: inspect the image
+**You are now pinned to that digest.** `bootc upgrade`, `ujust update` and `uupd` will not move the OS image until you switch again. To take a newer build, repeat steps 3–6.
 
-```bash
-skopeo inspect "docker://$IMAGE" | jq '.Labels'
-```
+To track the `stable` channel instead (`sudo bootc switch "$IMAGE:stable"`), first [enforce signature checks](#enforce-signature-checks-on-your-host). Otherwise tag updates are not signature-checked, and re-running steps 3–4 right before the switch is your only protection.
 
-Useful labels: `org.opencontainers.image.version`, `.revision` (git SHA), `.created`, and `ostree.linux` (kernel).
-
-### Troubleshooting
-
-| Symptom | Likely cause and action |
-| --- | --- |
-| `no signatures found` | Your cosign may look for the new bundle format first. Retry with `cosign verify --key cosign.pub --new-bundle-format=false "$IMAGE"`. |
-| Transparency-log errors | The signing flags are in `.github/workflows/build.yml`. Check how the signature was recorded before relaxing tlog checks (`--insecure-ignore-tlog`), and only do so deliberately. |
-| `invalid signature` / fingerprint mismatch | Wrong or rotated key. Re-check step 3 above and treat it as a security event until explained. |
-| Registry errors (`denied`, `unauthorized`, rate limits) | Retry later or authenticate with `podman login ghcr.io` / `skopeo login ghcr.io`. |
-
-Always verify immediately before you switch; `latest` may have advanced since an earlier check.
+**Hosts with rpm-ostree but no bootc:** `sudo rpm-ostree rebase ostree-unverified-registry:ghcr.io/halcyon-linux/alcyone:stable`. This follows the tag, so the digest you verified is not enforced. Prefer bootc where available.
 
 ### How signing works
 
 - CI pushes the image, then signs the **manifest digest** with a self-managed ECDSA P-256 key (`SIGNING_SECRET` in GitHub Actions).
-- `latest` points at the freshly signed digest, so verifying `:latest` checks the signature of whatever digest the tag currently resolves to. CI also publishes other tags; this guide does not use them.
-- Signing uses `cosign sign --key … --new-bundle-format=false --use-signing-config=false`, which stores a **legacy-format** signature in the registry (tag `sha256-<digest>.sig`). Cosign v3 deprecates these flags and plans to remove them in v4; when that happens the signing format and the steps above must change together.
-- cosign v3.1.3 is the version CI uses; it fixes a verification bypass involving legacy bundles (GHSA-fx35-mq7g-6g98).
+- `stable`, `latest` and the dated tag point at the same digest at push time, so one signature covers all three.
+- The command is `cosign sign --key … --new-bundle-format=false --use-signing-config=false`. It produces a **legacy-format** signature stored in the registry next to the image (tag `sha256-<digest>.sig`). These flags are deprecated and slated for removal in cosign v4, so the signing format may change.
+- Open item A-002: nobody has yet confirmed that `cosign.pub` matches the CI `SIGNING_SECRET`. See [Security](#security-and-supply-chain-posture).
+
+### Troubleshooting
+
+| Symptom                                    | Likely cause and action                                                                                                                                                                  |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `no signatures found`                      | Make sure you passed `@$DIGEST`, not a tag. Update cosign: v3.1+ detects the legacy format itself. On older releases retry with `--new-bundle-format=false`.                              |
+| Transparency-log errors                    | The signing flags are in `.github/workflows/build.yml`. Check how the signature was recorded before relaxing tlog checks (`--insecure-ignore-tlog`), and only do so deliberately.        |
+| `invalid signature` / fingerprint mismatch | Wrong or rotated key. Re-check step 2. Treat as a security event until explained.                                                                                                        |
+| `denied`, `unauthorized`, rate limiting    | Retry later, or authenticate with `podman login ghcr.io` / `skopeo login ghcr.io`.                                                                                                       |
+
+If the signature verifies but you end up with a different image, you deployed something other than the digest you verified. Always deploy the same `@sha256:` digest.
 
 ---
 
-## Update and roll back
+## Enforce signature checks on your host
 
-### Updates
+`bootc` and `rpm-ostree` fetch images under `/etc/containers/policy.json`. The stock default accepts any content for registries without an explicit rule, so updates to a mutable tag (`:stable`, `:latest`), which is what `uupd` pulls, are not signature-checked. [CVE-2026-16487](https://www.cve.org/CVERecord?id=CVE-2026-16487) (bootc, published 2026-10-19) describes this: upgrading a mutable tag may apply unsigned content when the policy falls through to `insecureAcceptAnything`. Red Hat's listed workaround is to pin updates to digests, or to configure `policy.json` to reject unsigned content and allow only trusted signed scopes. The bootc maintainers treat deferring to `policy.json` as intended behavior, so the fix belongs in your host policy.
 
-Updates are staged, then applied on reboot.
-
-```bash
-ujust update           # alias: ujust upgrade — runs uupd-update
-sudo bootc upgrade     # manual equivalent for the OS image
-bootc status           # booted / staged / rollback deployments
-```
-
-- `uupd.timer` is enabled, `rpm-ostreed-automatic.timer` is disabled and `AutomaticUpdatePolicy=none`, so `uupd` is the only automatic updater.
-- `ujust changelogs` opens the commit history of the `containerfile` branch.
-
-### Local or development images
-
-`bootc switch` has no `--unverified` flag: it only enforces signatures if your host policy or `--enforce-container-sigpolicy` says so. To try a local build (unsigned, not rechunked), copy it into root's container storage (for example with `podman image scp`), then:
+This repository ships no `policy.json` or `registries.d` entry for `ghcr.io/halcyon-linux`, so enforcement is something you add. Run these from the directory holding the `cosign.pub` you verified in step 2:
 
 ```bash
-sudo bootc switch --transport containers-storage localhost/alcyone-build:44-containerfile
-sudo systemctl reboot
-```
-
-Your previous deployment stays available for rollback.
-
-### Rollback
-
-```bash
-sudo bootc rollback    # then reboot
-brh                    # guided rollback / rebase helper
-```
-
-GRUB shows its menu for 10 seconds (`GRUB_TIMEOUT=10`, `GRUB_TIMEOUT_STYLE=menu`), so you can boot an older deployment or edit kernel arguments. The greenboot health-check and rollback-trigger services are enabled.
-
----
-
-## Enforce signatures on the host
-
-This is optional hardening; do it after your first successful install above. **Nothing enforces signatures by default.** bootc and rpm-ostree fetch images under the host's `/etc/containers/policy.json`, and the usual default accepts registries that have no rule. `uupd` is enabled on this image and keeps updating whichever tag you track, so unsigned content would be accepted unless your host policy says otherwise. The image's baked reference is `ostree-image-signed:docker://ghcr.io/halcyon-linux/alcyone`, but **this repository ships no `policy.json` or `registries.d` entry for `ghcr.io/halcyon-linux`**.
-
-Recommended: add a rule scoped to this image. Merge it into your existing policy; do not overwrite the file.
-
-```bash
+# 1. Install the verification key
 sudo install -Dm0644 cosign.pub /etc/pki/containers/halcyon-linux.pub
 
+# 2. Tell containers/image to look for cosign signatures stored in the registry
 sudo tee /etc/containers/registries.d/halcyon-linux.yaml >/dev/null <<'EOF'
 docker:
   ghcr.io/halcyon-linux:
     use-sigstore-attachments: true
 EOF
 
-# If /etc/containers/policy.json does not exist, start from your distribution's default policy.
-sudo cp /etc/containers/policy.json /etc/containers/policy.json.bak
-sudo jq '.transports.docker["ghcr.io/halcyon-linux/alcyone"] = [{
-  "type": "sigstoreSigned",
-  "keyPath": "/etc/pki/containers/halcyon-linux.pub",
-  "signedIdentity": { "type": "matchRepository" }
-}]' /etc/containers/policy.json.bak | sudo tee /etc/containers/policy.json >/dev/null
+# 3. Add a signature requirement for this image, keeping the rest of your policy
+sudo cp -a /etc/containers/policy.json /etc/containers/policy.json.bak
+jq '.transports.docker["ghcr.io/halcyon-linux/alcyone"] = [{
+      "type": "sigstoreSigned",
+      "keyPath": "/etc/pki/containers/halcyon-linux.pub",
+      "signedIdentity": { "type": "matchRepository" }
+    }]' /etc/containers/policy.json.bak | sudo tee /etc/containers/policy.json >/dev/null
 ```
 
-Pulls of this image then fail unless the legacy `.sig` signature matches `cosign.pub`.
+From now on, `bootc switch`, `bootc upgrade` and `uupd` reject unsigned or wrongly signed content for this image, for tags and digests alike. On rpm-ostree, use the `ostree-image-signed:docker://ghcr.io/halcyon-linux/alcyone:stable` form; `ostree-unverified-registry:` bypasses the policy by design.
 
-**Strict mode (optional).** `bootc switch --enforce-container-sigpolicy` requires `policy.json` to have a *default* policy that requires signatures (bootc man page), and `ostree-image-signed:` references make a best-effort check that the default is not `insecureAcceptAnything` (ostree-rs-ext docs). The scoped rule above may therefore not satisfy them. A default of `reject` blocks everything not explicitly allowed (other registries, `containers-storage`, …), so add allow entries for what you use before switching it on:
+**Optional, stricter:** set `"default": [{"type": "reject"}]` in `policy.json` and explicitly allow every registry you pull from (for example `"docker.io": [{"type": "insecureAcceptAnything"}]`), or `podman pull` and Toolbx/Distrobox will break. With that in place `bootc switch --enforce-container-sigpolicy …` succeeds; the flag only checks that the *default* policy requires signatures, so it fails with just the per-image rule above.
+
+**Also:**
+
+- If a deployment was staged before you tightened the policy, discard it before rebooting (`sudo rpm-ostree cleanup -p`). Staged deployments are not re-checked against the current policy (CVE-2026-16460).
+- This image disables `rpm-ostreed-automatic.timer` and sets `AutomaticUpdatePolicy=none`; `uupd.timer` is the one automatic updater. It does not touch `bootc-fetch-apply-updates.timer`. If `systemctl is-enabled bootc-fetch-apply-updates.timer` says enabled and you are not enforcing signatures, disable it.
+- `ujust verify-image` only rewrites an `ostree-unverified-registry:` deployment reference to `ostree-image-signed:docker://…` and rebases. It does **not** run cosign, and the signed form is only checked if the policy above is in place.
+
+---
+
+## Update and roll back
+
+Updates are staged, then applied on reboot.
 
 ```bash
-sudo bootc switch --enforce-container-sigpolicy ghcr.io/halcyon-linux/alcyone:latest
-# rpm-ostree equivalent
-sudo rpm-ostree rebase ostree-image-signed:docker://ghcr.io/halcyon-linux/alcyone:latest
+ujust update           # alias: ujust upgrade (runs uupd-update)
+sudo bootc upgrade     # manual equivalent for the OS image
+bootc status           # booted / staged / rollback deployments
 ```
 
-> `ujust verify-image` only rewrites an `ostree-unverified-registry:` deployment reference to `ostree-image-signed:docker://…` and rebases to it. It does **not** run cosign. Use [Install and verify](#install-and-verify) for cryptographic verification.
+- `uupd` is the only automatic updater (`uupd.timer` enabled). It follows the ref you deployed: a tag follows new builds, a digest stays put.
+- `ujust changelogs` opens the commit history of the `containerfile` branch.
 
-### CVE-2026-16487 and CVE-2026-16460 (bootc signature policy)
+### Roll back
 
-CVE-2026-16487 (published 2026-10-19, CVSS 8.1, Red Hat) describes bootc upgrades of a mutable tag such as `:latest` applying unsigned content under the default containers policy. Red Hat Product Security has since stated that this is not a vulnerability in bootc or containers-common: deferring to `policy.json` is by design, and requiring signatures is opt-in through policy. Treat it as a hardening item for your host, not as a defect in this image. The published workaround is to pin updates to digests or to configure `policy.json` to reject unsigned content except from explicitly trusted signed scopes, and to disable automatic updates until then. Because this guide follows only `:latest`, the host policy is the control that applies.
+```bash
+sudo bootc rollback    # then reboot
+brh                    # guided rollback / rebase helper
+```
 
-- **Enforce the policy above.** It checks every pull of `:latest`, including the ones `uupd` makes.
-- **Timers.** This image sets `AutomaticUpdatePolicy=none` and disables `rpm-ostreed-automatic.timer`; `uupd.timer` stays enabled. The repository does not touch `bootc-fetch-apply-updates.timer`, so check `systemctl is-enabled bootc-fetch-apply-updates.timer` and disable it if you do not use it.
-- **Staged deployments.** CVE-2026-16460 (bootc/ostree): a deployment staged under a permissive policy is not re-validated when finalized and stays bootable after you tighten the policy. After enabling enforcement, check `bootc status` and discard any staged deployment (`sudo rpm-ostree cleanup --pending`).
+GRUB shows its menu for 10 seconds (`GRUB_TIMEOUT=10`, `GRUB_TIMEOUT_STYLE=menu`), so you can boot an older deployment or edit kernel arguments. The `greenboot` health-check and rollback-trigger services are enabled.
+
+---
+
+## Test a local build
+
+Local builds are unsigned (see [Build locally](#build-locally)). To boot one, put it in root's container storage and switch with the `containers-storage` transport:
+
+```bash
+podman save localhost/alcyone-build:44-containerfile | sudo podman load
+sudo bootc switch --transport containers-storage localhost/alcyone-build:44-containerfile
+sudo systemctl reboot
+```
+
+The tag suffix is your git branch (`44-<branch>`). Your previous deployment stays available for rollback. When you are done, switch back to the published image (steps 3–6 above).
+
+---
+
+## Using the system
+
+### `ujust` recipes
+
+Run `ujust` for the full list. Commonly used:
+
+| Recipe                                              | Purpose                                                                  |
+| --------------------------------------------------- | ------------------------------------------------------------------------ |
+| `update` / `upgrade`                                | Update the OS image and apps via `uupd`                                  |
+| `changelogs`                                        | Open recent image changes                                                |
+| `verify-image`                                      | Rebase an unverified ref to `ostree-image-signed:` form (no cosign check) |
+| `dotfiles`                                          | chezmoi menu: `status`, `sync`, `diff`, `edit`                           |
+| `configure-grub`, `regenerate-grub`, `grub-timeout` | GRUB maintenance                                                         |
+| `configure-snapshots`, `configure-beesd`            | Btrfs snapshots and deduplication                                        |
+| `setup-virtualization`                              | Repair or disable libvirt/KVM                                            |
+| `cockpit`                                           | Toggle the Cockpit container (Quadlet)                                   |
+| `tailscale`                                         | Manage Tailscale                                                         |
+| `update-nvidia-runtime`                             | Sync the NVIDIA Flatpak runtime                                          |
+
+### Installing software
+
+Keep the image clean: prefer Homebrew, Flatpak, Nix, Distrobox or containers over layering RPMs. The image declares only the Flathub remote (system Flatpaks live in `/var/lib/flatpak`) and ships no Flatpak apps.
+
+### Runtime facts
+
+- Root on Btrfs with zstd and `bees` deduplication; use `compsize` to measure savings.
+- Kernel and NVIDIA driver are built against the same akmods tag and move together.
+- Steam does not autostart on first login.
+
+### Dotfiles with chezmoi
+
+The image installs `chezmoi` and wires it through systemd user units to [`aahsnr-configs/dotfiles`](https://github.com/aahsnr-configs/dotfiles). Upstream docs: <https://chezmoi.io>.
+
+> **This is the maintainer's personal repo.** On first login it is cloned and force-applied to your `$HOME`, and a daily timer keeps it applied.
+>
+> - Opt out for every user: `sudo systemctl --global disable chezmoi-init.service chezmoi-update.timer`
+> - Opt out for one user: `systemctl --user mask chezmoi-init.service chezmoi-update.timer`
+>
+
+| Component                | When it runs                                       | What it does                                                                  |
+| ------------------------ | -------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `chezmoi-init.service`   | At login, if `~/.local/share/chezmoi/.git` missing | `chezmoi init --apply --force aahsnr-configs/dotfiles` (5 attempts in 5 min)  |
+| `chezmoi-update.timer`   | 5 min after boot, then daily                       | Triggers the update service                                                   |
+| `chezmoi-update.service` | By the timer                                       | `chezmoi update --no-tty --force` (pull and apply)                            |
+| `ujust dotfiles`         | Manual                                             | Menu: `status` / `sync` / `diff` / `edit`                                     |
+
+- Units live in `/usr/lib/systemd/user/` (read-only, replaced on image updates). They skip system accounts and the `sddm` greeter.
+- The dotfiles repo is public, so clones and pulls use anonymous HTTPS. After init, the service rewrites only **pushes** to SSH (`pushInsteadOf`) and pins `core.sshCommand` to `~/.ssh/id_ed25519_aahsnr_configs`. Manual pushes need that key. `/etc/ssh/ssh_config.d/10-halcyon-github.conf` uses the same key for `github.com`.
+- Handy checks:
+
+  ```bash
+  systemctl --user list-timers chezmoi-update.timer     # next scheduled update
+  journalctl --user -u chezmoi-update.service -e        # last update's log
+  ```
+
+**Gotchas**
+
+- The daily timer **silently reverts** `$HOME` edits that were not added back. Edit through chezmoi (`chezmoi edit --apply <file>`) or `chezmoi add` the change.
+- The first apply overwrites managed files that differ; run `chezmoi diff` first on an existing machine.
+- Update conflicts are git conflicts in the source directory: `chezmoi cd`, resolve, commit, push, then `chezmoi apply --force`.
+- Deleting `~/.local/share/chezmoi` is recoverable: the next login re-clones and force-applies.
+- Never `chezmoi add` plaintext secrets; use `chezmoi add --encrypt` (age/GPG) or a password manager via templates.
+- chezmoi owns `$HOME` only. Machine-level config belongs in this image's build files.
+
+---
+
+## What's in the image
+
+Full package lists live in [`packages.json`](packages.json). Highlights:
+
+| Area                   | Contents                                                                                                                                                                                                                         |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Desktop**            | SDDM (default target `graphical.target`), Hyprland + Noctalia, Bazaar software center (Flathub declared, no Flatpak apps pre-installed)                                                                                          |
+| **Shell and CLI**      | zsh as the default login shell (fish and `greetd` removed); a pinentry dispatcher (GUI in a graphical session, curses/tty otherwise); `bat`, `eza`, `fzf`, `ripgrep`, `atuin`, `starship`, `zellij`, `yazi`, `lazygit`, `uv`, `pixi`, … |
+| **Gaming**             | Steam (no autostart), Lutris, gamescope, MangoHud, vkBasalt, umu-launcher, ProtonPlus, Heroic, winetricks, `scx` schedulers, `ds-inhibit`, `input-remapper`. Handheld packages removed; Waydroid intentionally absent             |
+| **System**             | Btrfs tooling (`btrfs-assistant`, `snapper`, `compsize`), `bees` deduplication (timers via `ujust configure-beesd`), libvirt/QEMU/virt-manager, greenboot, `fail2ban`, `lynis`, Tailscale (installed, `tailscaled` disabled), Cockpit modules (`cockpit-ws` not installed; a Quadlet is toggled by `ujust cockpit`) |
+| **Package ecosystems** | Homebrew (standalone), Nix (`nix`, `nix-daemon`, `/nix` mount units for the immutable root), Distrobox/Toolbx, Flatpak runtime                                                                                                  |
+| **Apps and toolchains** | Firefox, Chrome, Brave, Edge, Vivaldi, Zen; VS Code, VSCodium, Zed, Neovim, Emacs; Obsidian, OnlyOffice, Bitwarden; Go, Rust (`cargo`), Node 22, CMake, Ninja; TeX Live with formats baked at build time                          |
+| **Runtime tuning**     | zram, sysctl drop-ins (gaming, networking, inotify), TuneD profiles (`*-bazzite`), an optional 1 GiB hugepage mount, VFIO dracut config, `ntsync` module load                                                                     |
+
+### Package sources and repository lifecycle
+
+| Source                                                                                                               | Used for                                                                                                    | Lifecycle                                                                    |
+| -------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `ublue-os/base-main:44`                                                                                              | Base OS                                                                                                     | Image base                                                                   |
+| `ublue-os/akmods*` images                                                                                            | Kernel, kmods, NVIDIA RPMs                                                                                  | Build inputs only                                                            |
+| `ublue-os/{bazzite,bazzite-multilib,staging,packages}` COPRs                                                         | Patched bluez and Xwayland (`bazzite-multilib`), Bazaar and media-automount (`packages`), helpers           | Enabled for the build, **disabled in the shipped image**                     |
+| Terra (`terra`, `terra-extras`, `terra-mesa`)                                                                        | gamescope, MangoHud, wireplumber, mesa bits                                                                 | Priority 1 with excludes; disabled in the shipped image                      |
+| `aahsnr-work/cli-tools`, `python-packages`, `gaming`, `fonts`, `base-pkgs`, `applications`, `texlive-packages` COPRs | The Halcyon package sets                                                                                    | Enabled at `priority=1` inside its own script, disabled before it returns    |
+| Vendor repos (Tailscale, GitHub CLI, VS Code, VSCodium, Brave, Chrome, Edge, Vivaldi)                                | Their packages                                                                                              | Disabled in the shipped image by `configure-system-policy`                   |
+| GitHub releases and raw files via `ghcurl`                                                                           | `cicpoffs`, `extest`, `ujust-picker`, winetricks, DXVK example config, Distrobox template, bash-preexec     | Downloaded at build time                                                     |
+
+Version-locked packages: kernel set, `bluez*`, `xorg-x11-server-Xwayland`, core `mesa-*`, `NetworkManager*`.
 
 ---
 
@@ -253,7 +344,7 @@ flowchart LR
   A --> BLD
   H --> BLD
   R --> BLD
-  BLD["buildah build: Containerfile + build_files + packages.json via /ctx"] --> V["verify gates after each stage + bootc container lint"]
+  BLD["buildah build: Containerfile + build_files via /ctx"] --> V["verify gates after each stage + bootc container lint"]
   V --> RC["rechunk: rpm-ostree compose build-chunked-oci --bootc"]
   RC --> P["push ghcr.io/halcyon-linux/alcyone"]
   P --> S["cosign sign digest"]
@@ -262,93 +353,52 @@ flowchart LR
 
 ### Kernel and driver selection
 
-`just_scripts/resolve-akmods` walks the published `akmods-extra` tags newest-first (`ogc-44-<kernel-version>`) and picks the first tag where:
+`just_scripts/resolve-akmods` walks published `akmods-extra` tags newest-first (`ogc-44-<kernel-version>`) and picks the first tag where:
 
 1. `akmods`, `akmods-extra` **and** `akmods-nvidia-open` are all published for that tag, and
 2. the `akmods-extra` payload actually contains the `nct6687d` kmod.
 
-If no tag qualifies, the build refuses to run. CI and `just build` both use it, so the Containerfile carries no hardcoded kernel version. A bare `podman build` falls back to the floating tag `ogc-44-x86_64`.
+If no tag qualifies, the build refuses to run. CI and `just build` both use this, so the Containerfile carries no hardcoded kernel version. A bare `podman build` falls back to the floating tag `ogc-44-x86_64`.
 
 The kernel swap (`build_files/kernel/install-kernel-akmods`) removes the stock kernel, installs the OGC RPMs, adds a `dnf5 versionlock`, and installs only `nct6687d` from the extra kmods. NVIDIA modules come from prebuilt RPMs via `nvidia-install.sh` (`MULTILIB=1`); `nvidia-gpu-firmware` (nouveau) is removed first.
 
 ### Build contract (`/ctx`)
 
-`build_files/` and `packages.json` are exposed as a scratch stage (`ctx`) and bind-mounted at `/ctx`, so scripts never land in image layers. Package lists live in `packages.json`: the installers and `verify` both read it with `jq`, so change package sets there, not in the scripts. Package-installing `RUN` steps typically:
+`build_files/` and `packages.json` are exposed as a scratch stage (`ctx`) and bind-mounted at `/ctx`, so scripts never land in image layers. Package-installing `RUN` steps typically:
 
 - mount `/var/cache` and `/var/log` caches and a tmpfs `/tmp`,
 - call one script, then `/ctx/finalization/verify <stage>`, then `/ctx/shared/cleanup`,
 - mount the `GITHUB_TOKEN` secret where a GitHub download or the NVIDIA installer needs it.
 
-`build_files/shared/dnf5` is a build-only retry shim (up to 5 retries, 60 s apart) installed before the first dnf transaction to survive upstream metadata republishing. It is removed before the final lint.
+`build_files/shared/dnf5` is a build-only retry shim (up to 5 retries, 60 s apart), installed before the first dnf transaction to survive upstream metadata republishing. It is removed before the final lint.
 
-### Build stages (in order)
+### Build order
 
-| # | Stage | Script | `verify` group |
-| --- | --- | --- | --- |
-| 1 | Shared Bazzite config → `/` | `COPY system_files/desktop/` | — |
-| 2 | dnf5 retry shim | `shared/dnf5` | CI runs `tests/test-dnf5-retry.sh` |
-| 3 | Homebrew standalone files | `packages/install-brew-files` | `brew` |
-| 4 | OGC kernel + `nct6687d` | `kernel/install-kernel-akmods` | `kernel` |
-| 5 | Repositories, priorities, excludes | `packages/setup-repositories` | `repos` |
-| 6 | CLI tools COPR | `packages/install-cli-tools` | `cli-tools` |
-| 7 | Python utilities COPR | `packages/install-utils` | `utils` |
-| 8 | Remove superseded packages | `packages/global-remove` | `removals` |
-| 9 | Common packages | `packages/install-common-packages` | `common-packages` |
-| 10 | Gaming stack | `packages/install-gaming-stack` | `gaming` |
-| 11 | Fonts | `packages/install-fonts` | `fonts` |
-| 12 | Hyprland / Noctalia | `packages/install-base-pkgs` | `base-pkgs` |
-| 13 | Applications, browsers, `bees` | `packages/install-applications` | `applications` |
-| 14 | TeX Live (+ baked formats) | `packages/install-texlive-packages` → `bake-texlive-formats` | `texlive-packages` |
-| 15 | Nix | `packages/install-nix` | `nix` |
-| 16 | `ujust-picker` | `packages/install-ujust-picker` | `picker` |
-| 17 | Media automount | `packages/install-media-automount` | `media` |
-| 18 | `system_files/overrides/`, desktop integration, justfiles, services, GRUB, integration files, image-info, initramfs, finalize | `system/*`, `just/*`, `packages/install-system-integration-files`, `finalization/*`, `kernel/build-initramfs` | `desktop-integration` … `finalize` |
-| 19 | NVIDIA config, driver, system policy, finalize; then image-info, initramfs, finalize again | `nvidia/*`, `system/configure-system-policy` | `nvidia-config` … `nvidia-finalize` |
-| 20 | Final assertions and lint | — | `final`, then `bootc container lint` |
+Every step below is followed by its `verify <stage>` gate (see [Build-time verification gates](#build-time-verification-gates)).
 
-Metadata, initramfs and finalization run twice on purpose: the second pass must include the NVIDIA modules.
+1. Copy `system_files/desktop/` to `/`, install the dnf5 retry shim, add the Homebrew standalone files.
+2. Swap in the OGC kernel and `nct6687d`.
+3. Set up repositories, priorities and excludes.
+4. Install the package sets in order: CLI tools, Python utilities, removal of superseded packages, common packages, gaming stack, fonts, Hyprland/Noctalia, applications (browsers, `bees`), TeX Live (then bake its formats), Nix, `ujust-picker`, media automount.
+5. Copy `system_files/overrides/` (after packages, so intentional overrides win), then desktop integration, justfiles, services, GRUB, integration files, image-info, initramfs, finalize.
+6. NVIDIA: copy its payload, configure, install the driver, apply system policy (disables the remaining build repos), finalize. Then image-info, initramfs and finalize **again**: the second pass must include the NVIDIA modules.
+7. Final assertions (`verify final`), remove the dnf5 shim, `bootc container lint`.
 
-### Package sources and repository lifecycle
-
-| Source | Used for | Lifecycle |
-| --- | --- | --- |
-| `ublue-os/base-main:44` | Base OS | Image base |
-| `ublue-os/akmods*` images | Kernel, kmods, NVIDIA RPMs | Build inputs only |
-| `ublue-os/{bazzite,bazzite-multilib,staging,packages}` COPRs | Patched bluez and Xwayland (`bazzite-multilib`), Bazaar and media-automount (`packages`), helpers | Enabled for the build, **disabled in the shipped image** |
-| Terra (`terra`, `terra-extras`, `terra-mesa`) | gamescope, MangoHud, wireplumber, mesa bits | Priority 1 with excludes; disabled in the shipped image |
-| `aahsnr-work/{cli-tools,python-packages,gaming,fonts,base-pkgs,applications,texlive-packages}` COPRs | The Halcyon package sets | Each enabled at `priority=1` inside its own script, then disabled before the script returns |
-| Vendor repos (Tailscale, GitHub CLI, VS Code, VSCodium, Brave, Chrome, Edge, Vivaldi) | Their packages | Disabled in the shipped image by `configure-system-policy` |
-| GitHub releases and raw files via `ghcurl` | `cicpoffs`, `extest`, `ujust-picker`, winetricks, DXVK example config, Distrobox template, bash-preexec | Downloaded at build time |
-
-Version-locked packages: kernel set, `bluez*`, `xorg-x11-server-Xwayland`, core `mesa-*`, `NetworkManager*`.
-
-### What the image ships
-
-- **Desktop**: SDDM (default target `graphical.target`), Hyprland (git) + Noctalia (git), Bazaar software center (Flathub remote declared; no Flatpak apps pre-installed).
-- **Shell and CLI**: zsh as the default login shell (fish and `greetd` removed); a pinentry wrapper (GUI in a graphical session, curses/tty otherwise); a large CLI toolset (`bat`, `eza`, `fzf`, `ripgrep`, `atuin`, `starship`, `zellij`, `yazi`, `lazygit`, `uv`, `pixi`, …).
-- **Gaming**: Steam (no autostart), Lutris, gamescope, MangoHud, vkBasalt, umu-launcher, ProtonPlus, Heroic, winetricks, `scx` schedulers, `ds-inhibit`, `input-remapper`. Handheld-specific packages are removed; Waydroid is intentionally absent.
-- **System**: Btrfs tooling (`btrfs-assistant`, `snapper`, `compsize`) and `bees` deduplication (per-filesystem timers via `ujust configure-beesd`; relevant only if your root is Btrfs), Cockpit modules (`cockpit-ws` is not installed; a Quadlet is toggled by `ujust cockpit`), libvirt/QEMU/virt-manager, Tailscale (installed, `tailscaled` disabled by default), greenboot, `fail2ban`, `lynis`.
-- **Package ecosystems**: Homebrew (standalone), Nix (`nix`, `nix-daemon`, `/nix` mount units for the immutable root), Distrobox/Toolbx, Flatpak runtime.
-- **Apps and toolchains**: Firefox, Chrome, Brave, Edge, Vivaldi, VS Code, VSCodium, Neovim, Emacs, Obsidian, OnlyOffice, Bitwarden; Go, Rust (`cargo`), Node 22, CMake, Ninja; TeX Live with formats baked at build time.
-- **Runtime tuning**: zram, sysctl drop-ins for gaming/networking/inotify, TuneD profiles (`*-bazzite`), an optional 1 GiB hugepage mount, VFIO dracut config, `ntsync` module load.
-- **Rechunked** with `rpm-ostree compose build-chunked-oci --bootc --max-layers 127` for efficient updates.
-
-### Repository policy for payloads
+### Payload rules
 
 - Static content lives under `/usr`; `/etc` carries defaults and overrides; `finalize` strips `/var`, so nothing static may live there.
-- `system_files/overrides/` is copied **after** package installation so intentional overrides win.
 - Commands that upstream shipped from `usr/bin` now come from RPMs (`brh`, `bruh`, `crh`, `gameclass`, `ublue-motd`, `uupd-update`, …). `system_files/desktop/usr/bin` intentionally does not exist.
 
 ---
 
 ## Build locally
 
-Prerequisites: Linux with `podman` (or `podman-remote`), `just`, `git`, `skopeo`, `jq`, outbound access to `ghcr.io`, Copr and GitHub, and plenty of free disk.
+Prerequisites: Linux with `podman` (or `podman-remote`), `just`, `git`, `skopeo`, `jq`, outbound network access to `ghcr.io`, Copr and GitHub, and plenty of free disk (CI frees runner disk space before building).
 
 ```bash
 just                # list recipes
 just build          # build alcyone (the only supported target)
-just run            # shell in the built image (builds first if missing)
+just run            # run a shell in the built image (builds first if missing)
 just list-images    # list localhost/alcyone*-build images
 just clean-images   # remove them
 just just-check     # check .just and Justfile formatting (uses `just --unstable`)
@@ -358,11 +408,12 @@ just just-check     # check .just and Justfile formatting (uses `just --unstable
 - Any target other than `alcyone` (or `containerfile`) is rejected by `just_scripts/get-defaults`.
 - Overrides: `CONTAINER_MGR` (`podman` or `podman-remote`), `KERNEL_FLAVOR`, `REQUIRED_KMOD`, `AKMODS_TAG`, `KERNEL_VERSION`.
 - Local images are **not rechunked and not signed**.
-- `just build` does not forward `GITHUB_TOKEN`; `ghcurl` then makes unauthenticated GitHub requests and may hit rate limits. The token is optional.
+- `just build` does not forward `GITHUB_TOKEN`; GitHub downloads then run unauthenticated and may hit rate limits.
 
 Equivalent manual build (mirrors CI and forwards the token):
 
 ```bash
+export GITHUB_TOKEN=…   # any token; or delete the --secret line below to build unauthenticated
 AKMODS_TAG=$(just_scripts/resolve-akmods ogc 44 x86_64 nct6687d)
 KERNEL_VERSION=${AKMODS_TAG#ogc-44-}
 
@@ -375,6 +426,8 @@ podman build -f Containerfile --target alcyone \
   -t localhost/alcyone:dev .
 ```
 
+The token is optional: without it, `ghcurl` falls back to unauthenticated requests.
+
 Fast checks without a full build:
 
 ```bash
@@ -386,110 +439,51 @@ for f in build_files/*/* just_scripts/* tests/*.sh; do bash -n "$f"; done
 
 ## CI/CD
 
-### `.github/workflows/build.yml` — build alcyone
+### `.github/workflows/build.yml`: build alcyone
 
-| Item | Value |
-| --- | --- |
-| Triggers | Daily `40 4 * * *` UTC; push to `containerfile` (ignoring `**.md`, `**.txt`); manual dispatch |
-| Runner / limits | `ubuntu-26.04`, 90-minute timeout, free-disk-space step first |
-| Permissions | `permissions: {}` at top level; the job gets `contents: read`, `packages: write`, `id-token: write` |
-| Concurrency | Per trigger; pushes cancel older pushes, manual dispatches are never cancelled by a push |
-| Action pinning | Every action pinned to a full commit SHA |
+| Item            | Value                                                                                               |
+| --------------- | --------------------------------------------------------------------------------------------------- |
+| Triggers        | Daily `40 4 * * *` UTC; push to `containerfile` (ignoring `**.md`, `**.txt`); manual dispatch       |
+| Runner / limits | `ubuntu-26.04`, 90-minute timeout, free-disk-space step first                                       |
+| Permissions     | `permissions: {}` at top level; the job gets `contents: read`, `packages: write`, `id-token: write` |
+| Concurrency     | Per trigger; pushes cancel older pushes, manual dispatches are never cancelled by a push            |
+| Action pinning  | Every action pinned to a full commit SHA                                                            |
 
-Steps: checkout → `just` syntax check → dnf5 shim test → resolve akmods tag → pull base and akmods images and read the upstream version → `buildah build --target alcyone --build-arg-file build_args.txt --secret id=GITHUB_TOKEN` → compute OCI labels (including `ostree.bootable=true` and `ostree.linux`) → rechunk → log in to GHCR → **push** (`:latest` is the tag users follow; CI also publishes other tags, copied by digest, with retry) → install cosign `v3.1.3` → **sign the digest**.
+Steps: checkout → `just` syntax check → dnf5 shim test → resolve akmods tag → pull base and akmods images and read the upstream version → `buildah build --target alcyone --build-arg-file build_args.txt --secret id=GITHUB_TOKEN` → compute OCI labels (including `ostree.bootable=true` and `ostree.linux`) → rechunk → log in to GHCR → **push** (`:stable`, then `:latest` and `:YYYYMMDD` copied by digest, with retry) → install cosign `v3.1.3` → **sign the digest**.
 
-Publishing and signing run **only** when `github.ref == refs/heads/containerfile`, so a manual dispatch on another ref cannot overwrite `latest`.
+Publishing and signing run **only** when `github.ref == refs/heads/containerfile`, so a manual dispatch on another ref or tag cannot overwrite `stable` or `latest`.
 
 Secrets: `SIGNING_SECRET` (cosign private key) and the automatic `GITHUB_TOKEN`.
 
-### `.github/workflows/clean.yml` — cleanup
+### `.github/workflows/clean.yml`: cleanup
 
 Sundays 00:15 UTC (and manual): deletes `alcyone` package versions older than 90 days, keeping at least 7 tagged and 7 untagged, and removes orphaned images.
 
 ### Other automation config
 
 - `.github/renovate.json5`: `config:best-practices`; pin and pinDigest updates auto-merge; digest updates for container dependencies in workflow files are disabled.
-- `.github/pull.yml`: upstream-sync config (merge from `ublue-os:main`). Its `base: main` matches no branch in this repository, so it does nothing as written.
-
----
-
-## Using the system
-
-### `ujust` recipes
-
-Run `ujust` for the full list. Commonly used:
-
-| Recipe | Purpose |
-| --- | --- |
-| `update` / `upgrade` | Update OS image and apps via `uupd` |
-| `changelogs` | Open the image's recent commits |
-| `verify-image` | Rebase an unverified ref to the `ostree-image-signed:` form (does not run cosign) |
-| `dotfiles` | chezmoi menu: `status`, `sync`, `diff`, `edit` |
-| `configure-grub`, `regenerate-grub`, `grub-timeout` | GRUB maintenance |
-| `configure-snapshots`, `configure-beesd` | Btrfs snapshots and deduplication |
-| `setup-virtualization` | Repair or disable libvirt/KVM |
-| `cockpit` | Toggle the Cockpit container (Quadlet) |
-| `tailscale` | Manage Tailscale |
-| `update-nvidia-runtime` | Sync the NVIDIA Flatpak runtime |
-
-### Software installation
-
-Keep the image clean: prefer Homebrew, Flatpak, Nix, Distrobox or containers over layering RPMs. The image declares only the system Flathub remote (`/var/lib/flatpak`) and ships no Flatpak apps.
-
-### Runtime facts
-
-- The kernel and NVIDIA driver are built against the same akmods tag and move together.
-- Steam does not autostart on first login.
-
-### Dotfiles with chezmoi
-
-The image installs `chezmoi` and wires it through systemd user units to [`aahsnr-configs/dotfiles`](https://github.com/aahsnr-configs/dotfiles). Upstream docs: <https://chezmoi.io>.
-
-| Component | When it runs | What it does |
-| --- | --- | --- |
-| `chezmoi-init.service` | At login, if `~/.local/share/chezmoi/.git` is missing | `chezmoi init --apply --force aahsnr-configs/dotfiles` (up to 5 attempts in 5 min) |
-| `chezmoi-update.timer` | 5 min after boot, then daily | Triggers the update service |
-| `chezmoi-update.service` | By the timer | `chezmoi update --no-tty --force` (pull + apply) |
-| `ujust dotfiles` | Manual | Menu: `status` / `sync` / `diff` / `edit` |
-
-Units live in `/usr/lib/systemd/user/` (read-only, replaced on image updates) and skip system accounts and the `sddm` greeter. The dotfiles repo is public, so clones and pulls use anonymous HTTPS. After init, a `pushInsteadOf` rule rewrites only **pushes** to SSH and `core.sshCommand` is pinned to `~/.ssh/id_ed25519_aahsnr_configs`; manual pushes need that key. `/etc/ssh/ssh_config.d/10-halcyon-github.conf` uses the same key for `github.com`.
-
-```bash
-systemctl --user list-timers chezmoi-update.timer     # next scheduled update
-journalctl --user -u chezmoi-update.service -e        # last update's log
-```
-
-Everyday commands: `chezmoi status`/`diff` (what `apply` would change), `chezmoi edit --apply <file>`, `chezmoi add <file>`, `chezmoi re-add`, `chezmoi apply --force`, `chezmoi cd`.
-
-**Gotchas**
-
-- The daily timer **silently reverts** `$HOME` edits that were not added back. Prefer `chezmoi edit` + `chezmoi apply --force`.
-- The first apply overwrites managed files that differ; on an existing machine run `chezmoi diff` first.
-- Update conflicts are git conflicts in the source dir: `chezmoi cd`, resolve, commit, push, then `chezmoi apply --force`.
-- Deleting `~/.local/share/chezmoi` is recoverable: the next login re-clones and force-applies.
-- Never `chezmoi add` plaintext secrets; use `chezmoi add --encrypt` (age/GPG) or a password manager via templates.
-- chezmoi owns `$HOME` only. Machine-level config belongs in this image's build files.
+- `.github/pull.yml`: upstream-sync rule (merge from `ublue-os:main`, base `main`). Note that the release branch here is `containerfile`.
 
 ---
 
 ## Build-time verification gates
 
-There is no application test suite. The image is checked by **`build_files/finalization/verify <stage>`**, called right after the stage it verifies so failures point at the step that broke them, plus `bootc container lint` last. It defines 29 groups: `brew`, `kernel`, `repos`, `cli-tools`, `utils`, `removals`, `common-packages`, `gaming`, `fonts`, `base-pkgs`, `applications`, `texlive-packages`, `nix`, `picker`, `media`, `desktop-integration`, `justfiles`, `services`, `grub`, `integration-files`, `image-info`, `initramfs`, `finalize`, `nvidia-config`, `nvidia`, `system-policy`, `nvidia-finalize`, `packages` and `final`. The Containerfile invokes all of them except `packages`.
+There is no application test suite. `build_files/finalization/verify <stage>` runs right after the stage it checks, so failures point at the step that broke them, and `bootc container lint` runs last. It defines 29 groups: one per build stage (`brew`, `kernel`, `repos`, `cli-tools`, `utils`, `removals`, `common-packages`, `gaming`, `fonts`, `base-pkgs`, `applications`, `texlive-packages`, `nix`, `picker`, `media`, `desktop-integration`, `justfiles`, `services`, `grub`, `integration-files`, `image-info`, `initramfs`, `finalize`, `nvidia-config`, `nvidia`, `system-policy`, `nvidia-finalize`, `final`) plus `packages`, an aggregate of the package-set groups that the Containerfile does not call.
 
 It asserts positive and negative invariants, for example:
 
-- required RPMs present (checked against `packages.json`, order-independent) and **forbidden** RPMs absent (Waydroid, fish, greetd, auxiliary zsh plugins, Steam Deck/handheld packages, `nerd-fonts` from Terra, `pinentry-qt`, `nvidia-gpu-firmware`),
+- required RPMs present, and **forbidden** RPMs absent (Waydroid, fish, greetd, auxiliary zsh plugins, Steam Deck/handheld packages, `nerd-fonts` from Terra, `pinentry-qt`, `nvidia-gpu-firmware`),
 - the kernel matches `KERNEL_VERSION`; build-only COPRs are disabled after use,
 - service and unit enablement, Steam autostart absent, GRUB menu configured,
 - Flatpak policy: Flathub-only remotes and no Flatpak provisioning machinery,
 - baked TeX Live formats (`pdflatex`, `lualatex`) exist,
 - `image-info.json`'s `image-ref` starts with `ostree-image-signed:docker://ghcr.io/`.
 
-Deliberate guardrails must not be reintroduced without a matching `verify` change and rationale.
+Deliberate guardrails (Waydroid, bundled fonts/docs, trimmed kmods, renamed helper units) must not be reintroduced without a matching `verify` change and rationale.
 
 ---
 
-## Security and supply chain
+## Security and supply-chain posture
 
 **Controls in place**
 
@@ -501,14 +495,13 @@ Deliberate guardrails must not be reintroduced without a matching `verify` chang
 
 **Known open items**
 
-| ID | Severity | Item |
-| --- | --- | --- |
-| A-002 | Low | Whether `cosign.pub` corresponds to the CI `SIGNING_SECRET` has not been confirmed. Verify once by checking a published image against the key, or by comparing the public key derived from the private key. |
-| A-008 | Low | Several upstream downloads and repository metadata are mutable (GitHub `latest` releases for `extest` and `ujust-picker`, winetricks and bash-preexec from `master`, the Distrobox template from `main`), and the Terra bootstrap installs with `--nogpgcheck`. Pin revisions and verify checksums where upstream publishes them. |
-| — | Info | No trust policy for `ghcr.io/halcyon-linux` ships in the image; see [Enforce signatures on the host](#enforce-signatures-on-the-host). |
-| — | Info | The signing flags `--new-bundle-format=false` and `--use-signing-config=false` are deprecated in cosign v3 and slated for removal in v4. |
-| — | Info | Builds are not bit-for-bit reproducible: a daily rebuild tracks COPR republishing. |
-| — | Info | The last static audit (2026-10-19) did not build or boot the image. |
+| ID    | Severity | Item                                                                                                                                                                                                                                                                       |
+| ----- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A-002 | Low      | Whether `cosign.pub` corresponds to the CI `SIGNING_SECRET` is unconfirmed. Close it by verifying a published image against the key, or by comparing the public key derived from the private key.                                                                         |
+| A-008 | Low      | Several upstream downloads and repository metadata are mutable (GitHub `latest` releases, winetricks and bash-preexec from `master`, the Distrobox template from `main`), and the Terra bootstrap installs with `--nogpgcheck`. Pin revisions and verify checksums where upstream publishes them. |
+| none  | Info     | The image ships no trust policy for `ghcr.io/halcyon-linux` (see [Enforce signature checks](#enforce-signature-checks-on-your-host)).                                                                                                                                       |
+| none  | Info     | Builds are not bit-for-bit reproducible: a daily rebuild tracks COPR republishing.                                                                                                                                                                                         |
+| none  | Info     | The last static audit (2026-10-19) did not build or boot the image.                                                                                                                                                                                                        |
 
 ---
 
@@ -517,8 +510,8 @@ Deliberate guardrails must not be reintroduced without a matching `verify` chang
 - **Podman-only tooling.** Helpers use `podman`/`podman-remote`; CI uses buildah, podman, skopeo and cosign. `docker://` is only an OCI transport name; there is no Docker Engine dependency.
 - **One custom image on this branch.** `akmods*`, `brew` and `ctx` are inputs, not outputs.
 - **`/usr/bin` vs `/usr/libexec`.** `/usr/bin` is the user-facing PATH; `/usr/libexec` holds helpers called by units, ujust recipes and polkit.
-- **No in-tree user scripts.** User commands come from RPMs.
-- **Flatpak policy.** Only the system Flathub remote is declared; no apps are shipped; `verify` forbids other remotes and the old provisioning machinery.
+- **No in-tree user scripts.** User commands come from RPMs; dangling references were removed.
+- **Flatpak policy.** Only the system Flathub remote is declared and no apps ship; `verify` forbids other remotes and the old provisioning machinery.
 - **Display and shell.** SDDM, not greetd; zsh only, with no auxiliary zsh plugin packages.
 - **Waydroid deferred.** Not in the image and forbidden by final verification.
 - **Removed services.** `bazzite-iwd-migration`, `force-wol`, `ntfs-nag`, incus workarounds, the `mesa-git` script.
@@ -531,10 +524,10 @@ Deliberate guardrails must not be reintroduced without a matching `verify` chang
 ## Roadmap
 
 - [ ] Switch to `uwsm` and systemd user units.
-- [ ] Document the media automount toggle (`ujust automounting`) and the service behind it (`ublue-os-media-automount`).
-- [ ] Audit where Flatpak apps get installed; removing Flatpak apps should not be a build action.
+- [ ] Build the initramfs once, after the NVIDIA step, instead of twice.
+- [ ] Document what `ujust automounting` does and which service is responsible (`ublue-os-media-automount`).
+- [ ] Trace where Flatpak apps get installed and make sure removal behaves correctly; removing Flatpak apps should not be a build action.
 - [ ] Close audit items A-002 and A-008.
-- [ ] Avoid running dracut twice (the second pass is currently needed to include the NVIDIA modules).
 
 ---
 
@@ -544,7 +537,7 @@ Deliberate guardrails must not be reintroduced without a matching `verify` chang
 .
 ├── Containerfile                 # multi-stage build; target `alcyone`
 ├── Justfile                      # local entry points (build, run, list/clean images)
-├── packages.json                 # package manifest read by installers and verify
+├── packages.json                 # package sets, repos, swaps and version locks (read via /ctx)
 ├── cosign.pub                    # image signature verification key
 ├── AGENTS.md                     # guide for AI agents and maintainers
 ├── LICENSE                       # Apache-2.0
@@ -562,7 +555,7 @@ Deliberate guardrails must not be reintroduced without a matching `verify` chang
 │   ├── nvidia/                   # NVIDIA-only payload (modprobe, udev, ujust, services)
 │   └── overrides/                # copied last so these win
 ├── tests/test-dnf5-retry.sh      # self-test for the dnf5 retry shim
-├── .containerignore              # build-context exclusions (identical .dockerignore)
+├── .containerignore              # build-context exclusions (also .dockerignore)
 └── .github/                      # workflows (build, clean), renovate, pull.yml
 ```
 
@@ -570,12 +563,11 @@ Deliberate guardrails must not be reintroduced without a matching `verify` chang
 
 ## Contributing
 
-- Read [`AGENTS.md`](AGENTS.md) first; it contains the maintenance rules, change playbooks and pre-merge checklist.
+- Read [`AGENTS.md`](AGENTS.md) first; it has the maintenance rules, change playbooks and pre-merge checklist.
 - Every push to `containerfile` that touches files other than `.md`/`.txt` builds and **publishes** the image. Work on a branch and open a pull request.
-- Package changes go in `packages.json`; update `verify` when you add, remove or forbid something.
 - Conventional-commit style is used (`fix(build): …`, `feat(packages): …`, `docs: …`).
 - Markdown-only pushes do not trigger a build, so CI does not validate them.
 
 ## Upstream and license
 
-Based on [Bazzite](https://github.com/ublue-os/bazzite) and [Universal Blue](https://universal-blue.org/); the [Bazzite docs](https://docs.bazzite.gg/) are useful background for shared features. Licensed under Apache-2.0 (see [`LICENSE`](LICENSE)).
+Based on [Bazzite](https://github.com/ublue-os/bazzite) and [Universal Blue](https://universal-blue.org/); the upstream [Bazzite docs](https://docs.bazzite.gg/) are useful background for shared features. Licensed under Apache-2.0 (see [`LICENSE`](LICENSE)).

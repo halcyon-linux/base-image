@@ -147,7 +147,7 @@ jobs:
         env:
           IMAGE_LABELS: |
             io.artifacthub.package.readme-url=https://raw.githubusercontent.com/${{ github.repository }}/containerfile/README.md
-            org.opencontainers.image.description=Halcyon (alcyone) — DE-free Fedora Atomic gaming image built from Universal Blue base-main with the NVIDIA open kernel modules (Containerfile variant).
+            org.opencontainers.image.description=Halcyon (alcyone) — Hyprland Fedora Atomic gaming image built from Universal Blue base-main with the NVIDIA open kernel modules (Containerfile variant).
             org.opencontainers.image.licenses=Apache-2.0
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
