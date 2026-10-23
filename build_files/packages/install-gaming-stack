@@ -65,6 +65,8 @@ disable_copr
 # Codecs, OpenCL, and 32-bit graphics support
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' --enable-repo=terra-mesa -y install \
     mesa-libEGL.i686 \
+    mesa-libGL-devel \
+    mesa-libGLES-devel \
     intel-opencl \
     clinfo
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y install libfreeaptx
