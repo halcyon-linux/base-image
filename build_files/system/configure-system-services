@@ -28,6 +28,7 @@ global_services=(
     dmemcg-booster-user.service
     chezmoi-init.service
     chezmoi-update.timer
+    apply-gtk-themes.service
 )
 
 disabled_services=(

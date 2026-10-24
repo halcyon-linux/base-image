@@ -176,6 +176,7 @@
       "boot-remount",
       "brh",
       "bruh",
+      "commitpickle",
       "crh",
       "dlss-swapper",
       "dump-to-markdown",
@@ -342,7 +343,10 @@
       "zotero"
     ],
     "fedora_packages": [
+      "cups-libs",
+      "dbus-glib",
       "firefox",
+      "libXinerama",
       "neovim",
       "pymol",
       "python3-pyqt6",

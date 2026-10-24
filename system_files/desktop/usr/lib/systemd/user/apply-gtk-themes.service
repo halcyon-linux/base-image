@@ -1,0 +1,10 @@
+[Unit]
+Description=Apply GTK theme settings
+ConditionUser=!@system
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/apply-gtk-themes
+
+[Install]
+WantedBy=graphical-session.target

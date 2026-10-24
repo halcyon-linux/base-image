@@ -663,7 +663,7 @@ verify_services() {
         fi
     done
 
-    for svc in chezmoi-init.service chezmoi-update.timer user-setup.service dynamic-fixes.service; do
+    for svc in chezmoi-init.service chezmoi-update.timer user-setup.service dynamic-fixes.service apply-gtk-themes.service; do
         if [[ -e "/etc/systemd/user/default.target.wants/$svc" || \
               -e "/etc/systemd/user/timers.target.wants/$svc" ]]; then
             pass "global user service enabled: $svc"
@@ -1090,7 +1090,8 @@ verify_final() {
         /usr/lib/systemd/user/dynamic-fixes.service \
         /usr/lib/systemd/user/dmemcg-booster-user.service \
         /usr/lib/systemd/user/chezmoi-init.service \
-        /usr/lib/systemd/user/chezmoi-update.timer; do
+        /usr/lib/systemd/user/chezmoi-update.timer \
+        /usr/lib/systemd/user/apply-gtk-themes.service; do
         if [[ -e "$unit" ]]; then
             pass "unit file present: $unit"
         else
