@@ -137,6 +137,7 @@
     "priority": 1,
     "packages": [
       "atuin",
+      "asdf",
       "bat",
       "bat-extras",
       "bun",
