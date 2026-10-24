@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
 THEME='adw-gtk3-dark'
-ICONS='Papirus Dark'
+ICONS='Papirus'
 FONT='JetBrainsMono Nerd Font 13'
-CURSOR='Qogirr-Dark'
+CURSOR='Bibata-Modern-Ice'
 
 SCHEMA='gsettings set org.gnome.desktop.interface'
 

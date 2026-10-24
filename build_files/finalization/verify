@@ -1070,13 +1070,20 @@ verify_final() {
         /usr/bin/code /usr/bin/codium /usr/bin/brave-browser /usr/bin/firefox \
         /usr/bin/google-chrome /usr/bin/microsoft-edge /usr/bin/vivaldi \
         /usr/bin/nvim /usr/bin/kitty \
-        /usr/bin/pinentry-wrapper; do
+        /usr/bin/pinentry-wrapper \
+        /usr/bin/g++ /usr/bin/meson /usr/bin/cpio; do
         if [[ -x "$required_binary" ]]; then
             pass "command present and executable: $required_binary"
         else
             fail "command missing or not executable: $required_binary"
         fi
     done
+
+    if [[ -d /usr/share/icons/Papirus ]]; then
+        pass "Papirus icon theme installed"
+    else
+        fail "Papirus icon theme missing"
+    fi
 
     local unit
     for unit in \
