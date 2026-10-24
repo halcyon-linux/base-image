@@ -663,7 +663,7 @@ verify_services() {
         fi
     done
 
-    for svc in chezmoi-init.service chezmoi-update.timer user-setup.service dynamic-fixes.service apply-gtk-themes.service; do
+    for svc in chezmoi-init.service chezmoi-update.timer user-setup.service dynamic-fixes.service; do
         if [[ -e "/etc/systemd/user/default.target.wants/$svc" || \
               -e "/etc/systemd/user/timers.target.wants/$svc" ]]; then
             pass "global user service enabled: $svc"
@@ -671,6 +671,13 @@ verify_services() {
             fail "global user service not enabled: $svc"
         fi
     done
+
+    # apply-gtk-themes.service is wanted by graphical-session.target
+    if [[ -e "/etc/systemd/user/graphical-session.target.wants/apply-gtk-themes.service" ]]; then
+        pass "global user service enabled: apply-gtk-themes.service"
+    else
+        fail "global user service not enabled: apply-gtk-themes.service"
+    fi
 
     if [[ -e /etc/systemd/system/display-manager.service ]] || \
        [[ -e /etc/systemd/system/graphical.target.wants/sddm.service ]]; then
