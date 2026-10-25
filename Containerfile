@@ -18,9 +18,6 @@ ARG KERNEL_VERSION=""
 # scripts and CI pass the exact newest complete tag; a bare podman build falls
 # back to the upstream floating tag so it still tracks the latest kernel.
 ARG AKMODS_TAG="${AKMODS_TAG:-${KERNEL_FLAVOR}-${FEDORA_VERSION}-x86_64}"
-# Homebrew standalone root image
-ARG BREW_IMAGE="${BREW_IMAGE:-ghcr.io/ublue-os/brew:latest}"
-
 # Pull the pre-compiled kernel and akmods rpms for the selected akmods tag
 FROM ghcr.io/ublue-os/akmods:${AKMODS_TAG} AS akmods
 # Pull the akmods-extra trees (device-specific kmods and their userspace parts;
@@ -28,8 +25,6 @@ FROM ghcr.io/ublue-os/akmods:${AKMODS_TAG} AS akmods
 FROM ghcr.io/ublue-os/akmods-extra:${AKMODS_TAG} AS akmods-extra
 # Pull the NVIDIA open driver rpms matching the pinned kernel
 FROM ghcr.io/ublue-os/akmods-nvidia-open:${AKMODS_TAG} AS akmods-nvidia
-# Pull the pre-packaged Homebrew standalone root
-FROM ${BREW_IMAGE} AS brew
 
 # Build context helper: isolates build scripts so they can be bind-mounted without polluting image layers
 FROM scratch AS ctx
@@ -68,12 +63,6 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     usr_local=$(readlink -f /usr/local) && \
     mkdir -p "$usr_local/bin" && \
     install -m0755 /ctx/shared/dnf5 "$usr_local/bin/dnf5"
-
-# Use the standalone files exposed by the Homebrew image's /system_files tree.
-COPY --from=brew /system_files/ /tmp/brew_files/
-RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
-    /ctx/packages/install-brew-files && \
-    /ctx/finalization/verify brew
 
 # Install kernel
 RUN --mount=type=cache,dst=/var/cache \

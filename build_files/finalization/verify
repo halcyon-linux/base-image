@@ -12,7 +12,7 @@ set -Eeuo pipefail
 
 group="${1:-}"
 case "$group" in
-brew | kernel | repos | cli-tools | utils | removals | common-packages | gaming | fonts | base-pkgs | applications | texlive-packages | nix | picker | media | desktop-integration | justfiles | services | grub | integration-files | image-info | initramfs | finalize | nvidia-config | nvidia | system-policy | nvidia-finalize | packages | final) ;;
+kernel | repos | cli-tools | utils | removals | common-packages | gaming | fonts | base-pkgs | applications | texlive-packages | nix | picker | media | desktop-integration | justfiles | services | grub | integration-files | image-info | initramfs | finalize | nvidia-config | nvidia | system-policy | nvidia-finalize | packages | final) ;;
 *)
     printf 'Usage: %s <stage>\n' "$0" >&2
     exit 2
@@ -135,46 +135,6 @@ require_repos_disabled() {
     done
 }
 
-verify_brew() {
-    # The brew image ships the standalone root as a tarball; brew-setup.service
-    # unpacks it into /home/linuxbrew on first boot, so the tree itself must
-    # not exist at build time.
-    local file
-    for file in \
-        /usr/share/homebrew.tar.zst \
-        /etc/profile.d/brew.sh \
-        /etc/profile.d/brew-bash-completion.sh \
-        /etc/security/limits.d/30-brew-limits.conf \
-        /usr/lib/systemd/system/brew-setup.service \
-        /usr/lib/systemd/system/brew-update.service \
-        /usr/lib/systemd/system/brew-update.timer \
-        /usr/lib/systemd/system/brew-upgrade.service \
-        /usr/lib/systemd/system/brew-upgrade.timer \
-        /usr/lib/systemd/system-preset/01-homebrew.preset; do
-        if [[ -f "$file" ]]; then
-            pass "Homebrew file installed: $file"
-        else
-            fail "Homebrew file missing after install-brew-files: $file"
-        fi
-    done
-
-    if [[ -d /home/linuxbrew ]]; then
-        fail "/home/linuxbrew must be created by brew-setup.service, not baked into the image"
-    else
-        pass "/home/linuxbrew absent until first boot"
-    fi
-    if [[ -d /tmp/brew_files ]]; then
-        fail "/tmp/brew_files staging directory was not removed"
-    else
-        pass "/tmp/brew_files staging directory removed"
-    fi
-    if [[ -e /usr/share/fish/vendor_conf.d/ublue-brew.fish ]]; then
-        fail "fish brew integration present; fish shell is forbidden"
-    else
-        pass "fish brew integration excluded"
-    fi
-}
-
 verify_kernel() {
     local -a dirs
     local kver_dir actual expected
@@ -254,7 +214,7 @@ verify_utils() {
     require_repos_disabled 'copr:copr.fedorainfracloud.org:aahsnr-work:python-packages'
 
     local bin
-    for bin in bbrew-helper bruh hardware-setup user-setup dynamic-fixes ublue-motd; do
+    for bin in bruh hardware-setup user-setup dynamic-fixes ublue-motd; do
         if [[ -x "/usr/bin/$bin" ]]; then
             pass "utility binary present and executable: /usr/bin/$bin"
         else
@@ -648,7 +608,7 @@ verify_justfiles() {
 verify_services() {
     local svc
     for svc in \
-        brew-setup.service input-remapper.service uupd.timer hardware-setup.service \
+        input-remapper.service uupd.timer hardware-setup.service \
         dev-hugepages1G.mount libvirtd.service ds-inhibit.service \
         greenboot-healthcheck.service greenboot-set-rollback-trigger.service \
         dmemcg-booster-system.service cardwired.service \
@@ -1060,7 +1020,7 @@ verify_final() {
 
     local required_binary
     for required_binary in \
-        /usr/bin/ujust /usr/bin/ujust-picker /usr/bin/bbrew-helper /usr/bin/bruh \
+        /usr/bin/ujust /usr/bin/ujust-picker /usr/bin/bruh \
         /usr/bin/hardware-setup /usr/bin/user-setup /usr/bin/dynamic-fixes \
         /usr/bin/ublue-motd /usr/bin/uupd-update /usr/bin/dlss-swapper \
         /usr/bin/steam /usr/bin/lutris /usr/bin/protonplus /usr/bin/winetricks \
@@ -1256,7 +1216,6 @@ verify_final() {
 }
 
 case "$group" in
-brew) verify_brew ;;
 kernel) verify_kernel ;;
 repos) verify_repos ;;
 cli-tools) verify_cli_tools ;;

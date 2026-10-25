@@ -1,4 +1,3 @@
-*Homebrew lives outside the image.* `bbrew-helper` opens the Homebrew TUI; `brew` manages packages directly.
 *Game won't start?* `ujust fix-proton-hang` and `ujust fix-gmod` repair the two most common offenders.
 *Steam misbehaving?* `ujust fix-reset-steam` rebuilds its runtime state without touching your library.
 *Filing a bug?* `ujust get-logs` collects system information and uploads it as a paste link.

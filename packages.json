@@ -178,7 +178,6 @@
     "repo_id": "copr:copr.fedorainfracloud.org:aahsnr-work:python-packages",
     "priority": 1,
     "packages": [
-      "bbrew-helper",
       "boot-remount",
       "brh",
       "bruh",
@@ -337,6 +336,7 @@
       "antigravity-cli",
       "bees",
       "bitwarden",
+      "chatgpt",
       "distroshelf",
       "emacs-pgtk",
       "ferdium",

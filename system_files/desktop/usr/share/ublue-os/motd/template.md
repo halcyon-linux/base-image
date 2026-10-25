@@ -9,7 +9,6 @@ ${MOTD_SYSTEM}
 | `ujust toggle-user-motd` | Toggle this banner on/off |
 | `ujust update` | Update system and installed apps |
 | `fastfetch` | View system information |
-| `brew help` | Manage command line packages |
 
 ${MOTD_TIP}
 

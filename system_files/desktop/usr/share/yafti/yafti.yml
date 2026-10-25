@@ -22,27 +22,6 @@ screens:
   - title: "Install Applications"
     description: "Get and configure software"
     actions:
-      - id: "android-platform-tools"
-        title: "Android Platform Tools"
-        description: "Command-line tools for interfacing with the Android operating system — installed using Brew."
-        default: false
-        script: 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" && brew install --cask android-platform-tools'
-      - id: "antigravity-linux"
-        title: "Antigravity"
-        description: "AI-powered IDE from Google — installed using Brew."
-        default: false
-        script: 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" && brew trust ublue-os/tap && brew tap ublue-os/tap && brew install --cask antigravity-linux'
-      - id: "bazzite-cli"
-        title: "Bazzite CLI"
-        description: "Setup a Bluefin-style command-line interface (CLI) experience with various utilities."
-        default: false
-        options:
-          - id: "enable"
-            label: "Enable Bazzite CLI"
-            script: 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" && ujust bazzite-cli enable; status=$?; echo; echo "Press Enter to close..."; read -r _; exit $status'
-          - id: "disable"
-            label: "Disable Bazzite CLI"
-            script: 'ujust bazzite-cli disable; status=$?; echo; echo "Press Enter to close..."; read -r _; exit $status'
       - id: "boxtron"
         title: "Boxtron"
         description: "Steam Play compatibility tool for running DOS games with native Linux DOSBox — installed using Distrobox."
@@ -55,16 +34,6 @@ screens:
           - id: "uninstall"
             label: "Uninstall Boxtron"
             script: 'ujust install-boxtron uninstall; status=$?; echo; echo "Press Enter to close..."; read -r _; exit $status'
-      - id: "jetbrains-toolbox-linux"
-        title: "JetBrains Toolbox"
-        description: "Utility for managing IDE installs from JetBrains — installed using Brew."
-        default: false
-        script: 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" && brew trust ublue-os/tap && brew tap ublue-os/tap && brew install --cask jetbrains-toolbox-linux'
-      - id: "lm-studio-linux"
-        title: "LM Studio"
-        description: "Suite for locally utilizing large language models (LLMs) — installed using Brew."
-        default: false
-        script: 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" && brew trust ublue-os/tap && brew tap ublue-os/tap && brew install --cask lm-studio-linux'
       - id: "lsfg-vk v2"
         title: "Lossless Scaling — Vulkan Layer v2"
         description: "Install «lsfg-vk v2», the adapter for Lossless Scaling frame generation on Linux."
@@ -101,17 +70,7 @@ screens:
           - id: "uninstall"
             label: "Uninstall SteamCMD"
             script: "ujust get-steamcmd uninstall"
-      - id: "visual-studio-code-linux"
-        title: "Visual Studio Code"
-        description: "Open source code editor and debugger from Microsoft — installed using Brew."
-        default: false
-        script: 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" && brew trust ublue-os/tap && brew tap ublue-os/tap && brew install --cask visual-studio-code-linux'
-      - id: "vscodium-linux"
-        title: "VSCodium"
-        description: "Strictly open source community edition of Visual Studio Code — installed using Brew."
-        default: false
-        script: 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" && brew trust ublue-os/tap && brew tap ublue-os/tap && brew install --cask vscodium-linux'
-  - title: "Manage Halcyon"
+      - title: "Manage Halcyon"
     description: "System management and configuration"
     actions:
       - id: "update-halcyon"
