@@ -91,6 +91,7 @@
       "setools-console",
       "setroubleshoot",
       "slurp",
+      "socat",
       "snapper",
       "stress-ng",
       "swappy",
