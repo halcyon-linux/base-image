@@ -42,7 +42,6 @@ count1="$tmp/count1"; : >"$count1"
 err1="$tmp/err1"
 out1=$(DNF5_BIN="$tmp/fake_transient" DNF5_RETRY_SLEEP=0 COUNT_FILE="$count1" dnf5_retry install foo 2>"$err1")
 [[ $out1 == payload ]] || not_ok "transient success stdout: got '$out1'"
-grep -qv 'junk' <<<"$out1" || not_ok "failed attempt stdout leaked into success output: '$out1'"
 [[ $(<"$count1") == 3 ]] || not_ok "transient success took $(<"$count1") attempts, expected 3"
 grep -q 'repos broken' "$err1" || not_ok "transient failure stderr not surfaced"
 

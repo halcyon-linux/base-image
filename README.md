@@ -460,7 +460,7 @@ Sundays 00:15 UTC (and manual): deletes `alcyone` package versions older than 90
 ### Other automation config
 
 - `.github/renovate.json5`: `config:best-practices`; pin and pinDigest updates auto-merge; digest updates for container dependencies in workflow files are disabled.
-- `.github/pull.yml`: upstream-sync rule (merge from `ublue-os:main`, base `main`). Note that the release branch here is `containerfile`.
+- `.github/pull.yml`: upstream-sync rule (merge from `ublue-os:main`, base `containerfile`, which is the release branch). Check that the Pull app is installed before relying on it, since a merge here triggers a publish.
 
 ---
 
@@ -537,14 +537,14 @@ Deliberate guardrails (Waydroid, bundled fonts/docs, trimmed kmods, renamed help
 ├── Justfile                      # local entry points (build, run, list/clean images)
 ├── packages.json                 # package sets, repos, swaps and version locks (read via /ctx)
 ├── cosign.pub                    # image signature verification key
-├── AGENTS.md                     # guide for AI agents and maintainers
+├── CLAUDE.md                     # guide for AI agents and maintainers
 ├── LICENSE                       # Apache-2.0
 ├── build_files/                  # bind-mounted at /ctx during build
 │   ├── finalization/             # finalize, image-info, verify (all stage assertions)
 │   ├── kernel/                   # kernel swap, kmods, initramfs
 │   ├── nvidia/                   # configure / install / finalize NVIDIA
 │   ├── packages/                 # one installer per package set + repo setup
-│   ├── shared/                   # cleanup, dnf5 retry shim, dnf5-setopt, ghcurl
+│   ├── shared/                   # cleanup, dnf5 retry shim, ghcurl
 │   ├── system/                   # desktop integration, GRUB, services, repo policy
 │   └── just/                     # imports Bazzite ujust files into the composed justfile
 ├── just_scripts/                 # build-image, run-image, resolve-akmods, manage-images, …
@@ -561,7 +561,7 @@ Deliberate guardrails (Waydroid, bundled fonts/docs, trimmed kmods, renamed help
 
 ## Contributing
 
-- Read [`AGENTS.md`](AGENTS.md) first; it has the maintenance rules, change playbooks and pre-merge checklist.
+- Read [`CLAUDE.md`](CLAUDE.md) first; it has the maintenance rules, change playbooks and pre-merge checklist.
 - Every push to `containerfile` that touches files other than `.md`/`.txt` builds and **publishes** the image. Work on a branch and open a pull request.
 - Conventional-commit style is used (`fix(build): …`, `feat(packages): …`, `docs: …`).
 - Markdown-only pushes do not trigger a build, so CI does not validate them.

@@ -265,6 +265,14 @@ ARG KERNEL_FLAVOR="${KERNEL_FLAVOR:-ogc}"
 # Copy NVIDIA driver configuration files into root.
 COPY system_files/nvidia/ /
 
+# finalize removes everything under /var, including /var/usrlocal where the
+# dnf5 retry shim lives (/usr/local -> ../var/usrlocal). Reinstall it for the
+# NVIDIA transactions; the second finalize removes it again.
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    usr_local=$(readlink -f /usr/local) && \
+    mkdir -p "$usr_local/bin" && \
+    install -m0755 /ctx/shared/dnf5 "$usr_local/bin/dnf5"
+
 # Remove everything that doesn't work well with NVIDIA.
 RUN --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \

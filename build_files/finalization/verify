@@ -65,42 +65,29 @@ forbid_rpms() {
     done
 }
 
-# Read package array from packages.json
-read_packages_from_json() {
+# Load a package list from packages.json into PKG_ARRAY. A missing or empty
+# list is a failure: otherwise a mistyped key would turn every check into a no-op.
+load_packages() {
     local section="$1"
     local key="${2:-packages}"
-    mapfile -t PKG_ARRAY < <(jq -r ".${section}.${key}[]" "$PACKAGES_JSON" 2>/dev/null)
-    printf '%s\n' "${PKG_ARRAY[@]}"
+    # --arg, not ".${section}": jq reads the hyphen in "cli-tools" as subtraction.
+    mapfile -t PKG_ARRAY < <(jq -r --arg s "$section" --arg k "$key" '.[$s][$k][]' "$PACKAGES_JSON" 2>/dev/null)
+    if [[ ${#PKG_ARRAY[@]} -eq 0 ]]; then
+        fail "packages.json has no entries at .${section}.${key}"
+        return 1
+    fi
 }
 
 # Require packages from a JSON section
 require_rpms_from_json() {
-    local section="$1"
-    local key="${2:-packages}"
-    local pkg
-    while IFS= read -r pkg; do
-        [[ -z "$pkg" ]] && continue
-        if rpm -q "$pkg" >/dev/null 2>&1; then
-            pass "package installed: $pkg"
-        else
-            fail "package missing: $pkg"
-        fi
-    done < <(read_packages_from_json "$section" "$key")
+    load_packages "$@" || return 0
+    require_rpms "${PKG_ARRAY[@]}"
 }
 
 # Forbid packages from a JSON section
 forbid_rpms_from_json() {
-    local section="$1"
-    local key="${2:-packages}"
-    local pkg
-    while IFS= read -r pkg; do
-        [[ -z "$pkg" ]] && continue
-        if rpm -q "$pkg" >/dev/null 2>&1; then
-            fail "forbidden package installed: $pkg"
-        else
-            pass "package absent: $pkg"
-        fi
-    done < <(read_packages_from_json "$section" "$key")
+    load_packages "$@" || return 0
+    forbid_rpms "${PKG_ARRAY[@]}"
 }
 
 # Require every listed repo id to be known to dnf5.
@@ -153,6 +140,14 @@ verify_kernel() {
     fi
 
     require_rpms_from_json "kernel" "packages"
+
+    # install-kmods only warns when its glob matches nothing, so assert the
+    # module here instead of waiting for `verify final`.
+    if [[ -n "$(find /usr/lib/modules -name 'nct6687*.ko*' -print -quit 2>/dev/null)" ]]; then
+        pass "extra kmod present: nct6687d"
+    else
+        fail "required extra kmod missing: nct6687d"
+    fi
 
     actual="$(rpm -q kernel-core --qf '%{VERSION}-%{RELEASE}' 2>/dev/null || true)"
     actual="${actual%.x86_64}"
@@ -312,13 +307,15 @@ verify_gaming() {
     local locks
     locks="$(dnf5 versionlock list 2>/dev/null || true)"
     local locked_pkg
-    for locked_pkg in $(read_packages_from_json "gaming" "versionlocks"); do
-        if grep -qF "$locked_pkg" <<<"$locks"; then
-            pass "versionlock active for: $locked_pkg"
-        else
-            fail "versionlock missing for: $locked_pkg"
-        fi
-    done
+    if load_packages "gaming" "versionlocks"; then
+        for locked_pkg in "${PKG_ARRAY[@]}"; do
+            if grep -qF "$locked_pkg" <<<"$locks"; then
+                pass "versionlock active for: $locked_pkg"
+            else
+                fail "versionlock missing for: $locked_pkg"
+            fi
+        done
+    fi
 
     # The bazzite-multilib swap must have landed: the versionlock pins whatever
     # is installed, so it proves nothing on its own. These packages are only
@@ -621,10 +618,7 @@ verify_services() {
         greenboot-healthcheck.service greenboot-set-rollback-trigger.service \
         dmemcg-booster-system.service cardwired.service \
         sddm.service; do
-        if [[ -e "/etc/systemd/system/multi-user.target.wants/$svc" || \
-              -e "/etc/systemd/system/display-manager.service" || \
-              -e "/etc/systemd/system/timers.target.wants/$svc" || \
-              -e "/etc/systemd/system/sysinit.target.wants/$svc" ]]; then
+        if [[ "$(systemctl is-enabled "$svc" 2>/dev/null)" == enabled ]]; then
             pass "system service enabled: $svc"
         else
             fail "system service not enabled: $svc"
@@ -804,8 +798,9 @@ verify_system_policy() {
         'copr:copr.fedorainfracloud.org:ublue-os:packages' \
         'copr:copr.fedorainfracloud.org:aahsnr-work:cli-tools' \
         'copr:copr.fedorainfracloud.org:aahsnr-work:python-packages' \
+        'copr:copr.fedorainfracloud.org:ublue-os:bazzite-multilib:ml' \
         'copr:copr.fedorainfracloud.org:aahsnr-work:gaming' \
-        terra-mesa
+        terra terra-extras terra-mesa tailscale-stable fedora-multimedia
 
     if [[ -L /usr/bin/pulseaudio && "$(readlink /usr/bin/pulseaudio)" == "/usr/bin/true" ]]; then
         pass "pulseaudio stubbed to /usr/bin/true"
@@ -823,12 +818,10 @@ verify_system_policy() {
 verify_nvidia_finalize() {
     local unit
     for unit in nvidia-powerd.service nvidia-flatpak-runtime-sync.service; do
-        if [[ -e "/etc/systemd/system/multi-user.target.wants/$unit" || \
-              -e "/etc/systemd/system/graphical.target.wants/$unit" || \
-              -e "/usr/lib/systemd/system/$unit" ]]; then
-            pass "NVIDIA service present: $unit"
+        if [[ "$(systemctl is-enabled "$unit" 2>/dev/null)" == enabled ]]; then
+            pass "NVIDIA service enabled: $unit"
         else
-            fail "NVIDIA service missing: $unit"
+            fail "NVIDIA service not enabled: $unit"
         fi
     done
 
@@ -871,7 +864,9 @@ verify_final() {
         'google-chrome' \
         'microsoft-edge' \
         'vivaldi' \
-        'gh-cli'
+        'gh-cli' \
+        'copr:copr.fedorainfracloud.org:ublue-os:bazzite-multilib:ml' \
+        fedora-multimedia
 
     # Negative guards: fonts and waydroid must never reach the published image.
     forbid_rpms \

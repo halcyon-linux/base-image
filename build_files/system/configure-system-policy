@@ -18,7 +18,6 @@ repositories=(
     terra-extras
     negativo17-fedora-multimedia
     vscode
-    vscodium
     brave-browser
     google-chrome
     microsoft-edge
@@ -45,13 +44,12 @@ for copr in "${coprs[@]}"; do
 done
 unset -v copr repo_id
 
-# Disable the inherited negativo17 repository when it exists; propagate DNF
-# errors rather than hiding a failed repository update.
-all_repos="$(dnf5 repo info --all --json)"
-negativo17_repos="$(jq '[.[] | select(.id | contains("negativo17"))]' <<<"$all_repos")"
-if jq -e 'length > 0' <<<"$negativo17_repos" >/dev/null; then
-    /ctx/shared/dnf5-setopt setopt '*negativo17*' enabled=0
-fi
+# setup-repositories enables negativo17 (repo id fedora-multimedia) and the
+# bazzite-multilib COPR adds an i386 sibling (id ending in :ml). Disable both
+# through dnf5 so the override in /etc/dnf/repos.override.d wins over the .repo file.
+dnf5 -y config-manager setopt \
+    fedora-multimedia.enabled=0 \
+    'copr:copr.fedorainfracloud.org:ublue-os:bazzite-multilib:ml.enabled=0'
 
 # Patch setroubleshoot's SELinux configuration path.
 for util_file in /usr/lib/python3.*/site-packages/setroubleshoot/util.py; do

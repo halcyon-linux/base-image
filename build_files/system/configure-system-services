@@ -38,15 +38,15 @@ disabled_services=(
 )
 
 for unit in "${system_services[@]}"; do
-    systemctl enable "$unit" || echo "Warning: failed to enable $unit" >&2
+    systemctl enable "$unit"
 done
 
 for unit in "${global_services[@]}"; do
-    systemctl --global enable "$unit" || echo "Warning: failed to enable global $unit" >&2
+    systemctl --global enable "$unit"
 done
 
 for unit in "${disabled_services[@]}"; do
     systemctl disable "$unit" 2>/dev/null || true
 done
 
-systemctl set-default graphical.target || echo "Warning: failed to set graphical.target" >&2
+systemctl set-default graphical.target

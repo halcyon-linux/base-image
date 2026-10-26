@@ -109,15 +109,15 @@ rpm -q "${FEDORA_PACKAGES[@]}"
 EXTERNAL_REPOS_COUNT=$(jq '.["applications"].external_repos | length' "$PACKAGES_JSON")
 
 for ((i=0; i<EXTERNAL_REPOS_COUNT; i++)); do
-    repo_id=$(jq -r ".applications.external_repos[$i].id" "$PACKAGES_JSON")
+    ext_id=$(jq -r ".applications.external_repos[$i].id" "$PACKAGES_JSON")
     repo_name=$(jq -r ".applications.external_repos[$i].name" "$PACKAGES_JSON")
     repo_baseurl=$(jq -r ".applications.external_repos[$i].baseurl" "$PACKAGES_JSON")
     repo_gpgkey=$(jq -r ".applications.external_repos[$i].gpgkey" "$PACKAGES_JSON")
     mapfile -t repo_packages < <(jq -r ".applications.external_repos[$i].packages[]" "$PACKAGES_JSON")
 
     echo "Configuring ${repo_name} repository..."
-    cat <<EOF >"/etc/yum.repos.d/${repo_id}.repo"
-[${repo_id}]
+    cat <<EOF >"/etc/yum.repos.d/${ext_id}.repo"
+[${ext_id}]
 name=${repo_name}
 baseurl=${repo_baseurl}
 enabled=1
@@ -126,15 +126,15 @@ gpgkey=${repo_gpgkey}
 EOF
 
     rpm --import "${repo_gpgkey}" || true
-    ENABLED_REPOS+=("${repo_id}")
+    ENABLED_REPOS+=("${ext_id}")
 
     echo "Installing ${repo_name} packages..."
-    dnf5 -y install --setopt="${repo_id}.priority=1" "${COMMON_INSTALL_OPTS[@]}" "${repo_packages[@]}"
+    dnf5 -y install --setopt="${ext_id}.priority=1" "${COMMON_INSTALL_OPTS[@]}" "${repo_packages[@]}"
     rpm -q "${repo_packages[@]}"
 
-    echo "Disabling repository: ${repo_id}"
-    dnf5 -y config-manager setopt "${repo_id}.enabled=0"
-    sed -i 's/^enabled\s*=.*/enabled=0/' "/etc/yum.repos.d/${repo_id}.repo"
+    echo "Disabling repository: ${ext_id}"
+    dnf5 -y config-manager setopt "${ext_id}.enabled=0"
+    sed -i 's/^enabled\s*=.*/enabled=0/' "/etc/yum.repos.d/${ext_id}.repo"
     ENABLED_REPOS=()
 done
 
