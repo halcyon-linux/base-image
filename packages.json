@@ -357,9 +357,11 @@
       "zotero"
     ],
     "fedora_packages": [
+      "cups",
       "cups-libs",
       "dbus-glib",
       "firefox",
+      "hplip",
       "libXinerama",
       "neovim",
       "pymol",
