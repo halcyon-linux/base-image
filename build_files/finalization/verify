@@ -12,7 +12,7 @@ set -Eeuo pipefail
 
 group="${1:-}"
 case "$group" in
-kernel | repos | cli-tools | utils | removals | common-packages | gaming | fonts | base-pkgs | applications | texlive-packages | nix | picker | media | desktop-integration | justfiles | services | grub | integration-files | image-info | initramfs | finalize | nvidia-config | nvidia | system-policy | nvidia-finalize | packages | final) ;;
+kernel | repos | cli-tools | utils | removals | common-packages | gaming | fonts | base-pkgs | hyprpm | applications | texlive-packages | nix | picker | media | desktop-integration | justfiles | services | grub | integration-files | image-info | initramfs | finalize | nvidia-config | nvidia | system-policy | nvidia-finalize | packages | final) ;;
 *)
     printf 'Usage: %s <stage>\n' "$0" >&2
     exit 2
@@ -118,6 +118,20 @@ require_repos_disabled() {
             pass "repo disabled: $id"
         else
             fail "repo missing or still enabled: $id"
+        fi
+    done
+}
+
+# Require every listed package to have been installed from the given repo.
+require_rpms_from_repo() {
+    local repo_id="$1" pkg from
+    shift
+    for pkg in "$@"; do
+        from="$(dnf5 info --installed "$pkg" 2>/dev/null | awk -F': ' '/^From repository/ { print $2 }' || true)"
+        if [[ "$from" == "$repo_id" ]]; then
+            pass "package $pkg installed from $repo_id"
+        else
+            fail "package $pkg resolved from '${from:-<unknown>}', expected $repo_id"
         fi
     done
 }
@@ -340,7 +354,58 @@ verify_fonts() {
 verify_base_pkgs() {
     require_rpms_from_json "base-pkgs" "packages"
 
+    # hyprland and the whole hyprwm stack must come from the base-pkgs COPR:
+    # Fedora carries its own (older) hyprland, and a silent resolution from
+    # the official repos would break the COPR-built stack's ABI matching
+    require_rpms_from_repo \
+        'copr:copr.fedorainfracloud.org:aahsnr-work:base-pkgs' \
+        hyprland hyprland-devel \
+        aquamarine aquamarine-devel \
+        hyprcursor hyprcursor-devel \
+        hyprgraphics hyprgraphics-devel \
+        hyprlang hyprlang-devel \
+        hyprutils hyprutils-devel \
+        hyprwayland-scanner hyprwayland-scanner-devel \
+        hyprwire hyprwire-devel \
+        hyprtoolkit hyprland-guiutils hyprland-protocols \
+        hyprland-qt-support hyprpwcenter hyprshutdown \
+        glaze xdg-desktop-portal-hyprland
+
     require_repos_disabled 'copr:copr.fedorainfracloud.org:aahsnr-work:base-pkgs'
+}
+
+verify_hyprpm() {
+    require_rpms hyprland hyprland-devel
+
+    # hyprpm checks these via command -v before doing anything (cpio, cmake,
+    # pkg-config, gcc, g++, git); make is what its installheaders step runs,
+    # meson is what most plugin repositories build with, and sudo is what it
+    # elevates installheaders through.
+    local bin
+    for bin in hyprpm hyprctl cpio cmake pkg-config gcc g++ git make meson sudo; do
+        if command -v "$bin" >/dev/null 2>&1; then
+            pass "hyprpm dependency on PATH: $bin"
+        else
+            fail "hyprpm dependency missing: $bin"
+        fi
+    done
+
+    # hyprpm locates the packaged headers through the hyprland.pc file
+    if pkgconf --modversion hyprland >/dev/null 2>&1; then
+        pass "hyprland.pc resolves: $(pkgconf --modversion hyprland)"
+    else
+        fail "pkgconf cannot resolve the hyprland module (hyprland.pc broken?)"
+    fi
+
+    # hyprpm update git-clones and checks out the exact commit the binary
+    # reports; a placeholder hash ("unknown") would send it nowhere
+    local commit
+    commit="$(Hyprland --version-json 2>/dev/null | jq -r '.commit // empty')"
+    if [[ "$commit" =~ ^[0-9a-f]{40}$ ]]; then
+        pass "Hyprland --version-json reports a real commit: ${commit:0:12}"
+    else
+        fail "Hyprland --version-json commit is not a 40-hex hash: ${commit:-<empty>}"
+    fi
 }
 
 verify_applications() {
@@ -1228,6 +1293,7 @@ common-packages) verify_common_packages ;;
 gaming) verify_gaming ;;
 fonts) verify_fonts ;;
 base-pkgs) verify_base_pkgs ;;
+hyprpm) verify_hyprpm ;;
 applications) verify_applications ;;
 texlive-packages) verify_texlive_packages ;;
 nix) verify_nix ;;

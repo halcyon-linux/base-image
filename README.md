@@ -9,7 +9,7 @@ A signed, bootc-native Fedora Atomic image for an NVIDIA gaming workstation. Bui
 | **Kernel**        | OGC (Open Gaming Collective) kernel from `ublue-os/akmods`, version-locked            |
 | **GPU**           | NVIDIA open modules (`akmods-nvidia-open`), multilib                                  |
 | **Extra kmod**    | `nct6687d` only (NCT6687 sensors, MSI Z790-P target)                                  |
-| **Desktop**       | SDDM + Hyprland (git) + Noctalia shell                                                |
+| **Desktop**       | SDDM + Hyprland + Noctalia shell                                                      |
 | **Update stack**  | bootc / rpm-ostree, `uupd`, greenboot                                                 |
 | **Signing**       | cosign key pair; the public key is [`cosign.pub`](cosign.pub)                         |
 | **Source branch** | `containerfile` (default and release branch)                                          |
