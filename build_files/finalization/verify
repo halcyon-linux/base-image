@@ -527,6 +527,14 @@ verify_desktop_integration() {
         fi
     done
 
+    if rpm -q pymol >/dev/null 2>&1; then
+        if grep -q '^Exec=env QT_QPA_PLATFORM=xcb pymol' /usr/share/applications/pymol.desktop; then
+            pass "PyMOL launcher forces the xcb Qt platform"
+        else
+            fail "PyMOL launcher does not set QT_QPA_PLATFORM=xcb"
+        fi
+    fi
+
     if [[ -f /etc/bluetooth/input.conf ]] && grep -q '^UserspaceHID=true' /etc/bluetooth/input.conf; then
         pass "UserspaceHID enabled in /etc/bluetooth/input.conf"
     else

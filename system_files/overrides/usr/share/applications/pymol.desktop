@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=PyMOL
+GenericName=PyMOL Molecular Graphics System
+GenericName[tr]=PyMOL Moleküler Grafik Sistemi
+Comment=View, render, animate and export molecular structures
+Comment[tr]=Moleküler yapıları görüntüleyin, canlandırın ve dönüştürün
+Exec=env QT_QPA_PLATFORM=xcb pymol %F
+Icon=pymol
+Terminal=false
+Type=Application
+Categories=Graphics;Education;Science;Chemistry;
+X-Desktop-File-Install-Version=0.28
