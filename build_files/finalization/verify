@@ -528,10 +528,10 @@ verify_desktop_integration() {
     done
 
     if rpm -q pymol >/dev/null 2>&1; then
-        if grep -q '^Exec=env QT_QPA_PLATFORM=xcb pymol' /usr/share/applications/pymol.desktop; then
-            pass "PyMOL launcher forces the xcb Qt platform"
+        if grep -q '^Exec=env QT_QPA_PLATFORM=xcb QT_SCALE_FACTOR=2 pymol' /usr/share/applications/pymol.desktop; then
+            pass "PyMOL launcher forces xcb and 2x scaling"
         else
-            fail "PyMOL launcher does not set QT_QPA_PLATFORM=xcb"
+            fail "PyMOL launcher lacks QT_QPA_PLATFORM=xcb or QT_SCALE_FACTOR=2"
         fi
     fi
 
