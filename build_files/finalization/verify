@@ -470,9 +470,15 @@ verify_hyprpm() {
     done
 
     # hyprpm update git-clones and checks out the exact commit the binary
-    # reports; a placeholder hash ("unknown") would send it nowhere
+    # reports; a placeholder hash ("unknown") would send it nowhere.
+    # When run under root/container, Hyprland requires --i-am-really-stupid
+    # and emits a warning banner before the JSON on stdout; extract the JSON
+    # object cleanly before piping to jq, with fallback to --version text.
     local commit
-    commit="$(Hyprland --version-json 2>/dev/null | jq -r '.commit // empty')"
+    commit="$(Hyprland --i-am-really-stupid --version-json 2>/dev/null | sed -n '/^{/,/^}/p' | jq -r '.commit // empty' 2>/dev/null || true)"
+    if [[ ! "$commit" =~ ^[0-9a-f]{40}$ ]]; then
+        commit="$(Hyprland --i-am-really-stupid --version 2>/dev/null | grep -oP 'commit \K[0-9a-f]{40}' || true)"
+    fi
     if [[ "$commit" =~ ^[0-9a-f]{40}$ ]]; then
         pass "Hyprland --version-json reports a real commit: ${commit:0:12}"
     else
