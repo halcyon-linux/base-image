@@ -42,6 +42,7 @@ mapfile -t PACKAGES < <(jq -r '."base-pkgs".packages[]' "$PACKAGES_JSON")
 INSTALL_OPTS=(
     --setopt="${repo_id}.priority=1"
     --setopt='*terra*'.priority=10
+    --enable-repo=terra-mesa
     --setopt=install_weak_deps=False
     --setopt='*.skip_if_unavailable=False'
 )
