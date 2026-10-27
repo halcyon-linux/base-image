@@ -470,19 +470,20 @@ verify_hyprpm() {
     done
 
     # hyprpm update git-clones and checks out the exact commit the binary
-    # reports; a placeholder hash ("unknown") would send it nowhere.
-    # When run under root/container, Hyprland requires --i-am-really-stupid
-    # and emits a warning banner before the JSON on stdout; extract the JSON
-    # object cleanly before piping to jq, with fallback to --version text.
+    # was built from.  The installed headers ship version.h with the
+    # authoritative GIT_COMMIT_HASH — the same value hyprpm itself reads
+    # to decide which source tree to check out.  Reading the header is
+    # reliable in a headless container where the Hyprland binary may refuse
+    # to run (missing XDG_RUNTIME_DIR, root checks, GPU drivers, etc.).
+    local version_h="/usr/include/hyprland/src/version.h"
     local commit
-    commit="$(Hyprland --i-am-really-stupid --version-json 2>/dev/null | sed -n '/^{/,/^}/p' | jq -r '.commit // empty' 2>/dev/null || true)"
-    if [[ ! "$commit" =~ ^[0-9a-f]{40}$ ]]; then
-        commit="$(Hyprland --i-am-really-stupid --version 2>/dev/null | grep -oP 'commit \K[0-9a-f]{40}' || true)"
+    if [[ -f "$version_h" ]]; then
+        commit="$(grep -oP '#define GIT_COMMIT_HASH\s+"\K[0-9a-f]{40}' "$version_h" || true)"
     fi
     if [[ "$commit" =~ ^[0-9a-f]{40}$ ]]; then
-        pass "Hyprland --version-json reports a real commit: ${commit:0:12}"
+        pass "hyprland version.h reports a real commit: ${commit:0:12}"
     else
-        fail "Hyprland --version-json commit is not a 40-hex hash: ${commit:-<empty>}"
+        fail "hyprland version.h GIT_COMMIT_HASH is not a 40-hex hash: ${commit:-<empty>} (from ${version_h})"
     fi
 }
 
