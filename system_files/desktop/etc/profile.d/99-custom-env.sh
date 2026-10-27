@@ -42,6 +42,7 @@ pathprepend "${HOME}/.cache/.bun/bin"
 pathprepend "${HOME}/.bun/bin"
 pathprepend "${HOME}/go/bin"
 pathprepend "${HOME}/.cargo/bin"
+pathprepend "${HOME}/.pixi/bin"
 pathprepend "${HOME}/bin"
 
 # Export PATH

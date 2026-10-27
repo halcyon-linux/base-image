@@ -52,6 +52,9 @@ jobs:
       - name: Check dnf5 retry shim
         run: bash tests/test-dnf5-retry.sh
 
+      - name: Run repo audit and lint tests
+        run: bash tests/test-audit-lint.sh
+
       # The image registry name must be lower-case, but GitHub usernames can be capitalized.
       - name: Get lower-case equivalent of the repository owner's username
         id: repo_owner_case

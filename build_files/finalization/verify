@@ -378,11 +378,11 @@ verify_hyprpm() {
     require_rpms hyprland hyprland-devel
 
     # hyprpm checks these via command -v before doing anything (cpio, cmake,
-    # pkg-config, gcc, g++, git); make is what its installheaders step runs,
+    # pkg-config, gcc, g++, git, hyprwayland-scanner); make is what its installheaders step runs,
     # meson is what most plugin repositories build with, and sudo is what it
     # elevates installheaders through.
     local bin
-    for bin in hyprpm hyprctl cpio cmake pkg-config gcc g++ git make meson sudo; do
+    for bin in hyprpm hyprctl cpio cmake pkg-config gcc g++ git make meson sudo hyprwayland-scanner; do
         if command -v "$bin" >/dev/null 2>&1; then
             pass "hyprpm dependency on PATH: $bin"
         else
@@ -1106,6 +1106,7 @@ verify_final() {
         /usr/bin/code /usr/bin/codium /usr/bin/brave-browser /usr/bin/firefox \
         /usr/bin/google-chrome /usr/bin/microsoft-edge /usr/bin/vivaldi \
         /usr/bin/nvim /usr/bin/kitty \
+        /usr/bin/Hyprland /usr/bin/hyprpm \
         /usr/bin/pinentry-wrapper \
         /usr/bin/g++ /usr/bin/meson /usr/bin/cpio; do
         if [[ -x "$required_binary" ]]; then

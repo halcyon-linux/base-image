@@ -21,12 +21,18 @@ user=hyprpm-smoke
 uid=""
 pc=/usr/share/pkgconfig/hyprland.pc
 pc_backup=/var/tmp/hyprland.pc.packaged
+limits_backup=""
 
 cleanup() {
     rm -f /etc/sudoers.d/hyprpm-smoke
     userdel -r "$user" >/dev/null 2>&1 || true
     # uid is only set once the test user exists — never guess 0 (root)
     [[ -n "$uid" ]] && rm -rf "/run/user/$uid"
+    rm -f "/var/spool/mail/$user"
+    if [[ -n "$limits_backup" && -d "$limits_backup" ]]; then
+        mv "$limits_backup"/* /etc/security/limits.d/ 2>/dev/null || true
+        rm -rf "$limits_backup"
+    fi
     if [[ -f "$pc_backup" ]]; then
         cp -p "$pc_backup" "$pc"
         rm -f "$pc_backup"
@@ -39,6 +45,16 @@ if ! command -v sudo >/dev/null 2>&1; then
     exit 1
 fi
 
+# pam_limits fails inside unprivileged build containers (e.g. CI buildah build)
+# when custom rlimits (such as memlock.conf) exceed the runner container's
+# capabilities, causing su and sudo session open to fail. Stash any custom limits
+# drop-ins during the smoke test and restore them on exit.
+if [[ -d /etc/security/limits.d ]] && compgen -G "/etc/security/limits.d/*.conf" >/dev/null; then
+    limits_backup=$(mktemp -d /var/tmp/limits.d.XXXXXX)
+    mv /etc/security/limits.d/*.conf "$limits_backup/"
+fi
+
+mkdir -p /var/spool/mail
 useradd -m "$user"
 uid=$(id -u "$user")
 echo "$user ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/hyprpm-smoke
