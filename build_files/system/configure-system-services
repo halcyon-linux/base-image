@@ -16,6 +16,9 @@ system_services=(
     cardwired.service
     sddm.service
     cups.service
+    bpftune.service
+    tuned.service
+    fstrim.timer
     var-nix.service
     nix.mount
     nix-daemon.socket
