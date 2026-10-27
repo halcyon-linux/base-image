@@ -243,7 +243,7 @@ Run `ujust` for the full list. Commonly used:
 
 ### Installing software
 
-Keep the image clean: prefer Flatpak, Nix, Distrobox or containers over layering RPMs. The image declares only the Flathub remote (system Flatpaks live in `/var/lib/flatpak`) and ships no Flatpak apps.
+Keep the image clean: prefer Homebrew, Flatpak, Nix, Distrobox or containers over layering RPMs. The image declares only the Flathub remote (system Flatpaks live in `/var/lib/flatpak`) and ships no Flatpak apps.
 
 ### Runtime facts
 
@@ -298,7 +298,7 @@ Full package lists live in [`packages.json`](packages.json). Highlights:
 | **Shell and CLI**      | zsh as the default login shell (fish and `greetd` removed); a pinentry dispatcher (GUI in a graphical session, curses/tty otherwise); `bat`, `eza`, `fzf`, `ripgrep`, `atuin`, `starship`, `zellij`, `yazi`, `lazygit`, `uv`, `pixi`, … |
 | **Gaming**             | Steam (no autostart), Lutris, gamescope, MangoHud, vkBasalt, umu-launcher, ProtonPlus, Heroic, winetricks, `scx` schedulers, `ds-inhibit`, `input-remapper`. Handheld packages removed; Waydroid intentionally absent             |
 | **System**             | Btrfs tooling (`btrfs-assistant`, `snapper`, `compsize`), `bees` deduplication (timers via `ujust configure-beesd`), libvirt/QEMU/virt-manager, greenboot, `fail2ban`, `lynis`, Tailscale (installed, `tailscaled` disabled), Cockpit modules (`cockpit-ws` not installed; a Quadlet is toggled by `ujust cockpit`) |
-| **Package ecosystems** | Nix (`nix`, `nix-daemon`, `/nix` mount units for the immutable root), Distrobox/Toolbx, Flatpak runtime                                                                                                  |
+| **Package ecosystems** | Homebrew (standalone), Nix (`nix`, `nix-daemon`, `/nix` mount units for the immutable root), Distrobox/Toolbx, Flatpak runtime                                                                                                  |
 | **Apps and toolchains** | Firefox, Chrome, Brave, Edge, Vivaldi, Zen; VS Code, VSCodium, Zed, Neovim, Emacs; Obsidian, OnlyOffice, Bitwarden; Go, Rust (`cargo`), Node 22, CMake, Ninja; TeX Live with formats baked at build time                          |
 | **Runtime tuning**     | zram, sysctl drop-ins (gaming, networking, inotify), TuneD profiles (`*-bazzite`), an optional 1 GiB hugepage mount, VFIO dracut config, `ntsync` module load                                                                     |
 
@@ -336,11 +336,13 @@ flowchart LR
   subgraph inputs["Build inputs"]
     B["ublue-os/base-main:44"]
     A["akmods, akmods-extra, akmods-nvidia-open"]
+    H["brew standalone image"]
     R["COPRs, Terra, vendor repos"]
   end
   RS["resolve-akmods: newest tag that ships nct6687d"] --> A
   B --> BLD
   A --> BLD
+  H --> BLD
   R --> BLD
   BLD["buildah build: Containerfile + build_files via /ctx"] --> V["verify gates after each stage + bootc container lint"]
   V --> RC["rechunk: rpm-ostree compose build-chunked-oci --bootc"]
@@ -374,7 +376,7 @@ The kernel swap (`build_files/kernel/install-kernel-akmods`) removes the stock k
 
 Every step below is followed by its `verify <stage>` gate (see [Build-time verification gates](#build-time-verification-gates)).
 
-1. Copy `system_files/desktop/` to `/`, install the dnf5 retry shim.
+1. Copy `system_files/desktop/` to `/`, install the dnf5 retry shim, add the Homebrew standalone files.
 2. Swap in the OGC kernel and `nct6687d`.
 3. Set up repositories, priorities and excludes.
 4. Install the package sets in order: CLI tools, Python utilities, removal of superseded packages, common packages, gaming stack, fonts, Hyprland/Noctalia, applications (browsers, `bees`), TeX Live (then bake its formats), Nix, `ujust-picker`, media automount.
@@ -492,7 +494,7 @@ Pushes cancel older pushes automatically, but a manual run is never cancelled by
 
 ## Build-time verification gates
 
-There is no application test suite. `build_files/finalization/verify <stage>` runs right after the stage it checks, so failures point at the step that broke them, and `bootc container lint` runs last. It defines 28 groups: one per build stage (`kernel`, `repos`, `cli-tools`, `utils`, `removals`, `common-packages`, `gaming`, `fonts`, `base-pkgs`, `applications`, `texlive-packages`, `nix`, `picker`, `media`, `desktop-integration`, `justfiles`, `services`, `grub`, `integration-files`, `image-info`, `initramfs`, `finalize`, `nvidia-config`, `nvidia`, `system-policy`, `nvidia-finalize`, `final`) plus `packages`, an aggregate of the package-set groups that the Containerfile does not call.
+There is no application test suite. `build_files/finalization/verify <stage>` runs right after the stage it checks, so failures point at the step that broke them, and `bootc container lint` runs last. It defines 29 groups: one per build stage (`brew`, `kernel`, `repos`, `cli-tools`, `utils`, `removals`, `common-packages`, `gaming`, `fonts`, `base-pkgs`, `hyprpm`, `applications`, `texlive-packages`, `nix`, `picker`, `media`, `desktop-integration`, `justfiles`, `services`, `grub`, `integration-files`, `image-info`, `initramfs`, `finalize`, `nvidia-config`, `nvidia`, `system-policy`, `nvidia-finalize`, `final`) plus `packages`, an aggregate of the package-set groups that the Containerfile does not call.
 
 It asserts positive and negative invariants, for example:
 
@@ -532,7 +534,7 @@ Deliberate guardrails (Waydroid, bundled fonts/docs, trimmed kmods, renamed help
 ## Design decisions
 
 - **Podman-only tooling.** Helpers use `podman`/`podman-remote`; CI uses buildah, podman, skopeo and cosign. `docker://` is only an OCI transport name; there is no Docker Engine dependency.
-- **One custom image on this branch.** `akmods*` and `ctx` are inputs, not outputs.
+- **One custom image on this branch.** `akmods*`, `brew` and `ctx` are inputs, not outputs.
 - **`/usr/bin` vs `/usr/libexec`.** `/usr/bin` is the user-facing PATH; `/usr/libexec` holds helpers called by units, ujust recipes and polkit.
 - **No in-tree user scripts.** User commands come from RPMs; dangling references were removed.
 - **Flatpak policy.** Only the system Flathub remote is declared and no apps ship; `verify` forbids other remotes and the old provisioning machinery.

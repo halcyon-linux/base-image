@@ -65,6 +65,9 @@ def find_action():
     except OSError:
         return ""
 
+def brew_eval(args):
+    return f'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" && {args}'
+
 def spawn_and_detach(args):
     subprocess.Popen(args, start_new_session=True, stdout=subprocess.DEVNULL)
 
@@ -82,6 +85,12 @@ def make_popup_terminal_shellcmd(cmd):
 
 def spawn_ujust(script):
     cmd  = make_popup_terminal_shellcmd(f'ujust {script}')
+    args = make_shellcmd_argv(cmd)
+    spawn_and_detach(args)
+
+def spawn_brew_ublue(cask):
+    brew = brew_eval(f'brew tap ublue-os/tap && brew install --cask {cask}')
+    cmd  = make_popup_terminal_shellcmd(brew)
     args = make_shellcmd_argv(cmd)
     spawn_and_detach(args)
 
@@ -139,7 +148,7 @@ def handle_vscode():
             return 'ok'
 
         case 'teardown-dialog':
-            if dialog_response_id == 'run-ujust' or dialog_response_id == 'learn-dx':
+            if dialog_response_id == 'run-brew' or dialog_response_id == 'learn-dx':
                 pick_action(dialog_response_id)
                 return 'ok'
             else:
@@ -151,8 +160,8 @@ def handle_vscode():
         case 'action':
             try:
                 action = find_action()
-                if action == 'run-ujust':
-                    spawn_ujust('install-vscode')
+                if action == 'run-brew':
+                    spawn_brew_ublue('visual-studio-code-linux')
                 elif action == 'learn-dx':
                     spawn_and_detach(['xdg-open', 'https://dev.bazzite.gg/'])
             except:
@@ -179,7 +188,7 @@ def handle_vscodium():
             return 'ok'
 
         case 'teardown-dialog':
-            if dialog_response_id == 'run-ujust':
+            if dialog_response_id == 'run-brew':
                 return 'ok'
             else:
                 return 'abort'
@@ -189,7 +198,7 @@ def handle_vscodium():
 
         case 'action':
             try:
-                spawn_ujust('install-vscodium')
+                spawn_brew_ublue('vscodium-linux')
             except:
                 pass
             return ''
