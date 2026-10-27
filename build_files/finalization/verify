@@ -387,7 +387,7 @@ verify_gaming() {
     # Ensure mesa packages are installed from Terra
     local mesa_pkg mesa_vendor
     for mesa_pkg in mesa-filesystem mesa-dri-drivers mesa-libEGL mesa-libGL mesa-libgbm mesa-vulkan-drivers mesa-libgbm-devel; do
-        mesa_vendor="$(rpm -q --qf '%{VENDOR}' "$mesa_pkg" 2>/dev/null || true)"
+        mesa_vendor="$(rpm -q --qf '%{VENDOR}\n' "$mesa_pkg" 2>/dev/null | sort -u || true)"
         if [[ "$mesa_vendor" == "Terra" ]]; then
             pass "mesa package $mesa_pkg is from Terra"
         else
@@ -1169,7 +1169,7 @@ verify_final() {
 
     local mesa_pkg mesa_vendor
     for mesa_pkg in mesa-filesystem mesa-dri-drivers mesa-libEGL mesa-libGL mesa-libgbm mesa-vulkan-drivers; do
-        mesa_vendor="$(rpm -q --qf '%{VENDOR}' "$mesa_pkg" 2>/dev/null || true)"
+        mesa_vendor="$(rpm -q --qf '%{VENDOR}\n' "$mesa_pkg" 2>/dev/null | sort -u || true)"
         if [[ "$mesa_vendor" == "Terra" ]]; then
             pass "package $mesa_pkg is from Terra"
         else
