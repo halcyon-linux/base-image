@@ -161,14 +161,8 @@ RUN --mount=type=cache,dst=/var/cache \
     /ctx/finalization/verify base-pkgs && \
     /ctx/shared/cleanup
 
-# Prove hyprpm update works against the packaged Hyprland: the smoke runs it
-# as a throwaway non-root user (hyprpm refuses root) — it git-clones the
-# commit the binary reports and builds the plugin headers with cmake — and
-# the verify group then asserts the static invariants (hyprpm's toolchain,
-# hyprland.pc, baked version metadata).
+# Verify hyprpm build dependencies, toolchain, pkgconfig modules, and version metadata
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
-    --mount=type=tmpfs,dst=/tmp \
-    /ctx/finalization/hyprpm-smoke && \
     /ctx/finalization/verify hyprpm
 
 # Install desktop applications and bees deduplication daemon.

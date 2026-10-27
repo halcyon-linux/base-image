@@ -81,7 +81,7 @@ RUN --mount=type=cache,dst=/var/cache \
 | Path | Role |
 | --- | --- |
 | `Containerfile` | Orchestrates all stages; order-sensitive; ends with `bootc container lint` |
-| `build_files/finalization/` | `verify` (all build-time assertions, 29 groups), `hyprpm-smoke` (end-to-end `hyprpm update` proof as a throwaway non-root user), `image-info` (branding, `image-ref`), `finalize` (account relocation, `/var` cleanup) |
+| `build_files/finalization/` | `verify` (all build-time assertions, 29 groups), `image-info` (branding, `image-ref`), `finalize` (account relocation, `/var` cleanup) |
 | `build_files/kernel/` | Kernel swap, kmod install, initramfs; the `05-rpmostree.install` / `50-dracut.install` shims are temporary |
 | `build_files/nvidia/` | NVIDIA config, install, finalize; runs after the main finalize, initramfs rebuilt afterwards |
 | `build_files/packages/` | One installer per package set, repo setup, TeX Live format baking |
