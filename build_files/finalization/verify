@@ -576,6 +576,12 @@ verify_nix() {
             fail "nix file missing: $f"
         fi
     done
+
+    if grep -q "NIX_REMOTE=daemon" /etc/profile.d/00-nix-resolve-home-env.sh; then
+        pass "NIX_REMOTE=daemon configured in profile"
+    else
+        fail "NIX_REMOTE=daemon missing from /etc/profile.d/00-nix-resolve-home-env.sh"
+    fi
 }
 
 verify_picker() {
@@ -722,7 +728,7 @@ verify_services() {
         dev-hugepages1G.mount libvirtd.service ds-inhibit.service \
         greenboot-healthcheck.service greenboot-set-rollback-trigger.service \
         dmemcg-booster-system.service cardwired.service \
-        sddm.service; do
+        sddm.service cups.service nix-daemon.socket nix-daemon.service; do
         if [[ "$(systemctl is-enabled "$svc" 2>/dev/null)" == enabled ]]; then
             pass "system service enabled: $svc"
         else

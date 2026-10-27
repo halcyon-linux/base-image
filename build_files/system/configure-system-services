@@ -14,9 +14,11 @@ system_services=(
     dmemcg-booster-system.service
     cardwired.service
     sddm.service
+    cups.service
     var-nix.service
     nix.mount
     nix-daemon.socket
+    nix-daemon.service
 )
 
 global_services=(

@@ -6,3 +6,6 @@ export HOME
 [ -z "${XDG_DATA_HOME:-}" ] && export XDG_DATA_HOME="$HOME/.local/share"
 [ -z "${XDG_CONFIG_HOME:-}" ] && export XDG_CONFIG_HOME="$HOME/.config"
 
+# Route Nix client commands through the multi-user daemon socket
+export NIX_REMOTE=daemon
+

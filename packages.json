@@ -376,6 +376,7 @@
       "dbus-glib",
       "firefox",
       "hplip",
+      "hplip-gui",
       "libXinerama",
       "neovim",
       "pymol",
