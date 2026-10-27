@@ -457,6 +457,32 @@ Secrets: `SIGNING_SECRET` (cosign private key) and the automatic `GITHUB_TOKEN`.
 
 Sundays 00:15 UTC (and manual): deletes `alcyone` package versions older than 90 days, keeping at least 7 tagged and 7 untagged, and removes orphaned images.
 
+### Run and cancel workflows from the terminal
+
+Requires the [GitHub CLI](https://cli.github.com/) (`gh`) authenticated with `gh auth login`, and a checkout of this repository (or pass `-R halcyon-linux/base-image`).
+
+```bash
+# Start a build manually. Runs on the containerfile branch, so it PUBLISHES and SIGNS.
+gh workflow run build.yml --ref containerfile
+
+# Start the cleanup workflow manually (it deletes old package versions).
+gh workflow run clean.yml --ref containerfile
+
+# Find the run ID of anything in progress.
+gh run list --workflow build.yml --status in_progress
+
+# Follow a run until it finishes (pick the ID from the list above).
+gh run watch <run-id>
+
+# Cancel a run. This is the normal cancel and stops the run gracefully.
+gh run cancel <run-id>
+
+# Force cancel a run that stays "cancelling" after a normal cancel.
+gh api --method POST repos/halcyon-linux/base-image/actions/runs/<run-id>/force-cancel
+```
+
+Pushes cancel older pushes automatically, but a manual run is never cancelled by a push, so only your `gh run cancel` stops it. Publishing is ordered (`:stable` first, then `:latest` and `:YYYYMMDD` copied by digest), so cancelling during the copy step can leave the tags on different digests. Check the run's log before you re-run it.
+
 ### Other automation config
 
 - `.github/renovate.json5`: `config:best-practices`; pin and pinDigest updates auto-merge; digest updates for container dependencies in workflow files are disabled.
