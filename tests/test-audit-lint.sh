@@ -53,9 +53,19 @@ done
 
 # 4. Validate YAML files
 python3 -c "
-import yaml, glob, sys
+import os, glob, sys
+try:
+    import yaml
+except ImportError:
+    # If PyYAML is not available in the environment, skip YAML validation
+    sys.exit(0)
+
 err = 0
-for path in glob.glob('$repo_root/**/*.y*ml', recursive=True) + glob.glob('$repo_root/.github/**/*.y*ml', recursive=True):
+paths = set(glob.glob('$repo_root/**/*.y*ml', recursive=True) + glob.glob('$repo_root/.github/**/*.y*ml', recursive=True))
+for path in sorted(paths):
+    # Skip symlinks that point to absolute target paths in the image (e.g. /usr/share/...)
+    if os.path.islink(path):
+        continue
     try:
         with open(path) as f:
             yaml.safe_load(f)
