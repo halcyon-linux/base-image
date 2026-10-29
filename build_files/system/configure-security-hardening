@@ -38,3 +38,16 @@ if [[ -n "$grp_output" ]]; then
     printf 'ERROR: grpck reports group file inconsistencies:\n%s\n' "$grp_output" >&2
     exit 1
 fi
+
+# Audit: Fedora's stock rules.d/audit.rules is `-D` + `-a task,never`, which
+# turns syscall auditing off, and it sorts after every numbered file in
+# augenrules's `sort -V` order, so it would cancel the Halcyon rules. Git
+# cannot carry 0600, so set the modes here (the generated 31-privileged.rules
+# is created later by generate-audit-privileged-rules).
+rm -f /etc/audit/rules.d/audit.rules
+chmod 0600 /etc/audit/rules.d/*.rules
+chmod 0640 /etc/audit/auditd.conf
+
+# policycoreutils-restorecond enables itself in %post. It is installed for
+# on-demand use; leave it off by default.
+systemctl disable restorecond.service

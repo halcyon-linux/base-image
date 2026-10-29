@@ -340,6 +340,12 @@ RUN --mount=type=cache,dst=/var/cache \
     /ctx/nvidia/finalize-nvidia && \
     /ctx/finalization/verify nvidia-finalize
 
+# Generate the privileged-binary audit rules after the last package transaction
+# (the NVIDIA stage adds the setuid /usr/bin/nvidia-modprobe). `verify final`
+# checks the result.
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    /ctx/system/generate-audit-privileged-rules
+
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     /ctx/finalization/image-info && \
     /ctx/finalization/verify image-info

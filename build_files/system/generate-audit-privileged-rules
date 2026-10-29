@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+# Generate /etc/audit/rules.d/31-privileged.rules from the setuid, setgid and
+# file-capability binaries that really exist in the image. Fedora's own
+# 31-privileged.rules is a template for this (see /usr/share/audit-rules) but
+# only scans bin/sbin; helpers also live in /usr/libexec and /usr/lib, so scan
+# all of /usr. Hand-written lists go stale, and /usr/sbin is a symlink to
+# /usr/bin on Fedora 44. Runs after the NVIDIA stage because that stage adds
+# /usr/bin/nvidia-modprobe (setuid).
+#
+# chrome-sandbox (Electron and Chromium apps) is skipped: it is the fallback
+# sandbox helper and would be logged for every app launch.
+rules=/etc/audit/rules.d/31-privileged.rules
+
+{
+    printf '# Generated at image build time by generate-audit-privileged-rules.\n'
+    printf '# Execution of setuid/setgid binaries and binaries with file capabilities\n'
+    printf '# by a real user. Do not edit; rebuild the image to refresh.\n'
+    {
+        find /usr -xdev -type f \( -perm -4000 -o -perm -2000 \) -print
+        getcap -r /usr 2>/dev/null | awk '{ print $1 }' || true
+    } | sort -u | grep -v '/chrome-sandbox$' | while IFS= read -r bin; do
+        for arch in b32 b64; do
+            printf -- '-a always,exit -F arch=%s -F path=%s -F perm=x -F auid>=1000 -F auid!=unset -F key=privileged\n' "$arch" "$bin"
+        done
+    done
+} > "$rules"
+
+chmod 0600 "$rules"
+
+if ! grep -q 'path=/usr/bin/sudo ' "$rules"; then
+    echo "ERROR: $rules has no rule for /usr/bin/sudo" >&2
+    exit 1
+fi

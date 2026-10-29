@@ -1,0 +1,5 @@
+# Halcyon: keep loading after a rule fails, but exit non-zero. A bad rule then
+# shows up as a failed audit-rules.service instead of aborting the load half
+# way. Deliberately not -i (12-ignore-error.rules), which exits 0 and would
+# drop a broken rule without any sign.
+-c

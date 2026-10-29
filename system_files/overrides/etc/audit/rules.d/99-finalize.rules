@@ -1,0 +1,5 @@
+# Halcyon: leave the rules enabled but changeable. `ujust audit-lock` adds
+# 99-zz-lock.rules (-e 2, immutable until reboot); augenrules keeps the last -e
+# it reads, so that file wins because it sorts after this one. `-e 2` here
+# would make a bad rule unfixable without a reboot.
+-e 1

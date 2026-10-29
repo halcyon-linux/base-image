@@ -1,0 +1,39 @@
+# Halcyon: changes to the security stack itself. SELinux AVC denials are
+# hardwired kernel events and are always recorded; these rules cover the
+# configuration that governs them. Syscall form; see 30-identity.rules.
+
+# SELinux mode, policy, file contexts and the module store (recursive).
+-a always,exit -F arch=b32 -F dir=/etc/selinux -F perm=wa -F key=selinux-config
+-a always,exit -F arch=b64 -F dir=/etc/selinux -F perm=wa -F key=selinux-config
+
+# Self-protection: the audit configuration itself (rules.d, plugins.d, auditd.conf).
+-a always,exit -F arch=b32 -F dir=/etc/audit -F perm=wa -F key=audit-config
+-a always,exit -F arch=b64 -F dir=/etc/audit -F perm=wa -F key=audit-config
+
+# Other defensive tools and network policy.
+-a always,exit -F arch=b32 -F dir=/etc/fail2ban -F perm=wa -F key=security-tools
+-a always,exit -F arch=b64 -F dir=/etc/fail2ban -F perm=wa -F key=security-tools
+-a always,exit -F arch=b32 -F path=/etc/aide.conf -F perm=wa -F key=security-tools
+-a always,exit -F arch=b64 -F path=/etc/aide.conf -F perm=wa -F key=security-tools
+-a always,exit -F arch=b32 -F dir=/etc/firewalld -F perm=wa -F key=firewall-config
+-a always,exit -F arch=b64 -F dir=/etc/firewalld -F perm=wa -F key=firewall-config
+-a always,exit -F arch=b32 -F dir=/etc/NetworkManager/system-connections -F perm=wa -F key=network-config
+-a always,exit -F arch=b64 -F dir=/etc/NetworkManager/system-connections -F perm=wa -F key=network-config
+-a always,exit -F arch=b32 -F path=/etc/chrony.conf -F perm=wa -F key=network-config
+-a always,exit -F arch=b64 -F path=/etc/chrony.conf -F perm=wa -F key=network-config
+
+# Tools that change SELinux or audit state, run by a real user.
+-a always,exit -F arch=b32 -F path=/usr/bin/setenforce -F perm=x -F auid>=1000 -F auid!=unset -F key=selinux-tool
+-a always,exit -F arch=b64 -F path=/usr/bin/setenforce -F perm=x -F auid>=1000 -F auid!=unset -F key=selinux-tool
+-a always,exit -F arch=b32 -F path=/usr/bin/setsebool -F perm=x -F auid>=1000 -F auid!=unset -F key=selinux-tool
+-a always,exit -F arch=b64 -F path=/usr/bin/setsebool -F perm=x -F auid>=1000 -F auid!=unset -F key=selinux-tool
+-a always,exit -F arch=b32 -F path=/usr/bin/semodule -F perm=x -F auid>=1000 -F auid!=unset -F key=selinux-tool
+-a always,exit -F arch=b64 -F path=/usr/bin/semodule -F perm=x -F auid>=1000 -F auid!=unset -F key=selinux-tool
+-a always,exit -F arch=b32 -F path=/usr/bin/semanage -F perm=x -F auid>=1000 -F auid!=unset -F key=selinux-tool
+-a always,exit -F arch=b64 -F path=/usr/bin/semanage -F perm=x -F auid>=1000 -F auid!=unset -F key=selinux-tool
+-a always,exit -F arch=b32 -F path=/usr/bin/chcon -F perm=x -F auid>=1000 -F auid!=unset -F key=selinux-tool
+-a always,exit -F arch=b64 -F path=/usr/bin/chcon -F perm=x -F auid>=1000 -F auid!=unset -F key=selinux-tool
+-a always,exit -F arch=b32 -F path=/usr/bin/auditctl -F perm=x -F auid>=1000 -F auid!=unset -F key=audit-tool
+-a always,exit -F arch=b64 -F path=/usr/bin/auditctl -F perm=x -F auid>=1000 -F auid!=unset -F key=audit-tool
+-a always,exit -F arch=b32 -F path=/usr/bin/augenrules -F perm=x -F auid>=1000 -F auid!=unset -F key=audit-tool
+-a always,exit -F arch=b64 -F path=/usr/bin/augenrules -F perm=x -F auid>=1000 -F auid!=unset -F key=audit-tool

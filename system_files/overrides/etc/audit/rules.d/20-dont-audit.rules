@@ -1,0 +1,17 @@
+# Halcyon: suppress known-noisy events. Audit is first-match-wins, so these
+# sit before the main rules.
+
+# Cron jobs fill the log with events nobody reads.
+-a never,user -F subj_type=crond_t
+
+# chrony adjusts the clock constantly; real time changes (40-kernel.rules) stay
+# visible.
+-a never,exit -F arch=b64 -S adjtimex -F auid=unset -F uid=chrony -F subj_type=chronyd_t
+-a never,exit -F arch=b32 -S adjtimex -F auid=unset -F uid=chrony -F subj_type=chronyd_t
+
+# Kernel keyring crypto events, wasteful on a public-facing machine.
+-a always,exclude -F msgtype=CRYPTO_KEY_USER
+
+# tracefs/debugfs cause hundreds of PATH records per module load.
+-a never,filesystem -F fstype=tracefs
+-a never,filesystem -F fstype=debugfs

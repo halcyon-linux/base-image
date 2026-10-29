@@ -231,9 +231,29 @@ verify_repos() {
         'copr:copr.fedorainfracloud.org:ublue-os:packages'
 }
 
+# Every cli-tools package must come from the aahsnr-work/cli-tools COPR. Compare
+# the installed package's source repo, not its vendor: the vendor string is the
+# same for every aahsnr-work COPR. Terra and Fedora ship some of the same names
+# and would shadow or pre-empt the COPR build.
+verify_cli_tools_source() {
+    local repo_id name from_repo pkg
+    local -A source_repo=()
+    repo_id=$(jq -r '."cli-tools".repo_id' "$PACKAGES_JSON")
+    load_packages "cli-tools" "packages" || return 0
+    while read -r name from_repo; do
+        source_repo[$name]="$from_repo"
+    done < <(dnf5 repoquery --installed --qf '%{name} %{from_repo}\n' "${PKG_ARRAY[@]}")
+    for pkg in "${PKG_ARRAY[@]}"; do
+        if [[ "${source_repo[$pkg]:-}" == "$repo_id" ]]; then
+            pass "cli-tools package installed from the COPR: $pkg"
+        else
+            fail "cli-tools package not from $repo_id: $pkg (${source_repo[$pkg]:-not installed})"
+        fi
+    done
+}
+
 verify_cli_tools() {
     require_rpms_from_json "cli-tools" "packages"
-    require_rpms_from_json "cli-tools" "fedora_packages"
 
     require_repos_disabled 'copr:copr.fedorainfracloud.org:aahsnr-work:cli-tools'
 
@@ -246,15 +266,9 @@ verify_cli_tools() {
         fi
     done
 
-    # fzy must be the cli-tools COPR build: Terra ships a newer release and
-    # shadows the COPR package unless Terra is pushed behind it.
-    local fzy_vendor
-    fzy_vendor="$(rpm -q --qf '%{VENDOR}' fzy 2>/dev/null || true)"
-    if [[ "$fzy_vendor" == Fedora\ Copr* ]]; then
-        pass "fzy installed from the cli-tools COPR"
-    else
-        fail "fzy is not the cli-tools COPR build (vendor: ${fzy_vendor:-unknown})"
-    fi
+    # Terra ships a newer fzy and the base image ships fzf: both must still be
+    # the COPR builds, as must every other package in the list.
+    verify_cli_tools_source
 }
 
 verify_utils() {
@@ -793,6 +807,13 @@ verify_justfiles() {
     else
         fail "ujust topgrade recipe missing from 10-update.just"
     fi
+    # Nix leaves store paths default_t, so a Home Manager unit needs a relabel
+    # before systemd can read it; this recipe is the documented way to do it.
+    if grep -q '^nix-relabel-unit' /usr/share/ublue-os/just/90-security.just 2>/dev/null; then
+        pass "ujust nix-relabel-unit recipe present"
+    else
+        fail "ujust nix-relabel-unit recipe missing from 90-security.just"
+    fi
     require_rpms topgrade
 }
 
@@ -804,7 +825,7 @@ verify_services() {
         greenboot-healthcheck.service greenboot-set-rollback-trigger.service \
         dmemcg-booster-system.service cardwired.service \
         sddm.service cups.service bpftune.service tuned.service fstrim.timer \
-        nix-daemon.socket nix-daemon.service; do
+        nix-daemon.socket nix-daemon.service auditd.service audit-rules.service; do
         if [[ "$(systemctl is-enabled "$svc" 2>/dev/null)" == enabled ]]; then
             pass "system service enabled: $svc"
         else
@@ -1028,6 +1049,32 @@ verify_packages() {
 verify_security() {
     require_rpms_from_json "security" "packages"
 
+    local audit_bin
+    for audit_bin in auditd auditctl augenrules ausearch aureport; do
+        if [[ -x "/usr/bin/$audit_bin" ]]; then
+            pass "audit binary present and executable: /usr/bin/$audit_bin"
+        else
+            fail "audit binary missing or not executable: /usr/bin/$audit_bin"
+        fi
+    done
+
+    # audispd-plugins ships its dispatcher plugins inactive (au-remote has no
+    # server to talk to); sedispatch, from setroubleshoot, is the one that must
+    # stay in place.
+    local plugin_conf
+    for plugin_conf in af_unix au-remote au-statsd filter syslog; do
+        if grep -qE '^active[[:space:]]*=[[:space:]]*no' "/etc/audit/plugins.d/${plugin_conf}.conf" 2>/dev/null; then
+            pass "audit plugin inactive: ${plugin_conf}"
+        else
+            fail "audit plugin missing or active: ${plugin_conf}"
+        fi
+    done
+    if grep -qE '^active[[:space:]]*=[[:space:]]*yes' /etc/audit/plugins.d/sedispatch.conf 2>/dev/null; then
+        pass "audit plugin active: sedispatch"
+    else
+        fail "audit plugin sedispatch missing or inactive (setroubleshoot)"
+    fi
+
     # wazuh-agent installs entirely under /var/ossec, which finalize wipes and
     # bootc never refreshes on updates, so it cannot work in this image.
     forbid_rpms wazuh-agent
@@ -1038,7 +1085,168 @@ verify_security() {
     fi
 }
 
+# Audit rules and daemon configuration. Rules cannot be loaded at build time
+# (no CAP_AUDIT_CONTROL), so this checks the files augenrules reads at boot.
+verify_audit_config() {
+    local rules_dir=/etc/audit/rules.d f mode count last
+
+    # Fedora's stock rules.d/audit.rules is `-D` + `-a task,never`: it turns
+    # syscall auditing off, and it sorts after every numbered file.
+    if [[ -e "$rules_dir/audit.rules" ]]; then
+        fail "stock $rules_dir/audit.rules present: its task,never rule disables syscall auditing"
+    else
+        pass "stock audit.rules removed"
+    fi
+    if grep -rEq '^[[:space:]]*-a[[:space:]]+(task,never|never,task)' "$rules_dir" 2>/dev/null; then
+        fail "an audit rule disables syscall auditing (task,never) in $rules_dir"
+    else
+        pass "no rule disables syscall auditing"
+    fi
+
+    # A dir= rule on a symlink matches nothing, and /home and /root are symlinks
+    # on bootc. The directory itself may not exist yet at build time (finalize
+    # wipes /var; tmpfiles recreates it before audit-rules.service), so only
+    # reject symlinks.
+    local dir_path
+    while IFS= read -r dir_path; do
+        if [[ -L "$dir_path" ]]; then
+            fail "audit rule dir= is a symlink: $dir_path"
+        else
+            pass "audit rule dir= is not a symlink: $dir_path"
+        fi
+    done < <(grep -rhoE -- '-F dir=[^ ]+' "$rules_dir" 2>/dev/null | sed 's/^-F dir=//' | sort -u)
+
+    for f in 10-base-config 12-cont-fail 20-dont-audit 30-identity 32-power-abuse \
+             40-kernel 41-persistence 44-installers 50-security-config 60-access-denied 99-finalize; do
+        if [[ ! -f "$rules_dir/$f.rules" ]]; then
+            fail "audit rules file missing: $rules_dir/$f.rules"
+            continue
+        fi
+        mode=$(stat -c '%a' "$rules_dir/$f.rules")
+        if [[ "$mode" == "600" ]]; then
+            pass "audit rules file present, 0600: $f.rules"
+        else
+            fail "audit rules file mode is $mode, expected 0600: $rules_dir/$f.rules"
+        fi
+    done
+
+    # auditctl(8) deprecates -w/-p watches ("poor system performance"); the
+    # rules use the path=/dir= syscall form. A duplicate rule makes auditctl
+    # fail with "Rule exists", and the i386 syscall table has no kexec_file_load
+    # ("Unknown syscall"); with -c either turns into a failed audit-rules.service.
+    if grep -rqE '^[[:space:]]*-[wW][[:space:]]' "$rules_dir" 2>/dev/null; then
+        fail "deprecated -w watch rule in $rules_dir; use path=/dir= syscall rules"
+    else
+        pass "no deprecated -w watch rules"
+    fi
+    local dup_rules
+    dup_rules=$(cat "$rules_dir"/*.rules 2>/dev/null | grep -E '^-' | sort | uniq -d || true)
+    if [[ -n "$dup_rules" ]]; then
+        fail "duplicate audit rules (auditctl rejects them): $dup_rules"
+    else
+        pass "no duplicate audit rules"
+    fi
+    if grep -rE 'arch=b32.*kexec_file_load' "$rules_dir" >/dev/null 2>&1; then
+        fail "kexec_file_load in an arch=b32 rule: not in the i386 syscall table"
+    else
+        pass "no kexec_file_load in b32 rules"
+    fi
+
+    count=$(cat "$rules_dir"/*.rules 2>/dev/null | grep -cxF -- '-D' || true)
+    if [[ "$count" == 1 ]]; then
+        pass "exactly one -D (delete all) rule"
+    else
+        fail "expected one -D rule across $rules_dir, found $count"
+    fi
+    if grep -qxF -- '-b 8192' "$rules_dir/10-base-config.rules" 2>/dev/null && \
+       grep -qxF -- '--loginuid-immutable' "$rules_dir/10-base-config.rules" 2>/dev/null; then
+        pass "audit base config sets -b 8192 and --loginuid-immutable"
+    else
+        fail "10-base-config.rules must set -b 8192 and --loginuid-immutable"
+    fi
+    # -c exits non-zero on a bad rule so audit-rules.service fails visibly; -i
+    # would exit 0 and silently drop it.
+    if grep -qxF -- '-c' "$rules_dir/12-cont-fail.rules" 2>/dev/null && \
+       ! grep -rqxF -- '-i' "$rules_dir" 2>/dev/null; then
+        pass "audit rules continue on error with -c and never use -i"
+    else
+        fail "12-cont-fail.rules must contain -c and no rules file may contain -i"
+    fi
+    last=$(grep -hvE '^[[:space:]]*(#|$)' "$rules_dir/99-finalize.rules" 2>/dev/null | tail -n1 || true)
+    if [[ "$last" == "-e 1" ]]; then
+        pass "audit rules end enabled but changeable (-e 1)"
+    else
+        fail "99-finalize.rules must end with -e 1 (found: ${last:-nothing})"
+    fi
+    if [[ -e "$rules_dir/99-zz-lock.rules" ]]; then
+        fail "audit lock file shipped: $rules_dir/99-zz-lock.rules (ujust audit-lock creates it)"
+    else
+        pass "audit lock file not shipped"
+    fi
+
+    mode=$(stat -c '%a' /etc/audit/auditd.conf 2>/dev/null || true)
+    if [[ "$mode" == "640" ]]; then
+        pass "auditd.conf mode is 0640"
+    else
+        fail "auditd.conf mode is ${mode:-missing}, expected 0640"
+    fi
+    if grep -qE '^log_format[[:space:]]*=[[:space:]]*ENRICHED' /etc/audit/auditd.conf 2>/dev/null; then
+        pass "auditd.conf logs in ENRICHED format"
+    else
+        fail "auditd.conf must set log_format = ENRICHED"
+    fi
+    # A full or failing disk must not stop a desktop.
+    if grep -qE '^[a-z_]+_action[[:space:]]*=[[:space:]]*(SINGLE|HALT|EXEC)' /etc/audit/auditd.conf 2>/dev/null; then
+        fail "auditd.conf uses a SINGLE/HALT/EXEC action"
+    else
+        pass "auditd.conf has no SINGLE/HALT/EXEC action"
+    fi
+
+    local karg
+    for karg in audit=1 audit_backlog_limit=8192; do
+        if grep -v '^[[:space:]]*#' /usr/lib/bootc/kargs.d/10-halcyon-hardening.toml 2>/dev/null | grep -qF "\"$karg\""; then
+            pass "audit kernel argument present: $karg"
+        else
+            fail "audit kernel argument missing: $karg"
+        fi
+    done
+
+    # restorecond enables itself in %post; it is kept off by default.
+    if [[ "$(systemctl is-enabled restorecond.service 2>/dev/null || true)" == enabled ]]; then
+        fail "restorecond.service is enabled; configure-security-hardening should disable it"
+    else
+        pass "restorecond.service not enabled"
+    fi
+}
+
+# 31-privileged.rules is generated after the last package transaction (the
+# NVIDIA stage adds setuid /usr/bin/nvidia-modprobe), so check it in `final`:
+# every setuid binary under /usr in the finished image must have a rule, except
+# the chrome-sandbox helpers the generator skips on purpose.
+verify_audit_privileged_rules() {
+    local rules=/etc/audit/rules.d/31-privileged.rules bin mode
+    if [[ ! -s "$rules" ]]; then
+        fail "generated audit rules missing or empty: $rules"
+        return 0
+    fi
+    mode=$(stat -c '%a' "$rules")
+    if [[ "$mode" == "600" ]]; then
+        pass "31-privileged.rules mode is 0600"
+    else
+        fail "31-privileged.rules mode is $mode, expected 0600"
+    fi
+    while IFS= read -r bin; do
+        if grep -qF "path=$bin " "$rules"; then
+            pass "privileged binary audited: $bin"
+        else
+            fail "setuid binary has no audit rule in 31-privileged.rules: $bin"
+        fi
+    done < <(find /usr -xdev -type f -perm -4000 ! -name chrome-sandbox | sort)
+}
+
 verify_security_hardening() {
+    verify_audit_config
+
     # Banners (Lynis BANN-7126/7130): each file needs >=5 legal keyword matches.
     local banner_file keyword count
     for banner_file in /etc/issue /etc/issue.net; do
@@ -1101,6 +1309,13 @@ verify_security_hardening() {
         pass "tmpfiles rule re-enforces cron permissions at boot"
     else
         fail "tmpfiles cron permission rule missing"
+    fi
+    # Without this, finalize's /var wipe leaves /var/lib/fail2ban absent and the
+    # server exits 255 at every boot: fail2ban_t cannot create it in var_lib_t.
+    if grep -q '^d /var/lib/fail2ban' /usr/lib/tmpfiles.d/halcyon-hardening.conf 2>/dev/null; then
+        pass "tmpfiles rule creates fail2ban database directory"
+    else
+        fail "tmpfiles rule for /var/lib/fail2ban missing"
     fi
 
     # Security units enabled by configure-system-services.
@@ -1242,6 +1457,21 @@ verify_security_hardening() {
         pass "no bootc kernel argument disables SELinux"
     fi
 
+    # Confinement of these daemons hangs on one file context each: without it the
+    # binary is bin_t and systemd starts it as unconfined_service_t, silently.
+    # smartd already lost its context this way (policy still says /usr/sbin/smartd,
+    # which no longer matches after the /usr/sbin merge), so assert the /usr/bin
+    # paths for the security-relevant services this image depends on.
+    local fc=/etc/selinux/targeted/contexts/files/file_contexts exec_ctx
+    for exec_ctx in NetworkManager:NetworkManager_exec_t firewalld:firewalld_exec_t aide:aide_exec_t; do
+        # /usr/bin only: a /usr/sbin entry is exactly the stale form smartd has.
+        if grep -qE "^/usr/bin/${exec_ctx%%:*}[[:space:]]+--[[:space:]]+system_u:object_r:${exec_ctx#*:}:" "$fc" 2>/dev/null; then
+            pass "SELinux confines /usr/bin/${exec_ctx%%:*} (${exec_ctx#*:})"
+        else
+            fail "no /usr/bin file context for ${exec_ctx%%:*} -> ${exec_ctx#*:}: it would run unconfined"
+        fi
+    done
+
     # Modules that must stay loadable: cifs.ko depends on cifs_md4, the Intel
     # ice NIC driver and the WWAN stack depend on the gnss core, and UDF is the
     # filesystem of DVD/Blu-ray data discs.
@@ -1275,16 +1505,49 @@ verify_security_hardening() {
         fail "bootc hardening kernel arguments missing"
     fi
 
-    # SELinux socket-class restrictions (secureblue), installed at runtime by
-    # halcyon-security-posture.
+    # SELinux policy modules (secureblue socket-class restrictions, plus the
+    # nix-daemon socket label), installed at runtime by halcyon-security-posture.
+    # A module that is shipped but absent from the script's policies array would
+    # never be installed, so assert both.
     local cil_policy
-    for cil_policy in secureblue_socket_utils secureblue_audit_sockets secureblue_deny_alg_sockets secureblue_deny_ipsec_sockets secureblue_deny_obscure_sockets secureblue_deny_packet_radio_sockets; do
+    for cil_policy in secureblue_socket_utils secureblue_audit_sockets secureblue_deny_alg_sockets secureblue_deny_ipsec_sockets secureblue_deny_obscure_sockets secureblue_deny_packet_radio_sockets halcyon_nix_daemon_socket; do
         if [[ -f "/usr/share/halcyon/selinux/${cil_policy}.cil" ]]; then
-            pass "SELinux socket policy shipped: ${cil_policy}"
+            pass "SELinux policy shipped: ${cil_policy}"
         else
-            fail "SELinux socket policy missing: ${cil_policy}"
+            fail "SELinux policy missing: ${cil_policy}"
+        fi
+        if grep -qE "^policies=\\(.*\\b${cil_policy}\\b" /usr/bin/halcyon-security-posture; then
+            pass "SELinux policy installed at boot: ${cil_policy}"
+        else
+            fail "SELinux policy not referenced by halcyon-security-posture: ${cil_policy}"
         fi
     done
+
+    # /nix is a bind mount of /var/nix, so every file context has to be stated
+    # for both paths: a restorecon reaching an inode through the source path
+    # would otherwise take var_t from the base /var(/.*)? rule. A /nix rule
+    # added without its mirror is the easy mistake, so compare the two sets.
+    local nix_cil=/usr/share/halcyon/selinux/halcyon_nix_daemon_socket.cil
+    local nix_fc var_fc
+    nix_fc=$(grep -oE '\(filecon "/nix/[^"]+"' "$nix_cil" 2>/dev/null | sed -E 's/.*"(.*)"/\1/' | sort)
+    var_fc=$(grep -oE '\(filecon "/var/nix/[^"]+"' "$nix_cil" 2>/dev/null | sed -E 's/.*"(.*)"/\1/; s|^/var||' | sort)
+    if [[ -z "$nix_fc" ]]; then
+        fail "no /nix file contexts found in ${nix_cil}"
+    elif [[ "$nix_fc" == "$var_fc" ]]; then
+        pass "nix SELinux file contexts mirrored under /var/nix"
+    else
+        fail "nix SELinux file contexts not mirrored under /var/nix: $(diff <(printf '%s\n' "$nix_fc") <(printf '%s\n' "$var_fc") | tr '\n' ' ')"
+    fi
+
+    # The module only states the label; this tmpfiles rule is what applies it,
+    # and it runs before sysinit.target, so nix-daemon.socket sees the label in
+    # the same boot. halcyon-security-posture is ordered after basic.target and
+    # could only ever have fixed the next boot.
+    if grep -qE '^z /nix/var/nix/daemon-socket' /usr/lib/tmpfiles.d/nix.conf 2>/dev/null; then
+        pass "tmpfiles rule relabels the nix daemon-socket directory"
+    else
+        fail "tmpfiles relabel rule for /nix/var/nix/daemon-socket missing"
+    fi
 
     # Service posture: passim must be masked, sssd must not be enabled.
     if [[ "$(readlink -f /etc/systemd/system/passim.service 2>/dev/null)" == "/dev/null" ]]; then
@@ -1313,6 +1576,11 @@ verify_final() {
 
     # The GRUB menu must still be visible in the published image.
     verify_grub
+
+    # Later stages (Terra, Fedora) must not have replaced a cli-tools COPR build,
+    # and the generated audit rules must cover the finished image.
+    verify_cli_tools_source
+    verify_audit_privileged_rules
 
     require_repos_disabled \
         'copr:copr.fedorainfracloud.org:aahsnr-work:cli-tools' \

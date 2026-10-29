@@ -1,5 +1,5 @@
 [Unit]
-Description=Halcyon: SELinux socket policies and service posture
+Description=Halcyon: SELinux policy modules and service posture
 After=local-fs.target
 # semodule needs a running SELinux policy; skip cleanly when it is not loaded.
 ConditionSecurity=selinux

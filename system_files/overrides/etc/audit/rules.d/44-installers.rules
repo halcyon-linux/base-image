@@ -1,0 +1,31 @@
+# Halcyon: software installation and repository configuration.
+#
+# Only package managers that install system-wide are audited, and only when a
+# real user runs them (rpm itself is left out: scripts and ujust call `rpm -q`
+# all day; flatpak and nix are left out because `flatpak run` and `nix-shell`
+# share the binary and would log every app launch). Their configuration is
+# watched below instead.
+#
+# Rules match the real file, not a symlink: /usr/bin/dnf, pip and pip3 are
+# symlinks and npm is a script run by node, so none of them can be matched by
+# path. /usr/sbin is a symlink to bin on Fedora 44, so every path is /usr/bin.
+-a always,exit -F arch=b32 -F path=/usr/bin/dnf5 -F perm=x -F auid>=1000 -F auid!=unset -F key=software-installer
+-a always,exit -F arch=b64 -F path=/usr/bin/dnf5 -F perm=x -F auid>=1000 -F auid!=unset -F key=software-installer
+-a always,exit -F arch=b32 -F path=/usr/bin/rpm-ostree -F perm=x -F auid>=1000 -F auid!=unset -F key=software-installer
+-a always,exit -F arch=b64 -F path=/usr/bin/rpm-ostree -F perm=x -F auid>=1000 -F auid!=unset -F key=software-installer
+-a always,exit -F arch=b32 -F path=/usr/bin/bootc -F perm=x -F auid>=1000 -F auid!=unset -F key=software-installer
+-a always,exit -F arch=b64 -F path=/usr/bin/bootc -F perm=x -F auid>=1000 -F auid!=unset -F key=software-installer
+-a always,exit -F arch=b32 -F path=/usr/bin/pipx -F perm=x -F auid>=1000 -F auid!=unset -F key=software-installer
+-a always,exit -F arch=b64 -F path=/usr/bin/pipx -F perm=x -F auid>=1000 -F auid!=unset -F key=software-installer
+
+# Repository, package-manager and container configuration.
+-a always,exit -F arch=b32 -F dir=/etc/yum.repos.d -F perm=wa -F key=package-config
+-a always,exit -F arch=b64 -F dir=/etc/yum.repos.d -F perm=wa -F key=package-config
+-a always,exit -F arch=b32 -F dir=/etc/dnf -F perm=wa -F key=package-config
+-a always,exit -F arch=b64 -F dir=/etc/dnf -F perm=wa -F key=package-config
+-a always,exit -F arch=b32 -F dir=/etc/flatpak -F perm=wa -F key=package-config
+-a always,exit -F arch=b64 -F dir=/etc/flatpak -F perm=wa -F key=package-config
+-a always,exit -F arch=b32 -F dir=/etc/containers -F perm=wa -F key=package-config
+-a always,exit -F arch=b64 -F dir=/etc/containers -F perm=wa -F key=package-config
+-a always,exit -F arch=b32 -F dir=/etc/nix -F perm=wa -F key=package-config
+-a always,exit -F arch=b64 -F dir=/etc/nix -F perm=wa -F key=package-config

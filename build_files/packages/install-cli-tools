@@ -26,22 +26,30 @@ disable_copr() {
 }
 trap disable_copr EXIT
 
-# If fzf was pre-installed by the base image from Fedora repos, remove it first
-# so the package is cleanly installed from the aahsnr-work/cli-tools COPR repository.
-if rpm -q fzf >/dev/null 2>&1; then
-    dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y remove fzf
-fi
-
 dnf5 -y copr enable "$copr"
 copr_enabled=1
 dnf5 -y config-manager setopt "${repo_id}.priority=1"
 
 # Read packages from packages.json
 mapfile -t cli_tools_packages < <(jq -r '."cli-tools".packages[]' "$PACKAGES_JSON")
-mapfile -t fedora_packages < <(jq -r '."cli-tools".fedora_packages[]' "$PACKAGES_JSON")
+
+# `dnf5 install` leaves a package that is already installed from another repo
+# (the base image ships some, e.g. fzf) as it is, so remove every such copy
+# first; the install below then takes the COPR build. The final `verify`
+# checks the source repo of each package again.
+foreign=()
+while read -r name from_repo; do
+    if [[ "$from_repo" != "$repo_id" ]]; then
+        foreign+=("$name")
+    fi
+done < <(dnf5 repoquery --installed --qf '%{name} %{from_repo}\n' "${cli_tools_packages[@]}")
+if ((${#foreign[@]})); then
+    printf 'Replacing non-COPR cli-tools packages: %s\n' "${foreign[*]}"
+    dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y remove "${foreign[@]}"
+fi
 
 # Terra ships a newer fzy release (fzy-1.1-2.fc44), so it has to be pushed
 # behind the COPR or it shadows the cli-tools build.
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' \
     --setopt='*terra*'.priority=10 \
-    -y install "${cli_tools_packages[@]}" "${fedora_packages[@]}"
+    -y install "${cli_tools_packages[@]}"

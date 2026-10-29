@@ -1,0 +1,74 @@
+; SPDX-FileCopyrightText: Copyright Determinate Systems, Inc.
+;
+; SPDX-License-Identifier: LGPL-2.1-only
+;
+; The file contexts below are ported from the nix.fc of
+; https://github.com/DeterminateSystems/nix-installer, whose method comes from
+; https://github.com/nix-community/nix-installers. The duplicate rules for the
+; bind-mount source path, and the commentary, are Halcyon's.
+;
+; Fedora ships no file-context rule for /nix at all
+; (fedora-selinux/selinux-policy#2963), so everything there falls back to
+; default_t. Two consequences matter on this image:
+;
+;   1. init_t may not create a sock_file in default_t, so nix-daemon.socket
+;      fails to bind on every boot:
+;        avc: denied { create } ... comm="systemd" name="socket"
+;             scontext=init_t tcontext=default_t tclass=sock_file
+;      Nix still works, because nix-daemon.service runs as
+;      unconfined_service_t and binds the socket itself, so the symptom is a
+;      failed unit and a degraded system rather than a broken Nix.
+;
+;   2. init_t may not read a default_t file, so a systemd unit installed into
+;      the store cannot be enabled. As reported for Home Manager's
+;      targets.genericLinux.gpu helper, which shipped a unit at the time
+;      (nix-community/home-manager#8438; it now installs a tmpfiles.d config
+;      instead, so that particular case is gone):
+;        avc: denied { read } ... comm="systemd" name="non-nixos-gpu.service"
+;             scontext=init_t tcontext=default_t tclass=file
+;
+; var_run_t carries the pidfile attribute, and the base policy allows init_t
+; both `create` on pidfile:sock_file and `add_name`/`write` on pidfile:dir,
+; which is what makes rule 1 work.
+;
+; These are file contexts only: they decide what a path *should* be labelled,
+; and take effect when something relabels it. Nix does not set SELinux labels
+; on store paths it creates, so a new store path is default_t until a
+; restorecon touches it. Only the daemon-socket directory is relabelled
+; automatically, by the `z` line in tmpfiles.d/nix.conf -- that runs before
+; sysinit.target, and so before nix-daemon.socket, which the posture script
+; (ordered after basic.target) could never do. The store is left alone because
+; relabelling it would grow more expensive with every package installed; use
+; `ujust nix-relabel-unit` for a store path that needs its label now.
+;
+; Deliberately not ported: the `allow init_t default_t:lnk_file read` rule of
+; upstream's nix.te. Fedora's base policy already grants it -- default_t holds
+; the base_file_type attribute and the policy carries
+; `allow domain base_file_type:lnk_file { getattr read }` -- so the rule would
+; be a no-op here, and it would not by itself grant reading a unit file in the
+; store.
+
+(filecon "/nix/store/[^/]+/s?bin(/.*)?" any (system_u object_r bin_t ((s0) (s0))))
+(filecon "/nix/store/[^/]+/lib/systemd/system(/.*)?" any (system_u object_r systemd_unit_file_t ((s0) (s0))))
+(filecon "/nix/store/[^/]+/lib(/.*)?" any (system_u object_r lib_t ((s0) (s0))))
+(filecon "/nix/store/[^/]+/man(/.*)?" any (system_u object_r man_t ((s0) (s0))))
+(filecon "/nix/store/[^/]+/etc(/.*)?" any (system_u object_r etc_t ((s0) (s0))))
+(filecon "/nix/store/[^/]+/share(/.*)?" any (system_u object_r usr_t ((s0) (s0))))
+(filecon "/nix/var/nix/daemon-socket(/.*)?" any (system_u object_r var_run_t ((s0) (s0))))
+(filecon "/nix/var/nix/profiles(/per-user/[^/]+)?/[^/]+" any (system_u object_r usr_t ((s0) (s0))))
+
+; /nix is a bind mount of /var/nix, so every path above is also reachable under
+; /var/nix, where the base /var(/.*)? rule claims it as var_t. Without these
+; mirrors a `restorecon -R /var` or a full filesystem relabel would walk the
+; source path and undo the labels -- for the daemon socket that brings the
+; denial back, and for the store it would be worse than the default_t it
+; started from. Upstream needs no mirrors: there /nix is a real directory.
+
+(filecon "/var/nix/store/[^/]+/s?bin(/.*)?" any (system_u object_r bin_t ((s0) (s0))))
+(filecon "/var/nix/store/[^/]+/lib/systemd/system(/.*)?" any (system_u object_r systemd_unit_file_t ((s0) (s0))))
+(filecon "/var/nix/store/[^/]+/lib(/.*)?" any (system_u object_r lib_t ((s0) (s0))))
+(filecon "/var/nix/store/[^/]+/man(/.*)?" any (system_u object_r man_t ((s0) (s0))))
+(filecon "/var/nix/store/[^/]+/etc(/.*)?" any (system_u object_r etc_t ((s0) (s0))))
+(filecon "/var/nix/store/[^/]+/share(/.*)?" any (system_u object_r usr_t ((s0) (s0))))
+(filecon "/var/nix/var/nix/daemon-socket(/.*)?" any (system_u object_r var_run_t ((s0) (s0))))
+(filecon "/var/nix/var/nix/profiles(/per-user/[^/]+)?/[^/]+" any (system_u object_r usr_t ((s0) (s0))))

@@ -57,7 +57,7 @@ RUN --mount=type=cache,dst=/var/cache \
 ```
 
 - Any `RUN` whose script calls `ghcurl` (`install-common-packages`, `install-gaming-stack`, `install-system-integration-files`, `install-ujust-picker`) needs `--mount=type=secret,id=GITHUB_TOKEN`. The NVIDIA driver step mounts it too; leave that.
-- Stage order matters: kernel → repos → COPR sets → removals → common/gaming → … → overrides → system config → finalize → NVIDIA → system policy → NVIDIA finalize → image-info/initramfs/finalize again → `verify final` → lint. Trace dependencies before reordering.
+- Stage order matters: kernel → repos → COPR sets → removals → common/gaming → … → overrides → system config → finalize → NVIDIA → system policy → NVIDIA finalize → audit privileged rules → image-info/initramfs/finalize again → `verify final` → lint. Trace dependencies before reordering.
 
 ## Where to change what
 
@@ -67,6 +67,8 @@ RUN --mount=type=cache,dst=/var/cache \
 | COPR package set | copy `install-fonts`: `copr_enabled` flag + `EXIT` trap, priority 1, install with `--setopt='*terra*'.priority=10`, disable, assert `disabled` in `dnf5 repo list --all` and `enabled=0` in the `.repo` file; new `Containerfile` `RUN`; new `verify` group registered in **both** the top whitelist `case` and the bottom dispatch `case`; `require_repos_disabled` |
 | Vendor repo | `.repo` written inside the installer, disabled immediately, id added to `repositories` in `build_files/system/configure-system-policy`, `verify_repos` |
 | systemd unit | unit under `system_files/desktop/usr/lib/systemd/{system,user}/` (never `/etc`), binary installed first, enable in `configure-system-services`, assert in `verify_services` / `verify_final`; human-only user units keep `ConditionUser=!@system` / `!sddm` |
+| Audit rules | `system_files/overrides/etc/audit/rules.d/*.rules` (Fedora numbering; one `-D`, `-c` not `-i`, ends `-e 1`), `auditd.conf`, `configure-security-hardening` (deletes stock `audit.rules`, sets 0600/0640), `generate-audit-privileged-rules` (builds `31-privileged.rules` after the NVIDIA stage), `verify_audit_config` / `verify_audit_privileged_rules`, README "Auditing". Use `/usr/bin` paths (sbin is a symlink) and match real files, not symlinks. Rules cannot be loaded at build time: say so |
+| `cli-tools` package | only `packages.json` `cli-tools.packages` (all from the `aahsnr-work/cli-tools` COPR; `install-cli-tools` swaps any non-COPR copy; `verify_cli_tools_source` checks `from_repo` in `cli-tools` and `final`). A tool the COPR does not ship goes in `common-packages` |
 | ujust recipe | `.just` under `system_files/{desktop,nvidia}/usr/share/ublue-os/just/`, `import-bazzite-justfiles`, `finalize-nvidia` (NVIDIA), `yafti.yml`, `verify_justfiles`; run `just just-check` |
 | Kernel / akmods / NVIDIA | `resolve-akmods`, `build_files/kernel/*`, `build_files/nvidia/*`, `verify_kernel` / `verify_nvidia*`; same tag on all three akmods images, keep versionlocks, rebuild initramfs after NVIDIA |
 | Bump Fedora | the three locations in rule 7; confirm base tag, akmods tags, Terra/COPR availability, `cicpoffs` asset; full local build |
@@ -76,30 +78,6 @@ RUN --mount=type=cache,dst=/var/cache \
 | Signing | `build.yml` sign step, `cosign.pub`, README verification section, `SIGNING_SECRET` |
 | Flatpak policy | `flathub.flatpakrepo`, `verify` (Flathub-only remotes, no provisioning machinery) |
 | chezmoi | `chezmoi-init` / `chezmoi-update` units, `configure-system-services`, `10-halcyon-github.conf`, `verify` HTTPS and `pushInsteadOf` policy, README chezmoi section |
-
-## Repository map
-
-| Path | Role |
-| --- | --- |
-| `Containerfile` | Orchestrates all stages; order-sensitive; ends with `bootc container lint` |
-| `build_files/finalization/` | `verify` (all build-time assertions, 29 groups), `image-info` (branding, `image-ref`), `finalize` (account relocation, `/var` cleanup) |
-| `build_files/kernel/` | Kernel swap, kmod install, initramfs; the `05-rpmostree.install` / `50-dracut.install` shims are temporary |
-| `build_files/nvidia/` | NVIDIA config, install, finalize; runs after the main finalize, initramfs rebuilt afterwards |
-| `build_files/packages/` | One installer per package set, repo setup, TeX Live format baking |
-| `build_files/system/` | Desktop integration, GRUB, services, repo policy (`configure-system-policy` disables build-only repos) |
-| `build_files/shared/` | `cleanup`, `dnf5` retry shim (build-only, a sourced function library), `ghcurl` |
-| `build_files/just/` | Imports Bazzite `.just` files into the composed justfile |
-| `just_scripts/` | Local helpers for the `Justfile`; only `alcyone` (or `containerfile`) is accepted as a target |
-| `system_files/desktop/` | Shared payload copied to `/` early: units, sysctl, ujust recipes, polkit, configs |
-| `system_files/nvidia/` | NVIDIA-only payload: modprobe, udev, ujust, services |
-| `system_files/overrides/` | Copied **after** packages; intentional overrides only |
-| `.github/workflows/{build,clean}.yml` | Build/publish/sign; weekly cleanup (production-impacting) |
-| `.containerignore`, `.dockerignore` | Build-context exclusions; keep identical (exclude `.git`, `.github`, `*.key`) |
-
-## CI
-
-- `build.yml`: triggers daily 04:40 UTC, push to `containerfile` (except `**.md`, `**.txt`), manual dispatch. Flow: `just` syntax check → shim test → `resolve-akmods` → `buildah build --target alcyone` → labels → rechunk (`rpm-ostree compose build-chunked-oci --bootc --max-layers 127`) → push `:stable` → copy `:latest` and `:YYYYMMDD` by digest → cosign sign by digest. Timeout 90 minutes.
-- `clean.yml`: Sundays 00:15 UTC; removes versions older than 90 days, keeps 7 tagged and 7 untagged, deletes orphans.
 
 ## Troubleshooting
 
@@ -129,6 +107,7 @@ RUN --mount=type=cache,dst=/var/cache \
 - Surface drift between docs, comments and code; fix the docs in the same change where safe.
 - Do not invent package names, repo ids, tags or URLs; confirm them in the repo or from a registry.
 - `**.md` and `**.txt` pushes do not trigger CI. Never put executable or build-relevant content in them.
+- `just_scripts/` accept only `alcyone` (or `containerfile`) as a target; `.containerignore` and `.dockerignore` must stay identical.
 - Commit style: `fix(build): …`, `feat(packages): …`, `docs: …`, `fix(system): …`, `fix(ci): …`.
 
 ## Pre-merge checklist

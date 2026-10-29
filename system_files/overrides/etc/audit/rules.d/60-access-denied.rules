@@ -1,0 +1,18 @@
+# Halcyon: failed attempts by a real user to open files in sensitive trees.
+# Successful access is deliberately not logged (far too noisy on a desktop).
+#
+# One rule per tree: several dir= fields in one rule are ANDed, so they cannot
+# be combined. dir= matches recursively and needs the real path: /root is a
+# symlink to var/roothome on bootc (verify rejects a dir= that is a symlink).
+# Only the 64-bit ABI is listed: a 32-bit process has no extra way past the
+# permission check.
+-a always,exit -F arch=b64 -S open,openat,openat2,creat,truncate,ftruncate -F dir=/etc -F exit=-EACCES -F auid>=1000 -F auid!=unset -F key=access-denied
+-a always,exit -F arch=b64 -S open,openat,openat2,creat,truncate,ftruncate -F dir=/etc -F exit=-EPERM -F auid>=1000 -F auid!=unset -F key=access-denied
+-a always,exit -F arch=b64 -S open,openat,openat2,creat,truncate,ftruncate -F dir=/var/roothome -F exit=-EACCES -F auid>=1000 -F auid!=unset -F key=access-denied
+-a always,exit -F arch=b64 -S open,openat,openat2,creat,truncate,ftruncate -F dir=/var/roothome -F exit=-EPERM -F auid>=1000 -F auid!=unset -F key=access-denied
+-a always,exit -F arch=b64 -S open,openat,openat2,creat,truncate,ftruncate -F dir=/boot -F exit=-EACCES -F auid>=1000 -F auid!=unset -F key=access-denied
+-a always,exit -F arch=b64 -S open,openat,openat2,creat,truncate,ftruncate -F dir=/boot -F exit=-EPERM -F auid>=1000 -F auid!=unset -F key=access-denied
+-a always,exit -F arch=b64 -S open,openat,openat2,creat,truncate,ftruncate -F dir=/var/log/audit -F exit=-EACCES -F auid>=1000 -F auid!=unset -F key=access-denied
+-a always,exit -F arch=b64 -S open,openat,openat2,creat,truncate,ftruncate -F dir=/var/log/audit -F exit=-EPERM -F auid>=1000 -F auid!=unset -F key=access-denied
+-a always,exit -F arch=b64 -S open,openat,openat2,creat,truncate,ftruncate -F dir=/var/lib/aide -F exit=-EACCES -F auid>=1000 -F auid!=unset -F key=access-denied
+-a always,exit -F arch=b64 -S open,openat,openat2,creat,truncate,ftruncate -F dir=/var/lib/aide -F exit=-EPERM -F auid>=1000 -F auid!=unset -F key=access-denied

@@ -27,6 +27,7 @@
       "compsize",
       "cpio",
       "cronie",
+      "direnv",
       "ds-inhibit",
       "duf",
       "enchant2-devel",
@@ -85,6 +86,7 @@
       "python3-icoextract",
       "python3-pip",
       "re2-devel",
+      "ripgrep",
       "ScopeBuddy",
       "sddm",
       "sddm-wayland-generic",
@@ -142,17 +144,19 @@
     "repo_id": "copr:copr.fedorainfracloud.org:aahsnr-work:cli-tools",
     "priority": 1,
     "packages": [
-      "atuin",
       "asdf",
+      "atuin",
       "bat",
       "bat-extras",
       "bun",
       "cava",
       "chafa",
       "claude-code",
+      "cliphist",
       "dust",
       "eza",
       "fd-find",
+      "fzf",
       "fzy",
       "glow",
       "gnuplot",
@@ -171,11 +175,6 @@
       "yazi",
       "zellij",
       "zoxide"
-    ],
-    "fedora_packages": [
-      "direnv",
-      "fzf",
-      "ripgrep"
     ],
     "external_repos": []
   },
@@ -265,6 +264,8 @@
     "versionlocks": [
       "NetworkManager",
       "NetworkManager-libnm",
+      "NetworkManager-ssh",
+      "NetworkManager-ssh-selinux",
       "NetworkManager-tui",
       "NetworkManager-wifi",
       "bluez",
@@ -486,7 +487,7 @@
     ]
   },
   "security": {
-    "description": "Security tooling: AIDE file integrity, fail2ban journal backend, rngd entropy daemon",
+    "description": "Security tooling: AIDE file integrity, fail2ban journal backend, rngd entropy daemon, audit daemon and plugins, SELinux policy utilities",
     "copr": null,
     "repos": [
       "fedora",
@@ -494,6 +495,11 @@
     ],
     "packages": [
       "aide",
+      "audispd-plugins",
+      "audit",
+      "audit-rules",
+      "policycoreutils-devel",
+      "policycoreutils-restorecond",
       "python3-systemd",
       "rng-tools"
     ]

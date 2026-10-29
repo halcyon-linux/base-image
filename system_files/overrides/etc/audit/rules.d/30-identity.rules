@@ -1,0 +1,54 @@
+# Halcyon: identity, authentication and remote-access configuration.
+#
+# Written in the syscall form (path= for a file, dir= for a directory tree,
+# one rule per ABI) because auditctl(8) deprecates the old `-w` watches. dir=
+# is recursive, needs the directory to exist when the rules load, and needs a
+# real path, not a symlink.
+
+# Accounts and groups.
+-a always,exit -F arch=b32 -F path=/etc/passwd -F perm=wa -F key=identity
+-a always,exit -F arch=b64 -F path=/etc/passwd -F perm=wa -F key=identity
+-a always,exit -F arch=b32 -F path=/etc/shadow -F perm=wa -F key=identity
+-a always,exit -F arch=b64 -F path=/etc/shadow -F perm=wa -F key=identity
+-a always,exit -F arch=b32 -F path=/etc/group -F perm=wa -F key=identity
+-a always,exit -F arch=b64 -F path=/etc/group -F perm=wa -F key=identity
+-a always,exit -F arch=b32 -F path=/etc/gshadow -F perm=wa -F key=identity
+-a always,exit -F arch=b64 -F path=/etc/gshadow -F perm=wa -F key=identity
+-a always,exit -F arch=b32 -F path=/etc/subuid -F perm=wa -F key=identity
+-a always,exit -F arch=b64 -F path=/etc/subuid -F perm=wa -F key=identity
+-a always,exit -F arch=b32 -F path=/etc/subgid -F perm=wa -F key=identity
+-a always,exit -F arch=b64 -F path=/etc/subgid -F perm=wa -F key=identity
+
+# Privilege escalation policy.
+-a always,exit -F arch=b32 -F path=/etc/sudoers -F perm=wa -F key=sudoers
+-a always,exit -F arch=b64 -F path=/etc/sudoers -F perm=wa -F key=sudoers
+-a always,exit -F arch=b32 -F dir=/etc/sudoers.d -F perm=wa -F key=sudoers
+-a always,exit -F arch=b64 -F dir=/etc/sudoers.d -F perm=wa -F key=sudoers
+-a always,exit -F arch=b32 -F dir=/etc/polkit-1/rules.d -F perm=wa -F key=sudoers
+-a always,exit -F arch=b64 -F dir=/etc/polkit-1/rules.d -F perm=wa -F key=sudoers
+
+# Login and PAM stack. /etc/security includes opasswd (password history).
+-a always,exit -F arch=b32 -F path=/etc/login.defs -F perm=wa -F key=auth-config
+-a always,exit -F arch=b64 -F path=/etc/login.defs -F perm=wa -F key=auth-config
+-a always,exit -F arch=b32 -F path=/etc/nsswitch.conf -F perm=wa -F key=auth-config
+-a always,exit -F arch=b64 -F path=/etc/nsswitch.conf -F perm=wa -F key=auth-config
+-a always,exit -F arch=b32 -F dir=/etc/pam.d -F perm=wa -F key=auth-config
+-a always,exit -F arch=b64 -F dir=/etc/pam.d -F perm=wa -F key=auth-config
+-a always,exit -F arch=b32 -F dir=/etc/security -F perm=wa -F key=auth-config
+-a always,exit -F arch=b64 -F dir=/etc/security -F perm=wa -F key=auth-config
+-a always,exit -F arch=b32 -F dir=/etc/authselect -F perm=wa -F key=auth-config
+-a always,exit -F arch=b64 -F dir=/etc/authselect -F perm=wa -F key=auth-config
+
+# SSH server and client configuration, including host keys.
+-a always,exit -F arch=b32 -F dir=/etc/ssh -F perm=wa -F key=sshd-config
+-a always,exit -F arch=b64 -F dir=/etc/ssh -F perm=wa -F key=sshd-config
+
+# Host identity and login banners.
+-a always,exit -F arch=b32 -F path=/etc/hostname -F perm=wa -F key=system-identity
+-a always,exit -F arch=b64 -F path=/etc/hostname -F perm=wa -F key=system-identity
+-a always,exit -F arch=b32 -F path=/etc/hosts -F perm=wa -F key=system-identity
+-a always,exit -F arch=b64 -F path=/etc/hosts -F perm=wa -F key=system-identity
+-a always,exit -F arch=b32 -F path=/etc/issue -F perm=wa -F key=system-identity
+-a always,exit -F arch=b64 -F path=/etc/issue -F perm=wa -F key=system-identity
+-a always,exit -F arch=b32 -F path=/etc/issue.net -F perm=wa -F key=system-identity
+-a always,exit -F arch=b64 -F path=/etc/issue.net -F perm=wa -F key=system-identity

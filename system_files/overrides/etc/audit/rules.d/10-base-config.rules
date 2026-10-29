@@ -1,0 +1,24 @@
+# Halcyon audit rules, loaded by audit-rules.service (augenrules) in `sort -V`
+# order. Layout follows /usr/share/audit-rules/README-rules.
+#
+# Fedora's stock audit.rules (`-D` + `-a task,never`) switches syscall auditing
+# off and sorts after every numbered file, so configure-security-hardening
+# deletes it at build time.
+
+# First rule: delete all.
+-D
+
+# Survive bursts: a bigger queue than the kernel default (64). Matches the
+# audit_backlog_limit kernel argument in kargs.d/10-halcyon-hardening.toml.
+-b 8192
+
+# How long a process waits when the backlog is full before the kernel drops
+# the event (milliseconds).
+--backlog_wait_time 60000
+
+# Failure mode: log to the kernel log instead of panicking. Never use -f 2 on
+# a desktop.
+-f 1
+
+# Make the login uid immutable so a process cannot rewrite its own auid.
+--loginuid-immutable

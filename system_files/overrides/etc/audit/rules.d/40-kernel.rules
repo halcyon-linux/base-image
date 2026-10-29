@@ -1,0 +1,59 @@
+# Halcyon: kernel, module and low-level system changes.
+#
+# Left out on purpose, because they flood a gaming desktop: a blanket ptrace
+# rule (Wine/Proton, debuggers), memfd_create (every Wayland client), a bare
+# bpf rule (systemd and bpftune.service call bpf at every unit start; only real
+# users are audited below), mount/umount2 (every Flatpak and Steam launch),
+# unshare/setns/clone namespace flags (browser and Flatpak sandboxes), and the
+# 32-bit ABI rule (Proton and Steam run 32-bit code).
+
+# Module load and unload.
+-a always,exit -F arch=b32 -S init_module,finit_module -F key=module-load
+-a always,exit -F arch=b64 -S init_module,finit_module -F key=module-load
+-a always,exit -F arch=b32 -S delete_module -F key=module-unload
+-a always,exit -F arch=b64 -S delete_module -F key=module-unload
+
+# Replacing the running kernel without a reboot. kexec_file_load does not
+# exist in the i386 syscall table (ausyscall i386 kexec_file_load), so the b32
+# rule names kexec_load only; auditctl rejects an unknown syscall name.
+-a always,exit -F arch=b32 -S kexec_load -F key=kexec
+-a always,exit -F arch=b64 -S kexec_load,kexec_file_load -F key=kexec
+
+# eBPF programs loaded by a real user (unprivileged_bpf_disabled is 1, so this
+# is root acting from a login session).
+-a always,exit -F arch=b64 -S bpf -F auid>=1000 -F auid!=unset -F key=bpf
+
+# Code injection through ptrace: POKETEXT, POKEDATA, SETREGS.
+-a always,exit -F arch=b32 -S ptrace -F a0=0x4 -F key=code-injection
+-a always,exit -F arch=b64 -S ptrace -F a0=0x4 -F key=code-injection
+-a always,exit -F arch=b32 -S ptrace -F a0=0x5 -F key=data-injection
+-a always,exit -F arch=b64 -S ptrace -F a0=0x5 -F key=data-injection
+-a always,exit -F arch=b32 -S ptrace -F a0=0x6 -F key=register-injection
+-a always,exit -F arch=b64 -S ptrace -F a0=0x6 -F key=register-injection
+
+# System clock changes. chrony is excluded in 20-dont-audit.rules.
+# clock_settime a0=0x0 is CLOCK_REALTIME; other clocks are not wall time.
+-a always,exit -F arch=b32 -S adjtimex,settimeofday -F key=time-change
+-a always,exit -F arch=b64 -S adjtimex,settimeofday -F key=time-change
+-a always,exit -F arch=b32 -S clock_settime -F a0=0x0 -F key=time-change
+-a always,exit -F arch=b64 -S clock_settime -F a0=0x0 -F key=time-change
+
+# Swap devices.
+-a always,exit -F arch=b64 -S swapon,swapoff -F key=swap
+
+# Module, sysctl and dynamic-linker configuration (syscall form; see
+# 30-identity.rules).
+-a always,exit -F arch=b32 -F path=/etc/sysctl.conf -F perm=wa -F key=kernel-config
+-a always,exit -F arch=b64 -F path=/etc/sysctl.conf -F perm=wa -F key=kernel-config
+-a always,exit -F arch=b32 -F dir=/etc/modprobe.d -F perm=wa -F key=kernel-config
+-a always,exit -F arch=b64 -F dir=/etc/modprobe.d -F perm=wa -F key=kernel-config
+-a always,exit -F arch=b32 -F dir=/etc/modules-load.d -F perm=wa -F key=kernel-config
+-a always,exit -F arch=b64 -F dir=/etc/modules-load.d -F perm=wa -F key=kernel-config
+-a always,exit -F arch=b32 -F dir=/etc/sysctl.d -F perm=wa -F key=kernel-config
+-a always,exit -F arch=b64 -F dir=/etc/sysctl.d -F perm=wa -F key=kernel-config
+-a always,exit -F arch=b32 -F path=/etc/ld.so.preload -F perm=wa -F key=ld-preload
+-a always,exit -F arch=b64 -F path=/etc/ld.so.preload -F perm=wa -F key=ld-preload
+-a always,exit -F arch=b32 -F path=/etc/ld.so.conf -F perm=wa -F key=ld-preload
+-a always,exit -F arch=b64 -F path=/etc/ld.so.conf -F perm=wa -F key=ld-preload
+-a always,exit -F arch=b32 -F dir=/etc/ld.so.conf.d -F perm=wa -F key=ld-preload
+-a always,exit -F arch=b64 -F dir=/etc/ld.so.conf.d -F perm=wa -F key=ld-preload

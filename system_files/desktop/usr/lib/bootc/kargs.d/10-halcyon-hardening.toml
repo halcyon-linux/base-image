@@ -28,7 +28,13 @@
 #   attacker anyway.
 # - proc_mem.force_override=ptrace: belongs to secureblue's "Filling known
 #   security holes" set, which is out of scope for this image.
+# Audit arguments (see /etc/audit/rules.d): audit=1 turns auditing on from the
+# start of boot so processes that begin before auditd loads its rules are
+# audited too, and audit_backlog_limit matches the `-b 8192` queue size in
+# 10-base-config.rules.
 kargs = [
+  "audit=1",
+  "audit_backlog_limit=8192",
   "hash_pointers=always",
   "page_alloc.shuffle=1",
   "random.trust_bootloader=off",

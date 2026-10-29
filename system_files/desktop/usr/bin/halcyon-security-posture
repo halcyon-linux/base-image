@@ -1,20 +1,26 @@
 #!/usr/bin/env bash
 # Halcyon security posture, applied at boot (idempotent):
 #
-# 1. Install the secureblue SELinux socket-class restrictions (Apache-2.0/MIT,
-#    https://github.com/secureblue/secureblue): userspace is denied access to
-#    the kernel crypto API (AF_ALG), IPSec, obscure, and packet-radio sockets.
-#    These are installed at runtime rather than build time because the SELinux
-#    policy store lives in /var, which bootc does not refresh on image updates.
-#    A checksum stamp of the shipped .cil files makes an updated image replace
-#    the modules it previously installed.
+# 1. Install the shipped SELinux policy modules: the secureblue socket-class
+#    restrictions (Apache-2.0/MIT, https://github.com/secureblue/secureblue),
+#    which deny userspace access to the kernel crypto API (AF_ALG), IPSec,
+#    obscure, and packet-radio sockets; and halcyon_nix_daemon_socket, which
+#    labels the nix-daemon socket directory so that PID 1 may create its
+#    listening socket. These are installed at runtime rather than build time
+#    because the policy store (store-root=/etc/selinux in semanage.conf, with
+#    /var/lib/selinux a symlink to it) is local state that diverges from the
+#    image the first time anything runs semodule, so a module baked in at build
+#    time is not guaranteed to reach an existing deployment. A checksum stamp of
+#    the shipped .cil files and of the installed policy-shipping RPMs makes an
+#    updated image replace the modules it previously installed, and rebuilds the
+#    policy when an RPM-shipped module is added or changed.
 # 2. Keep services that a single-user desktop does not need turned off, even
 #    after package transactions re-enable them.
 set -euo pipefail
 
-# --- SELinux socket policies ---------------------------------------------
+# --- SELinux policy modules -----------------------------------------------
 policy_dir=/usr/share/halcyon/selinux
-policies=(secureblue_socket_utils secureblue_audit_sockets secureblue_deny_alg_sockets secureblue_deny_ipsec_sockets secureblue_deny_obscure_sockets secureblue_deny_packet_radio_sockets)
+policies=(secureblue_socket_utils secureblue_audit_sockets secureblue_deny_alg_sockets secureblue_deny_ipsec_sockets secureblue_deny_obscure_sockets secureblue_deny_packet_radio_sockets halcyon_nix_daemon_socket)
 stamp=/var/lib/halcyon/selinux-socket-policies.sha256
 
 cil_files=()
@@ -22,11 +28,19 @@ for policy in "${policies[@]}"; do
     cil_files+=("${policy_dir}/${policy}.cil")
 done
 
-want=$(cat "${cil_files[@]}" | sha256sum | cut -d' ' -f1)
+# The stamp covers the shipped .cil files and the set of installed
+# policy-shipping RPMs. A module that an RPM installs (NetworkManager-ssh-selinux,
+# selinux-policy itself) lands in the image's store at build time, but bootc keeps
+# this deployment's locally modified policy.35 and file_contexts, so its rules
+# would never be compiled in here. Including the RPM set makes the next boot after
+# such a change rebuild the policy. rpm-plugin-selinux matches the glob but ships
+# no module, so it is dropped to spare a rebuild on every rpm update. Sorted:
+# rpm -qa output order is not stable.
+want=$( { cat "${cil_files[@]}"; rpm -qa --qf '%{NAME}-%{EVR}\n' 'selinux-policy*' '*-selinux' 2>/dev/null | grep -v '^rpm-plugin-selinux-' | sort || true; } | sha256sum | cut -d' ' -f1)
 have=$(cat "$stamp" 2>/dev/null || true)
 
-# Capture once: one semodule run instead of six, and no pipe for grep -q to
-# close early under pipefail.
+# Capture once: one semodule run instead of one per module, and no pipe for
+# grep -q to close early under pipefail.
 modules=$(semodule -l)
 missing=0
 for policy in "${policies[@]}"; do
@@ -36,7 +50,7 @@ for policy in "${policies[@]}"; do
 done
 
 if ((missing > 0)) || [[ "$want" != "$have" ]]; then
-    echo "halcyon-security-posture: installing SELinux socket policy modules (${missing} missing, stamp $([[ "$want" == "$have" ]] && echo current || echo stale))"
+    echo "halcyon-security-posture: installing SELinux policy modules (${missing} missing, stamp $([[ "$want" == "$have" ]] && echo current || echo stale))"
     # Priority 300: above RPM-shipped policies (200), below local admin ones (400)
     semodule -v -X 300 -i "${cil_files[@]}"
     mkdir -p "$(dirname "$stamp")"

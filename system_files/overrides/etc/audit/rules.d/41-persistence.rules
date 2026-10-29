@@ -1,0 +1,53 @@
+# Halcyon: places an attacker (or a bad script) uses to run code later or to
+# change how the machine boots and mounts. /usr is read-only composefs and is
+# intentionally not watched. Syscall form; see 30-identity.rules.
+
+# Scheduled jobs.
+-a always,exit -F arch=b32 -F path=/etc/crontab -F perm=wa -F key=persistence-cron
+-a always,exit -F arch=b64 -F path=/etc/crontab -F perm=wa -F key=persistence-cron
+-a always,exit -F arch=b32 -F dir=/etc/cron.d -F perm=wa -F key=persistence-cron
+-a always,exit -F arch=b64 -F dir=/etc/cron.d -F perm=wa -F key=persistence-cron
+-a always,exit -F arch=b32 -F dir=/etc/cron.daily -F perm=wa -F key=persistence-cron
+-a always,exit -F arch=b64 -F dir=/etc/cron.daily -F perm=wa -F key=persistence-cron
+-a always,exit -F arch=b32 -F dir=/etc/cron.hourly -F perm=wa -F key=persistence-cron
+-a always,exit -F arch=b64 -F dir=/etc/cron.hourly -F perm=wa -F key=persistence-cron
+-a always,exit -F arch=b32 -F dir=/etc/cron.weekly -F perm=wa -F key=persistence-cron
+-a always,exit -F arch=b64 -F dir=/etc/cron.weekly -F perm=wa -F key=persistence-cron
+-a always,exit -F arch=b32 -F dir=/etc/cron.monthly -F perm=wa -F key=persistence-cron
+-a always,exit -F arch=b64 -F dir=/etc/cron.monthly -F perm=wa -F key=persistence-cron
+-a always,exit -F arch=b32 -F dir=/var/spool/cron -F perm=wa -F key=persistence-cron
+-a always,exit -F arch=b64 -F dir=/var/spool/cron -F perm=wa -F key=persistence-cron
+
+# Locally added systemd units and the *.wants links `systemctl enable` creates.
+-a always,exit -F arch=b32 -F dir=/etc/systemd/system -F perm=wa -F key=persistence-systemd
+-a always,exit -F arch=b64 -F dir=/etc/systemd/system -F perm=wa -F key=persistence-systemd
+
+# Shell start-up files run at every login.
+-a always,exit -F arch=b32 -F path=/etc/profile -F perm=wa -F key=persistence-shell
+-a always,exit -F arch=b64 -F path=/etc/profile -F perm=wa -F key=persistence-shell
+-a always,exit -F arch=b32 -F path=/etc/bashrc -F perm=wa -F key=persistence-shell
+-a always,exit -F arch=b64 -F path=/etc/bashrc -F perm=wa -F key=persistence-shell
+-a always,exit -F arch=b32 -F path=/etc/zshenv -F perm=wa -F key=persistence-shell
+-a always,exit -F arch=b64 -F path=/etc/zshenv -F perm=wa -F key=persistence-shell
+-a always,exit -F arch=b32 -F path=/etc/zprofile -F perm=wa -F key=persistence-shell
+-a always,exit -F arch=b64 -F path=/etc/zprofile -F perm=wa -F key=persistence-shell
+-a always,exit -F arch=b32 -F path=/etc/zshrc -F perm=wa -F key=persistence-shell
+-a always,exit -F arch=b64 -F path=/etc/zshrc -F perm=wa -F key=persistence-shell
+-a always,exit -F arch=b32 -F path=/etc/zlogin -F perm=wa -F key=persistence-shell
+-a always,exit -F arch=b64 -F path=/etc/zlogin -F perm=wa -F key=persistence-shell
+-a always,exit -F arch=b32 -F path=/etc/zlogout -F perm=wa -F key=persistence-shell
+-a always,exit -F arch=b64 -F path=/etc/zlogout -F perm=wa -F key=persistence-shell
+-a always,exit -F arch=b32 -F dir=/etc/profile.d -F perm=wa -F key=persistence-shell
+-a always,exit -F arch=b64 -F dir=/etc/profile.d -F perm=wa -F key=persistence-shell
+
+# Mounts and boot.
+-a always,exit -F arch=b32 -F path=/etc/fstab -F perm=wa -F key=boot-config
+-a always,exit -F arch=b64 -F path=/etc/fstab -F perm=wa -F key=boot-config
+-a always,exit -F arch=b32 -F path=/etc/crypttab -F perm=wa -F key=boot-config
+-a always,exit -F arch=b64 -F path=/etc/crypttab -F perm=wa -F key=boot-config
+-a always,exit -F arch=b32 -F path=/etc/default/grub -F perm=wa -F key=boot-config
+-a always,exit -F arch=b64 -F path=/etc/default/grub -F perm=wa -F key=boot-config
+-a always,exit -F arch=b32 -F dir=/etc/grub.d -F perm=wa -F key=boot-config
+-a always,exit -F arch=b64 -F dir=/etc/grub.d -F perm=wa -F key=boot-config
+-a always,exit -F arch=b32 -F dir=/boot -F perm=wa -F key=boot-config
+-a always,exit -F arch=b64 -F dir=/boot -F perm=wa -F key=boot-config

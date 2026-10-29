@@ -1,0 +1,6 @@
+# Halcyon: root reading or changing files owned by a real user's home, while
+# the session's login uid is a real user (sudo/su into root and browse /home).
+# From /usr/share/audit-rules/32-power-abuse.rules, with the real path: /home
+# is a symlink to var/home on bootc, and a dir= rule on a symlink matches
+# nothing.
+-a always,exit -F dir=/var/home -F uid=0 -F auid>=1000 -F auid!=unset -C auid!=obj_uid -F key=power-abuse
