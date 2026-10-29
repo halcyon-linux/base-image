@@ -42,6 +42,32 @@ jobs:
     steps:
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@ceedf095f4ec1a097402bc6bd80831f2e1a6fde6 # v2.0.0
+        with:
+          tool-cache: true
+
+      # The final commit holds the image delta three times (working container,
+      # layer blob, unpacked layer; ~30 GB each) and the rechunker copies it
+      # again, which no longer fits uncompressed on the runner's root disk.
+      # Put rootless container storage, TMPDIR (buildah cache mounts) and the
+      # rechunk output on a zstd-compressed btrfs loopback. /mnt is not a
+      # separate disk on ubuntu-26.04, so the file lives on /; it is sparse and
+      # discard punches holes, so it only uses disk for compressed data. Must
+      # run before the first podman pull.
+      - name: Mount compressed container storage
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y btrfs-progs
+          storage="$HOME/.local/share/containers"
+          loopfile=/container-storage.btrfs
+          avail=$(df --output=avail -B1 / | tail -n 1)
+          mkdir -p "$storage"
+          sudo truncate -s "$((avail * 90 / 100))" "$loopfile"
+          sudo mkfs.btrfs -q "$loopfile"
+          sudo mount -o loop,compress-force=zstd:1,discard=async,noatime "$loopfile" "$storage"
+          sudo chown "$(id -u):$(id -g)" "$storage"
+          mkdir -p "$storage/tmp"
+          echo "TMPDIR=$storage/tmp" >> "$GITHUB_ENV"
+          df -h / "$storage"
 
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -140,12 +166,20 @@ jobs:
         run: |
           df -h / /mnt /home || true
           df -i / || true
-          # --layers=false keeps one commit instead of ~50 intermediate layers
-          # in container storage: the per-step commits exhausted the runner's
-          # root disk ("no space left on device"). The rechunker rebuilds the
-          # layer structure from raw-img, so nothing downstream needs them.
+          # Sample free space while building: the commit at the end peaks
+          # and then buildah deletes its partial layer, so a report taken
+          # after a failure never shows the peak.
+          (
+            while sleep 15; do
+              echo "disk-monitor $(date +%T)" \
+                "root_avail=$(df --output=avail -h / | tail -n 1 | tr -d ' ')" \
+                "storage_used=$(df --output=used -h ~/.local/share/containers | tail -n 1 | tr -d ' ')" \
+                "storage_avail=$(df --output=avail -h ~/.local/share/containers | tail -n 1 | tr -d ' ')"
+            done
+          ) &
+          monitor_pid=$!
+          trap 'kill "$monitor_pid" 2>/dev/null || true' EXIT
           buildah build \
-            --layers=false \
             --target ${{ steps.base.outputs.container_target }} \
             --build-arg-file build_args.txt \
             --secret "id=GITHUB_TOKEN,env=GITHUB_TOKEN" \
@@ -155,10 +189,15 @@ jobs:
       - name: Report disk usage
         if: always() && steps.build_image.outcome != 'skipped'
         run: |
-          df -h / /mnt /home || true
+          df -h / ~/.local/share/containers || true
           df -i / || true
+          ls -ls /container-storage.btrfs || true
+          sudo btrfs filesystem usage ~/.local/share/containers || true
           podman system df || true
-          du -sh ~/.local/share/containers/storage/* 2>/dev/null || true
+          buildah containers || true
+          sudo du -sh ~/.local/share/containers/* 2>/dev/null || true
+          sudo du -xh -d1 / 2>/dev/null | sort -h | tail -n 15 || true
+          sudo du -xh -d1 /var /home/runner 2>/dev/null | sort -h | tail -n 15 || true
 
       # Apply labels and gather the kernel version before rechunking.
       - name: Apply Labels
@@ -209,7 +248,7 @@ jobs:
             buildah commit --identity-label=false --rm "$container" raw-img
           '
 
-          RECHUNK_DIR="$(mktemp -d "${RUNNER_TEMP}/rechunk-XXXXXX")"
+          RECHUNK_DIR="$(mktemp -d "${TMPDIR:-$RUNNER_TEMP}/rechunk-XXXXXX")"
           trap 'rm -rf "${RECHUNK_DIR}"' EXIT
 
           label_args=()

@@ -7,3 +7,7 @@ set -eoux pipefail
 rm -rf /var/log/dnf5.log || true
 rm -rf /boot/* || true
 rm -rf /boot/.* || true
+# /var/cache is a build cache mount (keepcache=1), so downloaded RPMs would
+# otherwise pile up across all steps and eat runner disk. Call the real binary:
+# the retry shim would sleep through six attempts if this ever failed.
+/usr/bin/dnf5 clean packages || true

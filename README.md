@@ -646,7 +646,7 @@ for f in build_files/*/* just_scripts/* tests/*.sh; do bash -n "$f"; done
 | Item            | Value                                                                                               |
 | --------------- | --------------------------------------------------------------------------------------------------- |
 | Triggers        | Daily `40 4 * * *` UTC; push to `containerfile` (ignoring `**.md`, `**.txt`); manual dispatch       |
-| Runner / limits | `ubuntu-26.04`, 90-minute timeout, free-disk-space step first, `buildah build --layers=false`                |
+| Runner / limits | `ubuntu-26.04`, 90-minute timeout, free-disk-space (incl. tool cache), container storage + TMPDIR on a zstd btrfs loopback on `/` |
 | Permissions     | `permissions: {}` at top level; the job gets `contents: read`, `packages: write`, `id-token: write` |
 | Concurrency     | Per trigger; pushes cancel older pushes, manual dispatches are never cancelled by a push            |
 | Action pinning  | Every action pinned to a full commit SHA                                                            |
