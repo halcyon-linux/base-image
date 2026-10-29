@@ -683,8 +683,18 @@ verify_desktop_integration() {
         fi
     fi
 
+    if rpm -q steam >/dev/null 2>&1; then
+        steam_exec_total="$(grep -c '^Exec=' /usr/share/applications/steam.desktop || true)"
+        steam_exec_scaled="$(grep -c '^Exec=env STEAM_FORCE_DESKTOPUI_SCALING=2 /usr/bin/steam' /usr/share/applications/steam.desktop || true)"
+        if [[ "$steam_exec_total" -gt 0 && "$steam_exec_total" == "$steam_exec_scaled" ]]; then
+            pass "Steam launcher and actions force 2x UI scaling"
+        else
+            fail "Steam launcher lacks STEAM_FORCE_DESKTOPUI_SCALING=2 on ${steam_exec_total} Exec lines (${steam_exec_scaled} scaled)"
+        fi
+    fi
+
     if rpm -q bitwarden >/dev/null 2>&1; then
-        if grep -q '^Exec=/opt/Bitwarden/bitwarden --ozone-platform-hint=auto' /usr/share/applications/bitwarden.desktop; then
+        if grep -q '^Exec=/opt/Bitwarden/bitwarden --ozone-platform-hint=auto'/usr/share/applications/bitwarden.desktop; then
             pass "Bitwarden launcher uses native Wayland (ozone auto)"
         else
             fail "Bitwarden launcher lacks --ozone-platform-hint=auto"
