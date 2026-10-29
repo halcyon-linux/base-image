@@ -149,18 +149,6 @@ screens:
           - id: "disable"
             label: "Disable Tailscale"
             script: "ujust tailscale disable"
-      - id: "cockpit"
-        title: "Enable Cockpit"
-        description: "Toggle the Cockpit web interface service, for centralized system management from a browser."
-        default: false
-        status_script: "ujust cockpit status"
-        options:
-          - id: "enable"
-            label: "Enable Cockpit"
-            script: "ujust cockpit enable"
-          - id: "disable"
-            label: "Disable Cockpit"
-            script: "ujust cockpit disable"
       - id: "ssh-service"
         title: "Enable SSH remote access"
         description: "Toggle the secure shell (SSH) service for advanced remote management."
@@ -351,17 +339,6 @@ screens:
           - id: "disable"
             label: "Remove Virtual Headphone Surround"
             script: 'ujust setup-virtual-surround disable; status=$?; echo; echo "Press Enter to close..."; read -r _; exit $status'
-      - id: "virtualization"
-        title: "Setup virtualization"
-        description: "Manage host virtualization support for virt-manager."
-        default: false
-        options:
-          - id: "virt-on"
-            label: "Enable Virtualization Support"
-            script: 'ujust setup-virtualization virt-on; status=$?; echo; echo "Press Enter to close..."; read -r _; exit $status'
-          - id: "virt-off"
-            label: "Disable Virtualization Support"
-            script: 'ujust setup-virtualization virt-off; status=$?; echo; echo "Press Enter to close..."; read -r _; exit $status'
       - id: "automounting"
         title: "Toggle automatically mounting disks"
         description: "Manage automounting of labeled btrfs/ext4 partitions under «/run/media/system»."

@@ -25,18 +25,19 @@ A build needs `podman`, `just`, `git`, `skopeo`, `jq` and network. Local builds 
 
 ## Hard rules
 
-1. Never push, force-push or trigger a publish on `containerfile` without explicit approval. Work on a branch and propose a PR.
+1. Never push, force-push or trigger a publish on `containerfile` without explicit approval. Work on the existing `containerfile` branch (committing is fine when asked; pushing needs approval).
 2. Never create, print, commit or paste `cosign.key`, `*.key`, `SIGNING_SECRET` or `GITHUB_TOKEN`. Keep `*.key` in `.gitignore`, `.containerignore` and `.dockerignore`.
 3. Do not weaken signing or publishing: keep the `github.ref == refs/heads/containerfile` guard on **both** the push and sign steps, pin actions to full commit SHAs, keep `permissions: {}` at top level.
 4. Signing flags (`--new-bundle-format=false --use-signing-config=false`) are a contract with the README verification section; change them together.
 5. Key rotation is atomic: `cosign.pub`, the `SIGNING_SECRET` secret and the README fingerprint change together. The human owner changes the secret.
 6. Never hardcode a kernel version. `just_scripts/resolve-akmods` picks the newest tag whose akmods-extra ships `nct6687d`. Add no other akmods-extra kmods without an explicit decision.
 7. The Fedora release lives in three places: `Containerfile` (`FEDORA_VERSION`), `.github/workflows/build.yml` (`FEDORA_VERSION`) and `Justfile` (`latest`). It also drives the akmods tag prefix and the `cicpoffs-fc<N>.rpm` asset name.
-8. Do not reintroduce deliberate removals without updating `verify` and stating why. Enforced: Waydroid, fish, greetd, `zsh-autosuggestions`, `zsh-syntax-highlighting`, `nerd-fonts` (Terra), Steam Deck/handheld packages, `pinentry-qt`, `nvidia-gpu-firmware`, `gamemode`, `wazuh-agent` (installs only under `/var/ossec`, which `finalize` wipes). Intended but not enforced: `cockpit-ws` and bundled Flatpak apps.
+8. Do not reintroduce deliberate removals without updating `verify` and stating why. Enforced: Waydroid, fish, greetd, `zsh-autosuggestions`, `zsh-syntax-highlighting`, `nerd-fonts` (Terra), Steam Deck/handheld packages, `pinentry-qt`, `nvidia-gpu-firmware`, `gamemode`, `wazuh-agent` (installs only under `/var/ossec`, which `finalize` wipes), Cockpit (`cockpit-*`, its unit and Quadlet) and the virtualization stack (libvirt, QEMU, virt-manager, virtiofsd, `edk2-ovmf`, `ls-iommu`, VFIO dracut config). Intended but not enforced: bundled Flatpak apps.
 9. Persistent static content goes under `/usr`; `/etc` holds defaults only; nothing static under `/var` (`finalize` strips it).
 10. Do not claim success you did not observe. Never say "the build passes" without a build or CI run.
 11. Do not run `bootc`, `rpm-ostree` or `podman system reset`, and do not deploy to a real machine, as part of a code change.
 12. No new external download without a pinning plan: use `/ctx/shared/ghcurl`, prefer a pinned release or commit plus a checksum or signature, and record attribution with `setfattr -n user.component`. Existing mutable downloads (GitHub `latest`, winetricks and bash-preexec from `master`, Distrobox template from `main`) are known debt (A-008); do not add more.
+13. Do not invent branches. Work on `containerfile` (the default and release branch) or a branch the user names; never create or switch to a new branch on your own.
 
 ## Build contract
 
@@ -132,7 +133,7 @@ RUN --mount=type=cache,dst=/var/cache \
 
 ## Pre-merge checklist
 
-- [ ] On a branch; nothing pushed to `containerfile`.
+- [ ] On `containerfile` (or a branch the user named); nothing pushed without approval.
 - [ ] No secrets in `git diff` (search for `PRIVATE KEY`).
 - [ ] `bash -n` passes on changed scripts; scripts stay `100755`.
 - [ ] `bash tests/test-dnf5-retry.sh` passes if the shim changed; `just just-check` passes if `.just` files or the `Justfile` changed.

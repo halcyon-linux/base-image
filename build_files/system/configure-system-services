@@ -8,7 +8,6 @@ system_services=(
     uupd.timer
     hardware-setup.service
     dev-hugepages1G.mount
-    libvirtd.service
     ds-inhibit.service
     greenboot-healthcheck.service
     greenboot-set-rollback-trigger.service
@@ -29,6 +28,8 @@ system_services=(
     halcyon-security-posture.service
     halcyon-aide-init.service
     halcyon-aide-check.timer
+    rngd.service
+    halcyon-mor.service
 )
 
 global_services=(
@@ -39,7 +40,6 @@ global_services=(
     dmemcg-booster-user.service
     chezmoi-init.service
     chezmoi-update.timer
-    apply-gtk-themes.service
 )
 
 disabled_services=(

@@ -1,0 +1,9 @@
+# Halcyon: Lynis audits run as root, and Homebrew refuses to run as root, so
+# PKGS-7303 (`brew list --versions`) only errors out. Brew packages live in the
+# user's home and are not part of the image's audited package set.
+skip-test=PKGS-7303
+
+# Halcyon: CRYP-8005 only checks for a running haveged, audio-entropyd or
+# jitterentropy-rngd process. The kernel CSPRNG is already fully seeded and
+# rngd feeds the TPM RNG into it, so haveged would add nothing.
+skip-test=CRYP-8005

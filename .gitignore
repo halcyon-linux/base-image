@@ -22,4 +22,8 @@ Thumbs.db
 cosign.key
 *.key
 security-hardening.txt
-lynis.log
+
+
+# Local scan output and scratch
+/tmp/
+/lynis.log

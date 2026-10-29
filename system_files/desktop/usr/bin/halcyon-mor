@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Halcyon: set or clear the TCG MemoryOverwriteRequestControl bit (Lynis
+# CRYP-8006).
+#
+# While the bit is 1, firmware wipes RAM on the next boot, which defeats
+# cold-boot attacks after a crash or power loss. The OS sets it at startup
+# and clears it on a clean shutdown, so normal reboots do not pay for a wipe.
+#
+# Usage: halcyon-mor set|clear
+# HALCYON_MOR_VAR overrides the efivar path (used for testing only).
+set -euo pipefail
+
+var=${HALCYON_MOR_VAR:-/sys/firmware/efi/efivars/MemoryOverwriteRequestControl-e20939be-32d4-41be-a150-897f85d49829}
+
+case "${1:-}" in
+    set)   value='\x01' ;;
+    clear) value='\x00' ;;
+    *)     echo "usage: ${0##*/} set|clear" >&2; exit 2 ;;
+esac
+
+# Absent on BIOS boots and on firmware without MOR support: nothing to do.
+[[ -e "$var" ]] || exit 0
+
+# efivarfs files are immutable and take the 4-byte attribute header
+# (NV|BS|RT = 7) plus the data in one write().
+chattr -i "$var" 2>/dev/null || true
+printf '\x07\x00\x00\x00%b' "$value" > "$var"
+chattr +i "$var" 2>/dev/null || true

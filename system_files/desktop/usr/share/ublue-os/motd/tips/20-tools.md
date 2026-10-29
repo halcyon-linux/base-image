@@ -5,5 +5,4 @@
 *Displays misbehaving?* `crh` walks you through custom resolutions and EDID fixes.
 *Live stats:* `btop` for CPU and memory, `duf` for filesystems, `mission-center` for the GUI view.
 *`ujust --choose` lists every recipe* with a description — the fastest way to see what the image can do.
-*`ls-iommu` prints your IOMMU groups* — handy before passing hardware through to a VM.
 *`ujust benchmark` runs a one-minute `stress-ng` matrix benchmark* — a quick load check on a new machine.

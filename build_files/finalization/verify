@@ -783,7 +783,7 @@ verify_services() {
     local svc
     for svc in \
         brew-setup.service input-remapper.service uupd.timer hardware-setup.service \
-        dev-hugepages1G.mount libvirtd.service ds-inhibit.service \
+        dev-hugepages1G.mount ds-inhibit.service \
         greenboot-healthcheck.service greenboot-set-rollback-trigger.service \
         dmemcg-booster-system.service cardwired.service \
         sddm.service cups.service bpftune.service tuned.service fstrim.timer \
@@ -803,13 +803,6 @@ verify_services() {
             fail "global user service not enabled: $svc"
         fi
     done
-
-    # apply-gtk-themes.service is wanted by graphical-session.target
-    if [[ -e "/etc/systemd/user/graphical-session.target.wants/apply-gtk-themes.service" ]]; then
-        pass "global user service enabled: apply-gtk-themes.service"
-    else
-        fail "global user service not enabled: apply-gtk-themes.service"
-    fi
 
     if [[ -e /etc/systemd/system/display-manager.service ]] || \
        [[ -e /etc/systemd/system/graphical.target.wants/sddm.service ]]; then
@@ -1101,13 +1094,22 @@ verify_security_hardening() {
         /etc/systemd/system/multi-user.target.wants/halcyon-shadow-sync.service \
         /etc/systemd/system/multi-user.target.wants/halcyon-security-posture.service \
         /etc/systemd/system/multi-user.target.wants/halcyon-aide-init.service \
-        /etc/systemd/system/timers.target.wants/halcyon-aide-check.timer; do
+        /etc/systemd/system/timers.target.wants/halcyon-aide-check.timer \
+        /etc/systemd/system/multi-user.target.wants/rngd.service \
+        /etc/systemd/system/multi-user.target.wants/halcyon-mor.service; do
         if [[ -e "$unit" ]]; then
             pass "security unit enabled: $unit"
         else
             fail "security unit not enabled: $unit"
         fi
     done
+
+    # MOR bit helper (Lynis CRYP-8006).
+    if [[ -x /usr/bin/halcyon-mor ]]; then
+        pass "halcyon-mor helper present and executable"
+    else
+        fail "/usr/bin/halcyon-mor missing or not executable"
+    fi
 
     # faillock.conf is inert unless pam_faillock is in the PAM stack, which the
     # authselect `local` profile only does with the with-faillock feature.
@@ -1189,14 +1191,15 @@ verify_security_hardening() {
     # directives that break NetworkManager must not creep in. Directives are
     # read with comments stripped; the file documents the forbidden ones.
     local nm_dropin=/usr/lib/systemd/system/NetworkManager.service.d/40-halcyon-hardening.conf nm_directive
-    for nm_directive in LockPersonality=true RestrictRealtime=true RestrictSUIDSGID=true RestrictNamespaces=true ProtectControlGroups=true SystemCallArchitectures=native; do
+    for nm_directive in LockPersonality=true RestrictRealtime=true RestrictSUIDSGID=true RestrictNamespaces=true ProtectControlGroups=true SystemCallArchitectures=native \
+        ProtectKernelLogs=true ProtectClock=true 'SystemCallFilter=~@clock @cpu-emulation @debug @obsolete @raw-io @reboot @swap'; do
         if grep -qxF "$nm_directive" "$nm_dropin" 2>/dev/null; then
             pass "NetworkManager hardening directive present: $nm_directive"
         else
             fail "NetworkManager hardening directive missing: $nm_directive"
         fi
     done
-    if grep -v '^[[:space:]]*#' "$nm_dropin" 2>/dev/null | grep -qE '^(ProtectKernelTunables|ProtectKernelModules|ProtectSystem|ProtectClock|ProtectHostname|ProtectProc|ProcSubset|MemoryDenyWriteExecute|NoNewPrivileges|DevicePolicy|DeviceAllow|PrivateDevices|PrivateTmp|PrivateNetwork|PrivateUsers|InaccessiblePaths|CapabilityBoundingSet|SystemCallFilter)='; then
+    if grep -v '^[[:space:]]*#' "$nm_dropin" 2>/dev/null | grep -qE '^(ProtectKernelTunables|ProtectKernelModules|ProtectSystem|ProtectHostname|ProtectProc|ProcSubset|MemoryDenyWriteExecute|NoNewPrivileges|DevicePolicy|DeviceAllow|PrivateDevices|PrivateTmp|PrivateNetwork|PrivateUsers|InaccessiblePaths|CapabilityBoundingSet)='; then
         fail "NetworkManager hardening drop-in sets a directive known to break NetworkManager"
     else
         pass "NetworkManager hardening drop-in avoids directives that break it"
@@ -1239,7 +1242,7 @@ verify_security_hardening() {
        grep -qxF 'net.ipv4.conf.default.rp_filter = 2' "$sysctl_conf" 2>/dev/null; then
         pass "rp_filter is loose (2) for tunnel and bridge interfaces"
     else
-        fail "rp_filter must stay loose (2): strict mode breaks Tailscale/libvirt/container routing"
+        fail "rp_filter must stay loose (2): strict mode breaks Tailscale/container routing"
     fi
     if grep -qE '^[[:space:]]*(fs\.binfmt_misc\.status|net\.ipv4\.tcp_timestamps)[[:space:]]*=' "$sysctl_conf" 2>/dev/null; then
         fail "sysctl hardening must not set fs.binfmt_misc.status or net.ipv4.tcp_timestamps"
@@ -1324,6 +1327,15 @@ verify_final() {
         inputplumber steamos-manager-powerstation steamos-manager \
         gamescope-session-ogui-steam powerbuttond vpower sdgyrodsu galileo-mura \
         pinentry-qt
+
+    # Cockpit and virtualization were removed on purpose (no web admin console,
+    # no VM host stack, no GPU-passthrough tooling).
+    forbid_rpms \
+        cockpit-bridge cockpit-ws cockpit-files cockpit-networkmanager cockpit-podman \
+        cockpit-selinux cockpit-storaged cockpit-system \
+        libvirt-daemon libvirt-daemon-kvm libvirt-daemon-config-network \
+        libvirt-daemon-config-nwfilter virt-manager virt-install virtiofsd \
+        edk2-ovmf ls-iommu qemu-kvm
 
     # Device-specific trim: kernel modules for absent hardware must not reappear.
     forbid_rpms \
@@ -1485,7 +1497,7 @@ verify_final() {
         /usr/bin/steam /usr/bin/lutris /usr/bin/protonplus /usr/bin/winetricks \
         /usr/bin/bazaar /usr/bin/uupd /usr/bin/fastfetch /usr/bin/btop \
         /usr/bin/input-remapper-control /usr/bin/snapper /usr/bin/btrfs-assistant \
-        /usr/bin/virt-manager /usr/bin/chezmoi /usr/bin/flatpak /usr/bin/sddm \
+        /usr/bin/chezmoi /usr/bin/flatpak /usr/bin/sddm \
         /usr/bin/code /usr/bin/codium /usr/bin/brave-browser /usr/bin/firefox \
         /usr/bin/google-chrome /usr/bin/microsoft-edge /usr/bin/vivaldi \
         /usr/bin/nvim /usr/bin/kitty \
@@ -1524,8 +1536,7 @@ verify_final() {
         /usr/lib/systemd/user/dynamic-fixes.service \
         /usr/lib/systemd/user/dmemcg-booster-user.service \
         /usr/lib/systemd/user/chezmoi-init.service \
-        /usr/lib/systemd/user/chezmoi-update.timer \
-        /usr/lib/systemd/user/apply-gtk-themes.service; do
+        /usr/lib/systemd/user/chezmoi-update.timer; do
         if [[ -e "$unit" ]]; then
             pass "unit file present: $unit"
         else
@@ -1537,6 +1548,10 @@ verify_final() {
         /usr/lib/systemd/system/bazzite-hardware-setup.service \
         /usr/lib/systemd/system/bazzite-iwd-migration.service \
         /usr/lib/systemd/system/bazzite-libvirtd-setup.service \
+        /usr/lib/systemd/system/cockpit.service \
+        /usr/share/containers/systemd/cockpit-container.container \
+        /usr/lib/tmpfiles.d/bazzite-libvirt.conf \
+        /usr/lib/dracut/dracut.conf.d/80-vfio.conf \
         /usr/lib/systemd/system/force-wol.service \
         /usr/lib/systemd/system/incus-workaround.service \
         /usr/lib/systemd/system/greetd.service \
@@ -1614,6 +1629,22 @@ verify_final() {
         fail "system-wide default github.com SSH identity missing or wrong key"
     fi
 
+    # Lynis PKGS-7303 runs `brew list` as root, which Homebrew refuses. The skip
+    # lives in /etc/lynis/custom.prf, where Lynis reads it.
+    if grep -qxF 'skip-test=PKGS-7303' /etc/lynis/custom.prf 2>/dev/null; then
+        pass "Lynis skips PKGS-7303 (brew refuses root)"
+    else
+        fail "/etc/lynis/custom.prf must skip PKGS-7303"
+    fi
+
+    # CRYP-8005 only looks for a haveged-style process; haveged is not shipped.
+    if grep -qxF 'skip-test=CRYP-8005' /etc/lynis/custom.prf 2>/dev/null; then
+        pass "Lynis skips CRYP-8005 (haveged not shipped)"
+    else
+        fail "/etc/lynis/custom.prf must skip CRYP-8005"
+    fi
+    forbid_rpms haveged
+
     # sshd hardening drop-in (Lynis SSH-7408). The 10- prefix matters: sshd
     # keeps the first value seen per keyword, so it must sort before Fedora's
     # 50-redhat.conf. Exact-line matches so a weakened value (e.g. MaxAuthTries 30) fails.
@@ -1621,10 +1652,12 @@ verify_final() {
     if [[ -f "$sshd_conf" ]]; then
         pass "sshd hardening drop-in present: $sshd_conf"
         for sshd_directive in \
+            'Port 43210' \
             'PermitRootLogin no' \
             'PasswordAuthentication no' \
             'KbdInteractiveAuthentication no' \
             'PermitEmptyPasswords no' \
+            'AllowGroups wheel' \
             'MaxAuthTries 3' \
             'LoginGraceTime 30' \
             'MaxSessions 2' \

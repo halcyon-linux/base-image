@@ -1,0 +1,12 @@
+[Unit]
+Description=Halcyon: request a RAM wipe after an unclean shutdown (MOR bit)
+ConditionPathExists=/sys/firmware/efi/efivars
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/halcyon-mor set
+ExecStop=/usr/bin/halcyon-mor clear
+
+[Install]
+WantedBy=multi-user.target

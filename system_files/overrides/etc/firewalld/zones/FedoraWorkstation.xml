@@ -2,7 +2,7 @@
 <!-- Halcyon override of the FedoraWorkstation firewalld zone, adapted from
      secureblue files/system/etc/firewalld/zones/FedoraWorkstation.xml:
      Fedora's default opens TCP/UDP 1025-65535 for local applications; this
-     closes them. Unlike secureblue, ssh and dhcpv6-client stay allowed:
+     closes them. Unlike secureblue, ssh (port 43210) and dhcpv6-client stay allowed:
      `ujust ssh` enables sshd, and without dhcpv6-client DHCPv6 replies from
      the router are dropped. Only effective while this zone is the active one
      (the ublue base image defaults to the stock `public` zone, which never
@@ -11,6 +11,6 @@
   <short>Fedora Workstation</short>
   <description>Unsolicited incoming network packets are rejected, except for select network services. Incoming packets that are related to outgoing network connections are accepted. Outgoing network connections are allowed.</description>
   <service name="dhcpv6-client"/>
-  <service name="ssh"/>
+  <port protocol="tcp" port="43210"/>
   <forward/>
 </zone>
