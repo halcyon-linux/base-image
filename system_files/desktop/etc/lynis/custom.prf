@@ -7,3 +7,9 @@ skip-test=PKGS-7303
 # jitterentropy-rngd process. The kernel CSPRNG is already fully seeded and
 # rngd feeds the TPM RNG into it, so haveged would add nothing.
 skip-test=CRYP-8005
+
+# Halcyon: PKGS-7420 only looks for auter, yum-cron, dnf-automatic or
+# unattended-upgrade. This is a bootc image: uupd is the automatic updater and
+# rpm-ostree's own automatic policy is deliberately none, so dnf-automatic does
+# not apply.
+skip-test=PKGS-7420

@@ -9,6 +9,13 @@ update:
     set -Eeuo pipefail
     /usr/bin/uupd-update | jq -r -R 'fromjson? | [(.title, .msg, .description) | select(.)] | join(" ")'
 
+# Run topgrade with the image's bootc-aware config (not ~/.config/topgrade.toml)
+[group("system")]
+topgrade:
+    #!/usr/bin/bash
+    set -Eeuo pipefail
+    exec /usr/bin/topgrade --config /usr/share/ublue-os/topgrade.toml
+
 alias changelog := changelogs
 
 # Open the Halcyon image's recent changes.

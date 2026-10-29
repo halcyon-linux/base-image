@@ -195,6 +195,8 @@ bootc status           # booted / staged / rollback deployments
 ```
 
 - `uupd` is the only automatic updater (`uupd.timer` enabled). It follows the ref you deployed: a tag follows new builds, a digest stays put.
+- `ujust topgrade` runs topgrade with `/usr/share/ublue-os/topgrade.toml` (bootc, firmware, Flatpak, Homebrew, Nix). Plain `topgrade` only reads `~/.config/topgrade.toml` and defaults to `dnf`, which does not apply here; set `[linux] bootc = true` there if you prefer to call it directly.
+- Lynis `PKGS-7420` (no `dnf-automatic`) is skipped in `/etc/lynis/custom.prf` because `uupd` is the updater. `NAME-4028` is satisfied by `halcyon-hosts-entry`, which writes `127.0.1.1 <host>.localdomain <host>` so `dnsdomainname` returns `localdomain`.
 - `ujust changelogs` opens the commit history of the `containerfile` branch.
 
 ### Roll back

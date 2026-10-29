@@ -777,6 +777,22 @@ verify_justfiles() {
             fail "justfile does not import $inc"
         fi
     done
+
+    # topgrade only reads ~/.config, so the image ships a bootc-aware config
+    # that `ujust topgrade` passes explicitly. A dangling [include] makes
+    # topgrade print an error, and without bootc it would run dnf.
+    local tg=/usr/share/ublue-os/topgrade.toml
+    if [[ -f "$tg" ]] && grep -qxF 'bootc = true' "$tg" && ! grep -q '^\[include\]' "$tg"; then
+        pass "topgrade.toml is bootc-aware and has no [include]"
+    else
+        fail "$tg must set bootc = true and must not have an [include] section"
+    fi
+    if grep -q '^topgrade:' /usr/share/ublue-os/just/10-update.just 2>/dev/null; then
+        pass "ujust topgrade recipe present"
+    else
+        fail "ujust topgrade recipe missing from 10-update.just"
+    fi
+    require_rpms topgrade
 }
 
 verify_services() {
@@ -1644,6 +1660,20 @@ verify_final() {
         fail "/etc/lynis/custom.prf must skip CRYP-8005"
     fi
     forbid_rpms haveged
+
+    # PKGS-7420 only detects dnf-automatic and friends; uupd updates this image.
+    if grep -qxF 'skip-test=PKGS-7420' /etc/lynis/custom.prf 2>/dev/null; then
+        pass "Lynis skips PKGS-7420 (uupd, not dnf-automatic)"
+    else
+        fail "/etc/lynis/custom.prf must skip PKGS-7420"
+    fi
+
+    # NAME-4028: the hosts entry must carry a domain so dnsdomainname answers.
+    if grep -qF '.localdomain' /usr/bin/halcyon-hosts-entry 2>/dev/null; then
+        pass "halcyon-hosts-entry writes a domain-qualified entry"
+    else
+        fail "halcyon-hosts-entry must write <host>.localdomain (Lynis NAME-4028)"
+    fi
 
     # sshd hardening drop-in (Lynis SSH-7408). The 10- prefix matters: sshd
     # keeps the first value seen per keyword, so it must sort before Fedora's
