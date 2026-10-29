@@ -481,7 +481,8 @@
     "copr": null,
     "packages": [
       "nix",
-      "nix-daemon"
+      "nix-daemon",
+      "busybox"
     ]
   },
   "security": {

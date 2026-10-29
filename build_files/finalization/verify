@@ -597,7 +597,8 @@ verify_nix() {
     require_rpms_from_json "nix" "packages"
 
     local bin
-    for bin in /usr/bin/nix /usr/bin/nix-daemon; do
+    # /usr/bin/busybox is the compiled-in sandbox-paths shell (/bin/sh)
+    for bin in /usr/bin/nix /usr/bin/nix-daemon /usr/bin/busybox; do
         if [[ -x "$bin" ]]; then
             pass "binary present and executable: $bin"
         else
