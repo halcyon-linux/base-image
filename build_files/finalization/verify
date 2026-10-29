@@ -400,7 +400,8 @@ verify_gaming() {
 
     # Ensure mesa packages are installed from Terra
     local mesa_pkg mesa_vendor
-    for mesa_pkg in mesa-filesystem mesa-dri-drivers mesa-libEGL mesa-libGL mesa-libgbm mesa-vulkan-drivers mesa-libgbm-devel; do
+    for mesa_pkg in mesa-filesystem mesa-dri-drivers mesa-libEGL mesa-libGL mesa-libgbm mesa-vulkan-drivers mesa-libgbm-devel \
+        mesa-filesystem.i686 mesa-dri-drivers.i686 mesa-libEGL.i686 mesa-libgbm.i686; do
         mesa_vendor="$(rpm -q --qf '%{VENDOR}\n' "$mesa_pkg" 2>/dev/null | sort -u || true)"
         if [[ "$mesa_vendor" == "Terra" ]]; then
             pass "mesa package $mesa_pkg is from Terra"
@@ -1613,14 +1614,18 @@ verify_final() {
         gamescope-session-ogui-steam powerbuttond vpower sdgyrodsu galileo-mura \
         pinentry-qt
 
-    # Cockpit and virtualization were removed on purpose (no web admin console,
-    # no VM host stack, no GPU-passthrough tooling).
+    # Cockpit and the VM host stack were removed on purpose (no web admin
+    # console, no VM host stack, no GPU-passthrough tooling). virtiofsd is the
+    # exception: VM and podman machine file sharing needs it, so it must stay
+    # installed while the rest of the stack is forbidden.
     forbid_rpms \
         cockpit-bridge cockpit-ws cockpit-files cockpit-networkmanager cockpit-podman \
         cockpit-selinux cockpit-storaged cockpit-system \
         libvirt-daemon libvirt-daemon-kvm libvirt-daemon-config-network \
-        libvirt-daemon-config-nwfilter virt-manager virt-install virtiofsd \
+        libvirt-daemon-config-nwfilter virt-manager virt-install \
         edk2-ovmf ls-iommu qemu-kvm
+
+    require_rpms virtiofsd
 
     # Device-specific trim: kernel modules for absent hardware must not reappear.
     forbid_rpms \
@@ -1753,13 +1758,17 @@ verify_final() {
 
     # The graphics stack must survive the whole build: Mesa comes from Terra
     # (Fedora's Mesa is excluded) and must still be present next to the
-    # NVIDIA driver in the published image.
+    # NVIDIA driver in the published image. The 32-bit runtime chain is
+    # installed explicitly in install-gaming-stack and must be present too.
     require_rpms \
         mesa-filesystem mesa-dri-drivers mesa-libEGL mesa-libGL \
-        mesa-libgbm mesa-vulkan-drivers
+        mesa-libgbm mesa-vulkan-drivers \
+        mesa-filesystem.i686 mesa-dri-drivers.i686 \
+        mesa-libEGL.i686 mesa-libgbm.i686
 
     local mesa_pkg mesa_vendor
-    for mesa_pkg in mesa-filesystem mesa-dri-drivers mesa-libEGL mesa-libGL mesa-libgbm mesa-vulkan-drivers; do
+    for mesa_pkg in mesa-filesystem mesa-dri-drivers mesa-libEGL mesa-libGL mesa-libgbm mesa-vulkan-drivers \
+        mesa-filesystem.i686 mesa-dri-drivers.i686 mesa-libEGL.i686 mesa-libgbm.i686; do
         mesa_vendor="$(rpm -q --qf '%{VENDOR}\n' "$mesa_pkg" 2>/dev/null | sort -u || true)"
         if [[ "$mesa_vendor" == "Terra" ]]; then
             pass "package $mesa_pkg is from Terra"

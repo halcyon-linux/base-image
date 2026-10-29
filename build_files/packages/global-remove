@@ -7,11 +7,10 @@ set -Eeuo pipefail
 # default shell; greetd is removed because sddm is the display manager;
 # auxiliary zsh packages are removed because only the standalone zsh package is allowed.
 # Handheld-specific packages and unnecessary kmod-related packages are trimmed.
-# virtiofsd is not in base-main itself but arrives as a dependency (podman-machine,
-# crun-vm, kata-containers, bcvk and qemu-system-* all require it). verify forbids
-# it with the rest of the virtualization stack, so it is removed here or `verify
-# final` fails. dnf removes whatever requires it along with it, which is intended:
-# those are VM tooling this image does not ship.
+# virtiofsd arrives as a dependency (podman-machine, crun-vm, kata-containers,
+# bcvk and qemu-system-* all require it) and is kept on purpose: VM and podman
+# machine file sharing needs it. verify final requires it; only the rest of the
+# virtualization stack is forbidden.
 for pkg in \
     htop ublue-os-update-services google-noto-sans-cjk-fonts fish greetd greetd-selinux \
     zsh-autosuggestions zsh-syntax-highlighting \
@@ -19,8 +18,7 @@ for pkg in \
     steamdeck-dsp steamdeck-backgrounds steamdeck-gnome-presets steamdeck-kde-presets \
     inputplumber steamos-manager-powerstation steamos-manager \
     gamescope-session-ogui-steam powerbuttond vpower sdgyrodsu galileo-mura \
-    pinentry-qt \
-    virtiofsd; do
+    pinentry-qt; do
     if rpm -q "$pkg" >/dev/null 2>&1; then
         dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y remove "$pkg"
     fi
