@@ -43,6 +43,13 @@ jobs:
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@ceedf095f4ec1a097402bc6bd80831f2e1a6fde6 # v2.0.0
 
+      # The root disk alone runs out while buildah commits the final layer.
+      # Put rootless container storage (~/.local/share/containers) on a
+      # zstd-compressed btrfs loopback on the runner's /mnt disk. Must run
+      # before the first podman pull.
+      - name: Mount BTRFS for podman storage
+        uses: ublue-os/container-storage-action@dc1f4c8f17b672069e921f001132f7cf98a423a6 # main (no releases), 2026-02-11
+
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 

@@ -71,12 +71,22 @@ mesa_repo=terra-mesa
 mesa_repo_opts=()
 mesa_evr=$(common_mesa_evr)
 if [[ -z "$mesa_evr" ]]; then
+    terra_mesa_evrs=$(dnf5 -q repoquery --repo=terra-mesa \
+        --qf '%{name}.%{arch} %{epoch}:%{version}-%{release}\n' "${mesa_specs[@]}")
     printf 'WARNING: terra-mesa has no Mesa EVR shared by every required package:\n' >&2
-    dnf5 -q repoquery --repo=terra-mesa --qf '  %{name}.%{arch} %{epoch}:%{version}-%{release}\n' "${mesa_specs[@]}" >&2
+    printf '  %s\n' "${terra_mesa_evrs//$'\n'/$'\n'  }" >&2
     printf 'WARNING: installing all Mesa packages from fedora-multimedia instead\n' >&2
     mesa_repo=fedora-multimedia
     mesa_repo_opts=(--setopt=disable_excludes=fedora-multimedia)
     mesa_evr=$(common_mesa_evr)
+    if [[ -n "$mesa_evr" ]]; then
+        # GitHub Actions workflow command: shows the fallback on the run
+        # summary. It goes away on its own once terra-mesa publishes one EVR
+        # for both arches.
+        printf '::warning title=Mesa from fedora-multimedia::terra-mesa has no Mesa EVR common to x86_64 and i686 (%s); installing Mesa %s from fedora-multimedia\n' \
+            "$(awk '{ sub(/.*\./, "", $1); print $1 " " $2 }' <<<"$terra_mesa_evrs" | sort -u | paste -sd ',' | sed 's/,/, /g')" \
+            "$mesa_evr"
+    fi
 fi
 if [[ -z "$mesa_evr" ]]; then
     printf 'ERROR: neither terra-mesa nor fedora-multimedia ships one Mesa EVR for: %s\n' "${mesa_specs[*]}" >&2
