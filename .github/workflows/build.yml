@@ -43,13 +43,6 @@ jobs:
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@ceedf095f4ec1a097402bc6bd80831f2e1a6fde6 # v2.0.0
 
-      # The root disk alone runs out while buildah commits the final layer.
-      # Put rootless container storage (~/.local/share/containers) on a
-      # zstd-compressed btrfs loopback on the runner's /mnt disk. Must run
-      # before the first podman pull.
-      - name: Mount BTRFS for podman storage
-        uses: ublue-os/container-storage-action@dc1f4c8f17b672069e921f001132f7cf98a423a6 # main (no releases), 2026-02-11
-
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -145,11 +138,27 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          df -h / /mnt /home || true
+          df -i / || true
+          # --layers=false keeps one commit instead of ~50 intermediate layers
+          # in container storage: the per-step commits exhausted the runner's
+          # root disk ("no space left on device"). The rechunker rebuilds the
+          # layer structure from raw-img, so nothing downstream needs them.
           buildah build \
+            --layers=false \
             --target ${{ steps.base.outputs.container_target }} \
             --build-arg-file build_args.txt \
             --secret "id=GITHUB_TOKEN,env=GITHUB_TOKEN" \
             --tag raw-img .
+
+      # Disk numbers for sizing the build; also runs when Build Image fails.
+      - name: Report disk usage
+        if: always() && steps.build_image.outcome != 'skipped'
+        run: |
+          df -h / /mnt /home || true
+          df -i / || true
+          podman system df || true
+          du -sh ~/.local/share/containers/storage/* 2>/dev/null || true
 
       # Apply labels and gather the kernel version before rechunking.
       - name: Apply Labels
