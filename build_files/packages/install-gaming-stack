@@ -34,17 +34,78 @@ done
 # Swap wireplumber to terra-wireplumber
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y swap --allowerasing --repo terra-extras wireplumber terra-wireplumber
 
-# Swap bluez, Xwayland, and mesa packages to patched/Terra packages
-declare -A package_swaps=(
-    ["copr:copr.fedorainfracloud.org:ublue-os:bazzite-multilib"]='bluez xorg-x11-server-Xwayland'
-    ["terra-mesa"]='mesa-filesystem mesa-dri-drivers mesa-libEGL mesa-libGL mesa-libgbm mesa-vulkan-drivers'
+# Mesa: every package below must come from one repository at one EVR, on both
+# arches. Mesa subpackages require each other's exact EVR, and dnf5 rejects an
+# implicitly pulled i686 package whose EVR differs from its installed x86_64
+# sibling ("has inferior architecture"). terra-mesa publishes each arch on its
+# own schedule and keeps only the newest build, so its x86_64 and i686 EVRs can
+# differ. Use the newest EVR terra-mesa ships for every package; when there is
+# none, fall back to fedora-multimedia (negativo17, what base-main ships).
+mesa_specs=(
+    mesa-filesystem.x86_64
+    mesa-dri-drivers.x86_64
+    mesa-libEGL.x86_64
+    mesa-libGL.x86_64
+    mesa-libgbm.x86_64
+    mesa-vulkan-drivers.x86_64
+    mesa-libGL-devel.x86_64
+    mesa-libgbm-devel.x86_64
+    mesa-filesystem.i686
+    mesa-dri-drivers.i686
+    mesa-libEGL.i686
+    mesa-libGL.i686
+    mesa-libgbm.i686
+    mesa-vulkan-drivers.i686
 )
 
-for repo in "${!package_swaps[@]}"; do
-    read -r -a repo_packages <<<"${package_swaps[$repo]}"
-    for package in "${repo_packages[@]}"; do
-        dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y swap --from-repo="$repo" "$package" "$package"
-    done
+# Print the newest EVR that $mesa_repo ships for every entry of mesa_specs.
+common_mesa_evr() {
+    local spec
+    for spec in "${mesa_specs[@]}"; do
+        dnf5 -q repoquery --repo="$mesa_repo" "${mesa_repo_opts[@]}" \
+            --qf '%{epoch}:%{version}-%{release}\n' "$spec" | sort -u
+    done | sort | uniq -c | awk -v n="${#mesa_specs[@]}" '$1 == n { print $2 }' | sort -V | tail -n 1
+}
+
+mesa_repo=terra-mesa
+mesa_repo_opts=()
+mesa_evr=$(common_mesa_evr)
+if [[ -z "$mesa_evr" ]]; then
+    printf 'WARNING: terra-mesa has no Mesa EVR shared by every required package:\n' >&2
+    dnf5 -q repoquery --repo=terra-mesa --qf '  %{name}.%{arch} %{epoch}:%{version}-%{release}\n' "${mesa_specs[@]}" >&2
+    printf 'WARNING: installing all Mesa packages from fedora-multimedia instead\n' >&2
+    mesa_repo=fedora-multimedia
+    mesa_repo_opts=(--setopt=disable_excludes=fedora-multimedia)
+    mesa_evr=$(common_mesa_evr)
+fi
+if [[ -z "$mesa_evr" ]]; then
+    printf 'ERROR: neither terra-mesa nor fedora-multimedia ships one Mesa EVR for: %s\n' "${mesa_specs[*]}" >&2
+    exit 1
+fi
+printf 'Installing Mesa %s from %s\n' "$mesa_evr" "$mesa_repo"
+
+# Explicit versions make dnf5 upgrade or downgrade both arches in one transaction.
+mesa_nevras=()
+for spec in "${mesa_specs[@]}"; do
+    mesa_nevras+=("${spec%.*}-${mesa_evr}.${spec##*.}")
+done
+dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' "${mesa_repo_opts[@]}" \
+    -y install --allowerasing --from-repo="$mesa_repo" "${mesa_nevras[@]}"
+
+# Packages already at that EVR from another repository (base-main ships
+# negativo17 builds) are left alone by install; reinstall them from $mesa_repo.
+mapfile -t mesa_foreign < <(
+    dnf5 -q repoquery --installed --qf '%{name}.%{arch} %{from_repo}\n' "${mesa_specs[@]}" |
+        awk -v repo="$mesa_repo" '$2 != repo { print $1 }'
+)
+if ((${#mesa_foreign[@]})); then
+    dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' "${mesa_repo_opts[@]}" \
+        -y reinstall --from-repo="$mesa_repo" "${mesa_foreign[@]}"
+fi
+
+# Swap bluez and Xwayland to patched bazzite-multilib builds
+for package in bluez xorg-x11-server-Xwayland; do
+    dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y swap --from-repo="copr:copr.fedorainfracloud.org:ublue-os:bazzite-multilib" "$package" "$package"
 done
 
 # Enable aahsnr-work/gaming at priority=1 to install protonplus, then disable immediately
@@ -62,20 +123,9 @@ dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' \
 
 disable_copr
 
-# Codecs, OpenCL, and 32-bit graphics support
-# The 32-bit mesa chain is named explicitly: dnf5 drops implicitly-pulled i686
-# packages whose EVR diverges from the installed x86_64 sibling ("has inferior
-# architecture"), which happens whenever terra-mesa publishes one arch first.
+# Codecs, OpenCL, and graphics headers (Mesa itself is pinned above)
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' --enable-repo=terra-mesa -y install \
-    mesa-libEGL \
-    mesa-libEGL.i686 \
-    mesa-libgbm \
-    mesa-libgbm.i686 \
-    mesa-dri-drivers.i686 \
-    mesa-filesystem.i686 \
-    mesa-libGL-devel \
     mesa-libGLES-devel \
-    mesa-libgbm-devel \
     glslang-devel \
     intel-opencl \
     clinfo

@@ -516,6 +516,8 @@ Full package lists live in [`packages.json`](packages.json). Highlights:
 
 Version-locked packages: kernel set, `bluez*`, `xorg-x11-server-Xwayland`, core `mesa-*`, `NetworkManager*`.
 
+Mesa is installed as one build: every Mesa package (x86_64 runtime, the i686 runtime Steam and MangoHud need, and the `mesa-libGL-devel`/`mesa-libgbm-devel` headers hyprpm needs) shares one EVR and one repository. `install-gaming-stack` uses the newest EVR `terra-mesa` ships for all of them. Terra publishes each arch separately and keeps only its newest build, so when the arches disagree the build falls back to `fedora-multimedia` (negativo17, what `base-main` ships) and logs a `WARNING:`. `verify` enforces the single EVR and repository in the `gaming` and `final` stages.
+
 ---
 
 ## Architecture

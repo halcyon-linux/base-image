@@ -235,6 +235,60 @@ verify_repos() {
 # the installed package's source repo, not its vendor: the vendor string is the
 # same for every aahsnr-work COPR. Terra and Fedora ship some of the same names
 # and would shadow or pre-empt the COPR build.
+# Mesa must be one build: every package from the mesa source RPM shares one
+# EVR across x86_64 and i686 (dnf5 refuses mismatched multilib siblings) and
+# one repository. install-gaming-stack picks terra-mesa and falls back to
+# fedora-multimedia only when terra-mesa ships no EVR common to both arches.
+# mesa-libGL-devel and mesa-libgbm-devel are part of the set: hyprpm needs them.
+verify_mesa_stack() {
+    require_rpms \
+        mesa-filesystem mesa-dri-drivers mesa-libEGL mesa-libGL \
+        mesa-libgbm mesa-vulkan-drivers mesa-libGL-devel mesa-libgbm-devel \
+        mesa-filesystem.i686 mesa-dri-drivers.i686 mesa-libEGL.i686 \
+        mesa-libGL.i686 mesa-libgbm.i686 mesa-vulkan-drivers.i686
+
+    local -a mesa_pkgs=()
+    local -A mesa_evrs=() mesa_repos=()
+    local name evr from_repo
+    mapfile -t mesa_pkgs < <(
+        rpm -qa --qf '%{NAME}.%{ARCH} %{SOURCERPM}\n' | awk '$2 ~ /^mesa-[0-9]/ { print $1 }' | sort
+    )
+    if ((${#mesa_pkgs[@]} == 0)); then
+        fail "no packages from the mesa source RPM installed"
+        return 0
+    fi
+    while read -r name evr from_repo; do
+        mesa_evrs[$evr]+=" $name"
+        mesa_repos[$from_repo]+=" $name"
+    done < <(dnf5 repoquery --installed --qf '%{name}.%{arch} %{epoch}:%{version}-%{release} %{from_repo}\n' "${mesa_pkgs[@]}")
+
+    if ((${#mesa_evrs[@]} == 1)); then
+        pass "Mesa packages share one EVR: ${!mesa_evrs[*]}"
+    else
+        for evr in "${!mesa_evrs[@]}"; do
+            fail "Mesa EVR mismatch: $evr:${mesa_evrs[$evr]}"
+        done
+    fi
+
+    if ((${#mesa_repos[@]} != 1)); then
+        for from_repo in "${!mesa_repos[@]}"; do
+            fail "Mesa packages from more than one repository: $from_repo:${mesa_repos[$from_repo]}"
+        done
+    else
+        case "${!mesa_repos[*]}" in
+            terra-mesa)
+                pass "Mesa packages installed from terra-mesa"
+                ;;
+            fedora-multimedia)
+                pass "Mesa packages installed from fedora-multimedia (terra-mesa had no EVR common to x86_64 and i686)"
+                ;;
+            *)
+                fail "Mesa packages from '${!mesa_repos[*]}', expected terra-mesa or fedora-multimedia"
+                ;;
+        esac
+    fi
+}
+
 verify_cli_tools_source() {
     local repo_id name from_repo pkg
     local -A source_repo=()
@@ -398,17 +452,7 @@ verify_gaming() {
         fi
     done
 
-    # Ensure mesa packages are installed from Terra
-    local mesa_pkg mesa_vendor
-    for mesa_pkg in mesa-filesystem mesa-dri-drivers mesa-libEGL mesa-libGL mesa-libgbm mesa-vulkan-drivers mesa-libgbm-devel \
-        mesa-filesystem.i686 mesa-dri-drivers.i686 mesa-libEGL.i686 mesa-libgbm.i686; do
-        mesa_vendor="$(rpm -q --qf '%{VENDOR}\n' "$mesa_pkg" 2>/dev/null | sort -u || true)"
-        if [[ "$mesa_vendor" == "Terra" ]]; then
-            pass "mesa package $mesa_pkg is from Terra"
-        else
-            fail "mesa package $mesa_pkg is from '${mesa_vendor:-unknown}', expected Terra"
-        fi
-    done
+    verify_mesa_stack
 }
 
 verify_fonts() {
@@ -1756,26 +1800,10 @@ verify_final() {
         fail "required extra kmod missing: nct6687d"
     fi
 
-    # The graphics stack must survive the whole build: Mesa comes from Terra
-    # (Fedora's Mesa is excluded) and must still be present next to the
-    # NVIDIA driver in the published image. The 32-bit runtime chain is
-    # installed explicitly in install-gaming-stack and must be present too.
-    require_rpms \
-        mesa-filesystem mesa-dri-drivers mesa-libEGL mesa-libGL \
-        mesa-libgbm mesa-vulkan-drivers \
-        mesa-filesystem.i686 mesa-dri-drivers.i686 \
-        mesa-libEGL.i686 mesa-libgbm.i686
-
-    local mesa_pkg mesa_vendor
-    for mesa_pkg in mesa-filesystem mesa-dri-drivers mesa-libEGL mesa-libGL mesa-libgbm mesa-vulkan-drivers \
-        mesa-filesystem.i686 mesa-dri-drivers.i686 mesa-libEGL.i686 mesa-libgbm.i686; do
-        mesa_vendor="$(rpm -q --qf '%{VENDOR}\n' "$mesa_pkg" 2>/dev/null | sort -u || true)"
-        if [[ "$mesa_vendor" == "Terra" ]]; then
-            pass "package $mesa_pkg is from Terra"
-        else
-            fail "package $mesa_pkg is from '${mesa_vendor:-unknown}', expected Terra"
-        fi
-    done
+    # The graphics stack must survive the whole build: Mesa (Fedora's is
+    # excluded) must still be one build, x86_64 and i686, next to the NVIDIA
+    # driver in the published image.
+    verify_mesa_stack
 
     if [[ -n "$(find /usr/lib/modules -name 'nvidia.ko*' -print -quit 2>/dev/null)" ]]; then
         pass "nvidia kmod present"
