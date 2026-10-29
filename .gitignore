@@ -22,3 +22,4 @@ Thumbs.db
 cosign.key
 *.key
 security-hardening.txt
+lynis.log

@@ -1,0 +1,10 @@
+[Unit]
+Description=Halcyon: sync /etc/gshadow with /etc/group
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/halcyon-shadow-sync
+
+[Install]
+WantedBy=multi-user.target

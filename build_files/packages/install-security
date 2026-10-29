@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+# Read package list from packages.json
+PACKAGES_JSON="/ctx/packages.json"
+if [[ ! -f "$PACKAGES_JSON" ]]; then
+    echo "ERROR: packages.json not found at $PACKAGES_JSON" >&2
+    exit 1
+fi
+
+mapfile -t security_packages < <(jq -r '."security".packages[]' "$PACKAGES_JSON")
+
+dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y install "${security_packages[@]}"

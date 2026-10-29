@@ -1,0 +1,10 @@
+[Unit]
+Description=Halcyon: ensure hostname resolves in /etc/hosts
+After=local-fs.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/halcyon-hosts-entry
+
+[Install]
+WantedBy=multi-user.target

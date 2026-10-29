@@ -1,0 +1,23 @@
+# Halcyon security preset: services a single-user desktop does not need stay
+# off across package transactions. Applied by systemd preset on installs; the
+# halcyon-security-posture unit re-enforces the same posture at boot.
+
+# sssd is unused (authselect profile is 'local')
+disable sssd.service
+disable sssd-kcm.service
+disable sssd-kcm.socket
+
+# No mobile broadband on this desktop
+disable ModemManager.service
+
+# No iSCSI
+disable iscsid.service
+disable iscsid.socket
+disable iscsiuio.service
+disable iscsiuio.socket
+
+# PipeWire owns sound state; alsactl restore is vestigial
+disable alsa-state.service
+
+# fwupd's P2P metadata distributor; fwupd works without it
+disable passim.service

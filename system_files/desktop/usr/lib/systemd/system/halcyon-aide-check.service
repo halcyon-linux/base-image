@@ -1,0 +1,11 @@
+[Unit]
+Description=Halcyon: check file integrity against the AIDE baseline
+After=local-fs.target
+# Nothing to compare against until halcyon-aide-init.service has run.
+ConditionPathExists=/var/lib/aide/aide.db.gz
+
+[Service]
+Type=oneshot
+Nice=19
+IOSchedulingClass=idle
+ExecStart=/usr/bin/aide --check

@@ -23,6 +23,12 @@ system_services=(
     nix.mount
     nix-daemon.socket
     nix-daemon.service
+    fail2ban.service
+    halcyon-hosts-entry.service
+    halcyon-shadow-sync.service
+    halcyon-security-posture.service
+    halcyon-aide-init.service
+    halcyon-aide-check.timer
 )
 
 global_services=(

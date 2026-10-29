@@ -14,6 +14,7 @@ justfiles=(
     "83-bazzite-audio.just"
     "87-bazzite-framegen.just"
     "maintenance.just"
+    "90-security.just"
 )
 
 for jf in "${justfiles[@]}"; do

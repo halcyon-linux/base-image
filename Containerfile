@@ -211,6 +211,16 @@ RUN --mount=type=cache,dst=/var/cache \
     /ctx/finalization/verify media && \
     /ctx/shared/cleanup
 
+# Install security tooling: AIDE (file integrity), python3-systemd (fail2ban
+# journal backend).
+RUN --mount=type=cache,dst=/var/cache \
+    --mount=type=cache,dst=/var/log \
+    --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=tmpfs,dst=/tmp \
+    /ctx/packages/install-security && \
+    /ctx/finalization/verify security && \
+    /ctx/shared/cleanup
+
 # Cleanup & Finalize
 # Copy final system file overrides into root
 COPY system_files/overrides/ /
@@ -232,6 +242,12 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     /ctx/system/configure-system-services && \
     /ctx/finalization/verify services
+
+# Apply the Lynis-audit hardening: cron permissions, pam_faillock activation,
+# service posture, and the group/shadow consistency gate.
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    /ctx/system/configure-security-hardening && \
+    /ctx/finalization/verify security-hardening
 
 # Show the GRUB menu long enough to pick a deployment or edit kernel arguments.
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \

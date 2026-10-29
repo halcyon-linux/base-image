@@ -1,0 +1,12 @@
+[Unit]
+Description=Halcyon: SELinux socket policies and service posture
+After=local-fs.target
+# semodule needs a running SELinux policy; skip cleanly when it is not loaded.
+ConditionSecurity=selinux
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/halcyon-security-posture
+
+[Install]
+WantedBy=multi-user.target

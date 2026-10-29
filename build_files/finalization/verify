@@ -12,7 +12,7 @@ set -Eeuo pipefail
 
 group="${1:-}"
 case "$group" in
-brew | kernel | repos | cli-tools | utils | removals | common-packages | gaming | fonts | base-pkgs | hyprpm | applications | texlive-packages | nix | picker | media | desktop-integration | justfiles | services | grub | integration-files | image-info | initramfs | finalize | nvidia-config | nvidia | system-policy | nvidia-finalize | packages | final) ;;
+brew | kernel | repos | cli-tools | utils | removals | common-packages | gaming | fonts | base-pkgs | hyprpm | applications | texlive-packages | nix | picker | media | desktop-integration | justfiles | services | grub | integration-files | image-info | initramfs | finalize | nvidia-config | nvidia | system-policy | nvidia-finalize | security | security-hardening | packages | final) ;;
 *)
     printf 'Usage: %s <stage>\n' "$0" >&2
     exit 2
@@ -528,6 +528,7 @@ verify_applications() {
         /usr/bin/firefox \
         /usr/bin/google-chrome \
         /usr/bin/microsoft-edge \
+        /usr/bin/qutebrowser \
         /usr/bin/vivaldi; do
         if [[ -x "$app_bin" ]]; then
             pass "application binary present and executable: $app_bin"
@@ -1001,6 +1002,280 @@ verify_packages() {
     verify_applications
     verify_texlive_packages
     verify_nix
+    verify_security
+}
+
+verify_security() {
+    require_rpms_from_json "security" "packages"
+
+    # wazuh-agent installs entirely under /var/ossec, which finalize wipes and
+    # bootc never refreshes on updates, so it cannot work in this image.
+    forbid_rpms wazuh-agent
+    if [[ -e /etc/yum.repos.d/wazuh.repo ]]; then
+        fail "wazuh vendor repository must not be present"
+    else
+        pass "no wazuh vendor repository"
+    fi
+}
+
+verify_security_hardening() {
+    # Banners (Lynis BANN-7126/7130): each file needs >=5 legal keyword matches.
+    local banner_file keyword count
+    for banner_file in /etc/issue /etc/issue.net; do
+        count=0
+        for keyword in warning authori prohibited subject monitor log report prosecute law; do
+            if grep -qi -- "$keyword" "$banner_file" 2>/dev/null; then
+                count=$((count + 1))
+            fi
+        done
+        if ((count >= 5)); then
+            pass "legal banner present in $banner_file ($count legal keywords)"
+        else
+            fail "legal banner missing or weak in $banner_file ($count/5 legal keywords)"
+        fi
+    done
+
+    # Fail2ban (Lynis TOOL-5104): the sshd jail must exist in the effective config.
+    if [[ -f /etc/fail2ban/jail.d/10-halcyon-sshd.conf ]] && \
+       grep -q '^\[sshd\]' /etc/fail2ban/jail.d/10-halcyon-sshd.conf && \
+       grep -qiE '^enabled[[:space:]]*=[[:space:]]*true' /etc/fail2ban/jail.d/10-halcyon-sshd.conf; then
+        pass "fail2ban sshd jail enabled in jail.d"
+    else
+        fail "fail2ban sshd jail missing or disabled"
+    fi
+    if fail2ban-client -d 2>/dev/null | tr -d "[]'" | awk -F, '$1=="add" { print $2 }' | tr -d ' ' | grep -qx 'sshd'; then
+        pass "fail2ban effective configuration contains the sshd jail"
+    else
+        fail "fail2ban effective configuration has no sshd jail"
+    fi
+
+    # Uncommon network protocols (Lynis NETW-3200) disabled via modprobe.
+    local proto
+    for proto in dccp sctp rds tipc; do
+        if grep -qE "^install[[:space:]]+${proto}[[:space:]]+/bin/true$" /etc/modprobe.d/halcyon-hardening.conf 2>/dev/null; then
+            pass "uncommon network protocol disabled: $proto"
+        else
+            fail "uncommon network protocol not disabled: $proto"
+        fi
+    done
+
+    # Cron permissions (Lynis FILE-7524): 0600 files, 0700 directories.
+    local path mode
+    for path in /etc/crontab /etc/cron.deny; do
+        mode=$(stat -c '%a' "$path" 2>/dev/null || true)
+        if [[ "$mode" == "600" ]]; then
+            pass "cron file permissions: $path is 0600"
+        else
+            fail "cron file permissions wrong: $path is ${mode:-missing}, expected 0600"
+        fi
+    done
+    for path in /etc/cron.d /etc/cron.daily /etc/cron.hourly /etc/cron.weekly /etc/cron.monthly; do
+        mode=$(stat -c '%a' "$path" 2>/dev/null || true)
+        if [[ "$mode" == "700" ]]; then
+            pass "cron directory permissions: $path is 0700"
+        else
+            fail "cron directory permissions wrong: $path is ${mode:-missing}, expected 0700"
+        fi
+    done
+    if grep -q '^z /etc/crontab' /usr/lib/tmpfiles.d/halcyon-hardening.conf 2>/dev/null; then
+        pass "tmpfiles rule re-enforces cron permissions at boot"
+    else
+        fail "tmpfiles cron permission rule missing"
+    fi
+
+    # Security units enabled by configure-system-services.
+    local unit
+    for unit in \
+        /etc/systemd/system/multi-user.target.wants/fail2ban.service \
+        /etc/systemd/system/multi-user.target.wants/halcyon-hosts-entry.service \
+        /etc/systemd/system/multi-user.target.wants/halcyon-shadow-sync.service \
+        /etc/systemd/system/multi-user.target.wants/halcyon-security-posture.service \
+        /etc/systemd/system/multi-user.target.wants/halcyon-aide-init.service \
+        /etc/systemd/system/timers.target.wants/halcyon-aide-check.timer; do
+        if [[ -e "$unit" ]]; then
+            pass "security unit enabled: $unit"
+        else
+            fail "security unit not enabled: $unit"
+        fi
+    done
+
+    # faillock.conf is inert unless pam_faillock is in the PAM stack, which the
+    # authselect `local` profile only does with the with-faillock feature.
+    if grep -q pam_faillock /etc/pam.d/system-auth 2>/dev/null && \
+       grep -q pam_faillock /etc/pam.d/password-auth 2>/dev/null; then
+        pass "pam_faillock active in system-auth and password-auth"
+    else
+        fail "pam_faillock missing from the PAM stack; /etc/security/faillock.conf would be ignored"
+    fi
+    local lock_directive
+    for lock_directive in 'deny = 10' 'unlock_time = 900' 'even_deny_root'; do
+        if grep -qxF "$lock_directive" /etc/security/faillock.conf 2>/dev/null; then
+            pass "faillock policy present: $lock_directive"
+        else
+            fail "faillock policy missing: $lock_directive"
+        fi
+    done
+
+    # Password policy follows NIST SP 800-63B-4: long minimum, no composition rules.
+    local pwq_directive
+    for pwq_directive in 'minlen = 15' 'dcredit = 0' 'ucredit = 0' 'lcredit = 0' 'ocredit = 0' 'dictcheck = 1'; do
+        if grep -qxF "$pwq_directive" /etc/security/pwquality.conf 2>/dev/null; then
+            pass "pwquality policy present: $pwq_directive"
+        else
+            fail "pwquality policy missing: $pwq_directive"
+        fi
+    done
+
+    # wazuh-agent lives entirely under /var/ossec, which finalize wipes.
+    if [[ -e /etc/systemd/system/multi-user.target.wants/wazuh-agent.service ]]; then
+        fail "wazuh-agent must not be enabled in the shipped image"
+    else
+        pass "wazuh-agent not enabled"
+    fi
+
+    # Group files (Lynis AUTH-9216): grpck must be silent.
+    local grp_output
+    grp_output=$(grpck -r 2>&1 || true)
+    if [[ -z "$grp_output" ]]; then
+        pass "grpck reports no group file inconsistencies"
+    else
+        fail "grpck reports group file inconsistencies: $grp_output"
+    fi
+
+    # secureblue-derived hardening artifacts.
+    local sb_file
+    for sb_file in \
+        /usr/lib/sysctl.d/55-halcyon-hardening.conf \
+        /usr/lib/bootc/kargs.d/10-halcyon-hardening.toml \
+        /usr/lib/modprobe.d/halcyon-blocklist.conf \
+        /usr/lib/modprobe.d/halcyon-framebuffer.conf \
+        /etc/security/faillock.conf \
+        /etc/security/pwquality.conf \
+        /etc/security/limits.d/60-disable-coredump.conf \
+        /etc/chrony.conf \
+        /etc/firewalld/zones/FedoraWorkstation.xml \
+        /usr/lib/NetworkManager/conf.d/40-halcyon.conf \
+        /usr/lib/systemd/system/NetworkManager.service.d/40-halcyon-killmode.conf \
+        /usr/lib/systemd/system/NetworkManager.service.d/40-halcyon-hardening.conf \
+        /usr/lib/systemd/system-preset/35-halcyon-security.preset; do
+        if [[ -f "$sb_file" ]]; then
+            pass "hardening file present: $sb_file"
+        else
+            fail "hardening file missing: $sb_file"
+        fi
+    done
+
+    # Spot-check the module blocklist against secureblue's attack-surface set.
+    local blocked_module
+    for blocked_module in rxrpc esp4 xfrm_user af_key ksmbd firewire-core nfc vivid netconsole floppy; do
+        if grep -qE "^install[[:space:]]+${blocked_module}[[:space:]]+/bin/false$" /usr/lib/modprobe.d/halcyon-blocklist.conf 2>/dev/null; then
+            pass "kernel module blocked: $blocked_module"
+        else
+            fail "kernel module not blocked: $blocked_module"
+        fi
+    done
+
+    # NetworkManager sandboxing: the minimal drop-in must be present, and the
+    # directives that break NetworkManager must not creep in. Directives are
+    # read with comments stripped; the file documents the forbidden ones.
+    local nm_dropin=/usr/lib/systemd/system/NetworkManager.service.d/40-halcyon-hardening.conf nm_directive
+    for nm_directive in LockPersonality=true RestrictRealtime=true RestrictSUIDSGID=true RestrictNamespaces=true ProtectControlGroups=true SystemCallArchitectures=native; do
+        if grep -qxF "$nm_directive" "$nm_dropin" 2>/dev/null; then
+            pass "NetworkManager hardening directive present: $nm_directive"
+        else
+            fail "NetworkManager hardening directive missing: $nm_directive"
+        fi
+    done
+    if grep -v '^[[:space:]]*#' "$nm_dropin" 2>/dev/null | grep -qE '^(ProtectKernelTunables|ProtectKernelModules|ProtectSystem|ProtectClock|ProtectHostname|ProtectProc|ProcSubset|MemoryDenyWriteExecute|NoNewPrivileges|DevicePolicy|DeviceAllow|PrivateDevices|PrivateTmp|PrivateNetwork|PrivateUsers|InaccessiblePaths|CapabilityBoundingSet|SystemCallFilter)='; then
+        fail "NetworkManager hardening drop-in sets a directive known to break NetworkManager"
+    else
+        pass "NetworkManager hardening drop-in avoids directives that break it"
+    fi
+    if grep -v '^[[:space:]]*#' "$nm_dropin" 2>/dev/null | grep -E '^RestrictAddressFamilies=' | grep -q 'AF_NETLINK' && \
+       grep -v '^[[:space:]]*#' "$nm_dropin" | grep -E '^RestrictAddressFamilies=' | grep -q 'AF_PACKET'; then
+        pass "NetworkManager keeps AF_NETLINK and AF_PACKET"
+    else
+        fail "NetworkManager RestrictAddressFamilies must include AF_NETLINK and AF_PACKET"
+    fi
+
+    # SELinux must stay enforcing with the targeted policy (it is what confines
+    # NetworkManager_t), and no kernel argument may weaken it.
+    if grep -qxF 'SELINUX=enforcing' /etc/selinux/config 2>/dev/null && \
+       grep -qxF 'SELINUXTYPE=targeted' /etc/selinux/config 2>/dev/null; then
+        pass "SELinux is enforcing with the targeted policy"
+    else
+        fail "/etc/selinux/config must set SELINUX=enforcing and SELINUXTYPE=targeted"
+    fi
+    if cat /usr/lib/bootc/kargs.d/*.toml 2>/dev/null | grep -v '^[[:space:]]*#' | grep -qE 'selinux=0|enforcing=0'; then
+        fail "a bootc kernel argument disables SELinux"
+    else
+        pass "no bootc kernel argument disables SELinux"
+    fi
+
+    # Modules that must stay loadable: cifs.ko depends on cifs_md4, the Intel
+    # ice NIC driver and the WWAN stack depend on the gnss core, and UDF is the
+    # filesystem of DVD/Blu-ray data discs.
+    for blocked_module in cifs_md4 gnss udf; do
+        if grep -qE "^[[:space:]]*(install|blacklist)[[:space:]]+${blocked_module}([[:space:]]|$)" /usr/lib/modprobe.d/halcyon-blocklist.conf 2>/dev/null; then
+            fail "kernel module must not be blocked: $blocked_module"
+        else
+            pass "kernel module stays loadable: $blocked_module"
+        fi
+    done
+
+    # sysctl guards: values that were deliberately relaxed from secureblue.
+    local sysctl_conf=/usr/lib/sysctl.d/55-halcyon-hardening.conf
+    if grep -qxF 'net.ipv4.conf.all.rp_filter = 2' "$sysctl_conf" 2>/dev/null && \
+       grep -qxF 'net.ipv4.conf.default.rp_filter = 2' "$sysctl_conf" 2>/dev/null; then
+        pass "rp_filter is loose (2) for tunnel and bridge interfaces"
+    else
+        fail "rp_filter must stay loose (2): strict mode breaks Tailscale/libvirt/container routing"
+    fi
+    if grep -qE '^[[:space:]]*(fs\.binfmt_misc\.status|net\.ipv4\.tcp_timestamps)[[:space:]]*=' "$sysctl_conf" 2>/dev/null; then
+        fail "sysctl hardening must not set fs.binfmt_misc.status or net.ipv4.tcp_timestamps"
+    else
+        pass "binfmt_misc and tcp_timestamps left at kernel defaults"
+    fi
+
+    if grep -q 'hash_pointers=always' /usr/lib/bootc/kargs.d/10-halcyon-hardening.toml 2>/dev/null && \
+       grep -q 'page_alloc.shuffle=1' /usr/lib/bootc/kargs.d/10-halcyon-hardening.toml 2>/dev/null && \
+       ! grep -v '^[[:space:]]*#' /usr/lib/bootc/kargs.d/10-halcyon-hardening.toml | grep -qE 'rd\.shell=0|rd\.emergency=halt|loglevel=0'; then
+        pass "bootc hardening kernel arguments present"
+    else
+        fail "bootc hardening kernel arguments missing"
+    fi
+
+    # SELinux socket-class restrictions (secureblue), installed at runtime by
+    # halcyon-security-posture.
+    local cil_policy
+    for cil_policy in secureblue_socket_utils secureblue_audit_sockets secureblue_deny_alg_sockets secureblue_deny_ipsec_sockets secureblue_deny_obscure_sockets secureblue_deny_packet_radio_sockets; do
+        if [[ -f "/usr/share/halcyon/selinux/${cil_policy}.cil" ]]; then
+            pass "SELinux socket policy shipped: ${cil_policy}"
+        else
+            fail "SELinux socket policy missing: ${cil_policy}"
+        fi
+    done
+
+    # Service posture: passim must be masked, sssd must not be enabled.
+    if [[ "$(readlink -f /etc/systemd/system/passim.service 2>/dev/null)" == "/dev/null" ]]; then
+        pass "passim.service masked"
+    else
+        fail "passim.service is not masked"
+    fi
+    if [[ ! -e /etc/systemd/system/multi-user.target.wants/sssd.service ]]; then
+        pass "sssd.service disabled"
+    else
+        fail "sssd.service is still enabled"
+    fi
+
+    # ujust onboarding recipes.
+    if [[ -f /usr/share/ublue-os/just/90-security.just ]] && \
+       grep -q '^aide-check' /usr/share/ublue-os/just/90-security.just && \
+       grep -q '^aide-rebaseline' /usr/share/ublue-os/just/90-security.just; then
+        pass "security ujust recipes present (aide actions)"
+    else
+        fail "security ujust recipes missing or incomplete"
+    fi
 }
 
 verify_final() {
@@ -1028,7 +1303,9 @@ verify_final() {
         fedora-multimedia
 
     # Negative guards: fonts and waydroid must never reach the published image.
+    # wazuh-agent installs entirely under /var/ossec, which finalize wipes.
     forbid_rpms \
+        wazuh-agent \
         nerd-fonts fira-code-fonts lato-fonts google-noto-sans-cjk-fonts twitter-twemoji-fonts \
         google-roboto-fonts google-roboto-mono-fonts \
         waydroid waydroid-nvidia obs-studio-plugin-vkcapture-hook-libs \
@@ -1327,6 +1604,49 @@ verify_final() {
         fail "system-wide default github.com SSH identity missing or wrong key"
     fi
 
+    # sshd hardening drop-in (Lynis SSH-7408). The 10- prefix matters: sshd
+    # keeps the first value seen per keyword, so it must sort before Fedora's
+    # 50-redhat.conf. Exact-line matches so a weakened value (e.g. MaxAuthTries 30) fails.
+    local sshd_directive sshd_conf=/etc/ssh/sshd_config.d/10-halcyon-hardening.conf
+    if [[ -f "$sshd_conf" ]]; then
+        pass "sshd hardening drop-in present: $sshd_conf"
+        for sshd_directive in \
+            'PermitRootLogin no' \
+            'PasswordAuthentication no' \
+            'KbdInteractiveAuthentication no' \
+            'PermitEmptyPasswords no' \
+            'MaxAuthTries 3' \
+            'LoginGraceTime 30' \
+            'MaxSessions 2' \
+            'MaxStartups 10:30:60' \
+            'Banner /etc/issue.net' \
+            'AllowAgentForwarding no' \
+            'AllowTcpForwarding no' \
+            'X11Forwarding no' \
+            'TCPKeepAlive no' \
+            'ClientAliveInterval 300' \
+            'ClientAliveCountMax 2' \
+            'LogLevel VERBOSE'; do
+            if grep -qxF "$sshd_directive" "$sshd_conf" 2>/dev/null; then
+                pass "sshd hardening directive present: $sshd_directive"
+            else
+                fail "sshd hardening directive missing: $sshd_directive"
+            fi
+        done
+    else
+        fail "sshd hardening drop-in missing: $sshd_conf"
+    fi
+
+    # AUTH-9216 insurance at the last gate: account relocation and any NVIDIA
+    # transaction scriptlets run after the security-hardening stage.
+    local grp_final
+    grp_final=$(grpck -r 2>&1 || true)
+    if [[ -z "$grp_final" ]]; then
+        pass "grpck reports no group file inconsistencies (final)"
+    else
+        fail "grpck reports group file inconsistencies (final): $grp_final"
+    fi
+
     if grep -qF -- '--no-tty --force' /usr/lib/systemd/user/chezmoi-update.service 2>/dev/null; then
         pass "chezmoi-update targets non-interactive update with --force"
     else
@@ -1417,6 +1737,8 @@ nvidia-config) verify_nvidia_config ;;
 nvidia) verify_nvidia ;;
 system-policy) verify_system_policy ;;
 nvidia-finalize) verify_nvidia_finalize ;;
+security) verify_security ;;
+security-hardening) verify_security_hardening ;;
 packages) verify_packages ;;
 final) verify_final ;;
 esac

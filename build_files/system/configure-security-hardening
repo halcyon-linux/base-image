@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+# FILE-7524: cron files 0600, spool directories 0700. A tmpfiles.d rule
+# re-enforces these at every boot; set them here so the shipped image and the
+# build-time verification see the final state.
+chmod 0600 /etc/crontab /etc/cron.deny
+chmod 0700 /etc/cron.d /etc/cron.daily /etc/cron.hourly /etc/cron.weekly /etc/cron.monthly
+
+# /etc/security/faillock.conf is only read by pam_faillock, and the base
+# authselect profile ('local') does not load it by default. Enable the
+# feature so the lockout policy actually applies to login, sudo and su.
+authselect enable-feature with-faillock
+if ! grep -q pam_faillock /etc/pam.d/system-auth; then
+    echo "ERROR: pam_faillock is not active in /etc/pam.d/system-auth" >&2
+    exit 1
+fi
+
+# secureblue-derived service posture (see 35-halcyon-security.preset): services
+# a single-user desktop does not need stay off; the halcyon-security-posture
+# unit re-enforces the same posture at boot on deployed systems.
+systemctl disable \
+    sssd.service sssd-kcm.service sssd-kcm.socket \
+    ModemManager.service \
+    iscsid.service iscsid.socket iscsiuio.service iscsiuio.socket \
+    alsa-state.service 2>/dev/null || true
+# passim is D-Bus-activatable; only a mask keeps it from respawning (fwupd
+# degrades gracefully without it).
+systemctl mask passim.service 2>/dev/null || true
+
+# AUTH-9216: /etc/group and /etc/gshadow must pass grpck silently. Package
+# scriptlets keep the pair consistent, but repair rather than trust that; the
+# runtime unit re-runs the same sync on deployed systems.
+/usr/bin/halcyon-shadow-sync
+grp_output=$(grpck -r 2>&1 || true)
+if [[ -n "$grp_output" ]]; then
+    printf 'ERROR: grpck reports group file inconsistencies:\n%s\n' "$grp_output" >&2
+    exit 1
+fi

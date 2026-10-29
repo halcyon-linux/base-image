@@ -1,0 +1,37 @@
+# SPDX-License-Identifier: CC0-1.0
+# Halcyon kernel arguments, curated from secureblue's
+# files/system/usr/lib/bootc/kargs.d/10-secureblue.toml (Apache-2.0).
+#
+# Applied by bootc on (re)deployment; ignored by non-bootc boot paths.
+#
+# secureblue arguments already effective without a karg (checked against the
+# ogc kernel config): init_on_alloc=1 (CONFIG_INIT_ON_ALLOC_DEFAULT_ON=y),
+# randomize_kstack_offset=on (CONFIG_RANDOMIZE_KSTACK_OFFSET_DEFAULT=y) and
+# slab_nomerge (CONFIG_SLAB_MERGE_DEFAULT is not set).
+#
+# secureblue arguments intentionally NOT adopted:
+# - mitigations=auto,nosmt, l1tf/l1d/ssbd/spec_store_bypass/pti overrides,
+#   kvm-* mitigation forcing, kvm-amd.nested=0, kvm-intel.nested=0:
+#   measurable CPU performance cost; mitigations=auto already applies the
+#   appropriate set adaptively.
+# - lockdown=confidentiality, module.sig_enforce=1: would break loading of the
+#   locally-built ogc kernel modules and the NVIDIA akmods.
+# - init_on_free=1, slab_debug=FZ, slab_nomerge: allocator performance cost.
+# - iommu=force, iommu.strict=1, intel_iommu=on, amdgpu.iommu_perfopt=0:
+#   DMA translation overhead on the discrete GPU and NVMe.
+# - vsyscall=none, vdso32=0, ia32_emulation=0: break legacy 32-bit games under
+#   Proton/Wine.
+# - rd.shell=0, rd.emergency=halt, loglevel=0: they remove the initramfs
+#   recovery shell and all boot messages, so a failed boot (for example after a
+#   kernel or NVIDIA module change) could not be diagnosed or repaired. The
+#   GRUB menu is not password protected, so they would not stop a local
+#   attacker anyway.
+# - proc_mem.force_override=ptrace: belongs to secureblue's "Filling known
+#   security holes" set, which is out of scope for this image.
+kargs = [
+  "hash_pointers=always",
+  "page_alloc.shuffle=1",
+  "random.trust_bootloader=off",
+  "random.trust_cpu=off",
+  "systemd.ssh_auto=no",
+]

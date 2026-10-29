@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Halcyon: ensure the system hostname resolves via /etc/hosts (Lynis NAME-4404).
+# Idempotent: no-op once a matching entry exists. Mirrors Lynis's own check — a
+# line that is not a comment/empty/localhost-prefixed and contains the hostname.
+# The entry deliberately uses 127.0.1.1 rather than the localhost lines, which
+# NAME-4406 forbids mapping the hostname onto.
+set -euo pipefail
+
+host=$(hostname)
+[[ -n "$host" ]] || exit 0
+
+if grep -Ev '^(#|$|::1[[:space:]]|localhost)' /etc/hosts | grep -qiF -- "$host"; then
+    exit 0
+fi
+
+printf '127.0.1.1\t%s\n' "$host" >> /etc/hosts

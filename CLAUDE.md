@@ -32,7 +32,7 @@ A build needs `podman`, `just`, `git`, `skopeo`, `jq` and network. Local builds 
 5. Key rotation is atomic: `cosign.pub`, the `SIGNING_SECRET` secret and the README fingerprint change together. The human owner changes the secret.
 6. Never hardcode a kernel version. `just_scripts/resolve-akmods` picks the newest tag whose akmods-extra ships `nct6687d`. Add no other akmods-extra kmods without an explicit decision.
 7. The Fedora release lives in three places: `Containerfile` (`FEDORA_VERSION`), `.github/workflows/build.yml` (`FEDORA_VERSION`) and `Justfile` (`latest`). It also drives the akmods tag prefix and the `cicpoffs-fc<N>.rpm` asset name.
-8. Do not reintroduce deliberate removals without updating `verify` and stating why. Enforced: Waydroid, fish, greetd, `zsh-autosuggestions`, `zsh-syntax-highlighting`, `nerd-fonts` (Terra), Steam Deck/handheld packages, `pinentry-qt`, `nvidia-gpu-firmware`, `gamemode`. Intended but not enforced: `cockpit-ws` and bundled Flatpak apps.
+8. Do not reintroduce deliberate removals without updating `verify` and stating why. Enforced: Waydroid, fish, greetd, `zsh-autosuggestions`, `zsh-syntax-highlighting`, `nerd-fonts` (Terra), Steam Deck/handheld packages, `pinentry-qt`, `nvidia-gpu-firmware`, `gamemode`, `wazuh-agent` (installs only under `/var/ossec`, which `finalize` wipes). Intended but not enforced: `cockpit-ws` and bundled Flatpak apps.
 9. Persistent static content goes under `/usr`; `/etc` holds defaults only; nothing static under `/var` (`finalize` strips it).
 10. Do not claim success you did not observe. Never say "the build passes" without a build or CI run.
 11. Do not run `bootc`, `rpm-ostree` or `podman system reset`, and do not deploy to a real machine, as part of a code change.

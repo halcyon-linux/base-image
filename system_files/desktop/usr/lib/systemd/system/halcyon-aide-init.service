@@ -1,0 +1,15 @@
+[Unit]
+Description=Halcyon: create the AIDE baseline database
+# tmpfiles creates /var/lib/aide; run the baseline once that exists.
+After=systemd-tmpfiles-setup.service
+ConditionPathExists=!/var/lib/aide/aide.db.gz
+
+[Service]
+Type=oneshot
+Nice=19
+IOSchedulingClass=idle
+ExecStart=/usr/bin/aide --init
+ExecStart=/usr/bin/mv /var/lib/aide/aide.db.new.gz /var/lib/aide/aide.db.gz
+
+[Install]
+WantedBy=multi-user.target

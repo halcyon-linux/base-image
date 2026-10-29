@@ -391,7 +391,13 @@
       "libXinerama",
       "neovim",
       "pymol",
+      "python3-pygments",
       "python3-pyqt6",
+      "python3-pyqt6-webengine",
+      "qt6-qtwayland",
+      "qt6-qtwebengine",
+      "qt6-qtwebengine-devtools",
+      "qutebrowser",
       "xournalpp"
     ],
     "external_repos": [
@@ -487,6 +493,18 @@
     "packages": [
       "nix",
       "nix-daemon"
+    ]
+  },
+  "security": {
+    "description": "Security tooling: AIDE file integrity, fail2ban journal backend",
+    "copr": null,
+    "repos": [
+      "fedora",
+      "updates"
+    ],
+    "packages": [
+      "aide",
+      "python3-systemd"
     ]
   },
   "kernel": {
