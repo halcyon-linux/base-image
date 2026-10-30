@@ -1227,7 +1227,7 @@ get-logs:
 toggle-user-motd:
     @/usr/bin/ublue-motd toggle
 
-# Manage chezmoi dotfiles from aahsnr-configs/dotfiles. Options: status | sync | diff | edit
+# Manage chezmoi dotfiles from aahsnr-configs/dotfiles. Options: enable | disable | status | sync | diff | edit
 [group("system")]
 dotfiles ACTION="":
     #!/usr/bin/bash
@@ -1241,7 +1241,9 @@ dotfiles ACTION="":
     fi
 
     if [ "$OPTION" == "help" ]; then
-        echo "Usage: ujust dotfiles <status|sync|diff|edit>"
+        echo "Usage: ujust dotfiles <enable|disable|status|sync|diff|edit>"
+        echo "  enable  - Opt in: clone and force-apply aahsnr-configs/dotfiles, then update daily"
+        echo "  disable - Opt out: stop the automatic init and daily update (files stay)"
         echo "  status - Show dotfiles status and repo location"
         echo "  sync   - Synchronize (pull and apply) dotfiles"
         echo "  diff   - Show diff between repository and home directory"
@@ -1251,10 +1253,28 @@ dotfiles ACTION="":
 
     if [ -z "$OPTION" ]; then
         echo -e "${bold}Chezmoi Dotfiles Management (aahsnr-configs/dotfiles)${normal}"
-        OPTION=$(ugum choose "status" "sync" "diff" "edit" "cancel")
+        OPTION=$(ugum choose "enable" "disable" "status" "sync" "diff" "edit" "cancel")
     fi
 
+    flag="$HOME/.config/halcyon/chezmoi-enable"
     case "${OPTION,,}" in
+        enable)
+            echo -e "${yellow}${bold}This force-applies aahsnr-configs/dotfiles over files in $HOME.${normal}"
+            if [ "$(ugum choose "Continue" "Cancel")" != "Continue" ]; then
+                echo "No changes made."
+                exit 0
+            fi
+            mkdir -p "$(dirname "$flag")"
+            touch "$flag"
+            systemctl --user start chezmoi-init.service
+            systemctl --user restart chezmoi-update.timer
+            echo -e "${green}Dotfiles enabled; daily updates are scheduled.${normal}"
+            ;;
+        disable)
+            rm -f "$flag"
+            systemctl --user stop chezmoi-update.timer 2>/dev/null || true
+            echo -e "${green}Automatic dotfiles init and updates disabled. Managed files were left in place.${normal}"
+            ;;
         status)
             echo -e "${bold}Checking chezmoi status...${normal}"
             chezmoi status || true

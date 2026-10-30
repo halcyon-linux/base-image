@@ -1,0 +1,62 @@
+#!/usr/bin/bash
+# Print the newest upstream candidate for every row of the pinned download
+# manifest, with its sha256, for review. Edits nothing: copy a reviewed row
+# into build_files/downloads/manifest.tsv by hand.
+#
+# Release assets: newest release of the repo, same asset name.
+# Raw files: newest commit on the default branch that touched the file.
+
+set -Eeuo pipefail
+
+project_root=${project_root:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
+manifest="${project_root}/build_files/downloads/manifest.tsv"
+
+auth=()
+if [[ -n ${GITHUB_TOKEN:-} ]]; then
+    auth=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
+fi
+
+api() {
+    curl --proto =https --fail -sSL "${auth[@]}" "https://api.github.com/$1"
+}
+
+hash_url() {
+    curl --proto =https --proto-redir =https --fail -sSL "$1" | sha256sum | cut -d' ' -f1
+}
+
+re_release='^https://github\.com/([^/]+)/([^/]+)/releases/download/([^/]+)/(.+)$'
+re_raw='^https://raw\.githubusercontent\.com/([^/]+)/([^/]+)/([0-9a-f]{40})/(.+)$'
+
+while IFS=$'\t' read -r name url sha256 dest; do
+    [[ -z "$name" || "$name" == \#* ]] && continue
+    if [[ $url =~ $re_release ]]; then
+        owner=${BASH_REMATCH[1]} repo=${BASH_REMATCH[2]} pinned=${BASH_REMATCH[3]} asset=${BASH_REMATCH[4]}
+        latest=$(api "repos/${owner}/${repo}/releases/latest" | jq -r '.tag_name')
+        new_url="https://github.com/${owner}/${repo}/releases/download/${latest}/${asset}"
+    elif [[ $url =~ $re_raw ]]; then
+        owner=${BASH_REMATCH[1]} repo=${BASH_REMATCH[2]} pinned=${BASH_REMATCH[3]} path=${BASH_REMATCH[4]}
+        latest=$(api "repos/${owner}/${repo}/commits?path=${path}&per_page=1" | jq -r '.[0].sha')
+        new_url="https://raw.githubusercontent.com/${owner}/${repo}/${latest}/${path}"
+    else
+        printf '%s: unrecognised URL form, check by hand: %s\n' "$name" "$url" >&2
+        continue
+    fi
+
+    if [[ "$latest" == "$pinned" ]]; then
+        new_sha=$(hash_url "$url")
+        if [[ "$new_sha" == "$sha256" ]]; then
+            printf '%s: up to date (%s)\n' "$name" "$pinned"
+        else
+            printf '%s: same ref %s but content changed (%s); upstream republished, review before bumping\n' \
+                "$name" "$pinned" "$new_sha"
+        fi
+        continue
+    fi
+    new_sha=$(hash_url "$new_url")
+    if [[ "$new_sha" == "$sha256" ]]; then
+        printf '%s: content unchanged at %s; no bump needed\n' "$name" "$latest"
+        continue
+    fi
+    printf '%s: %s -> %s; candidate row:\n' "$name" "$pinned" "$latest"
+    printf '%s\t%s\t%s\t%s\n' "$name" "$new_url" "$new_sha" "$dest"
+done < "$manifest"

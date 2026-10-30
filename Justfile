@@ -40,6 +40,10 @@ just-fix:
 build target="" image="":
     @{{ project_root }}/just_scripts/build-image {{ target }} {{ image }} 
 
+# Print newer candidates (with sha256) for the pinned downloads; edits nothing
+bump-downloads:
+    @{{ project_root }}/just_scripts/bump-downloads
+
 # Run Container
 run-container target="" image="":
     @{{ project_root }}/just_scripts/run-image {{ target }} {{ image }}

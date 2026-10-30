@@ -113,6 +113,7 @@ for ((i=0; i<EXTERNAL_REPOS_COUNT; i++)); do
     repo_name=$(jq -r ".applications.external_repos[$i].name" "$PACKAGES_JSON")
     repo_baseurl=$(jq -r ".applications.external_repos[$i].baseurl" "$PACKAGES_JSON")
     repo_gpgkey=$(jq -r ".applications.external_repos[$i].gpgkey" "$PACKAGES_JSON")
+    mapfile -t repo_fingerprints < <(jq -er ".applications.external_repos[$i].gpg_fingerprints[]" "$PACKAGES_JSON")
     mapfile -t repo_packages < <(jq -r ".applications.external_repos[$i].packages[]" "$PACKAGES_JSON")
 
     echo "Configuring ${repo_name} repository..."
@@ -125,7 +126,14 @@ gpgcheck=1
 gpgkey=${repo_gpgkey}
 EOF
 
-    rpm --import "${repo_gpgkey}" || true
+    # Import the vendor key only after every primary key in it matches the
+    # fingerprints pinned in packages.json; a rotated key fails the build.
+    repo_keyfile=$(mktemp)
+    curl --proto =https --proto-redir =https --fail --retry 3 --retry-delay 2 --retry-max-time 60 \
+        -sSL -o "$repo_keyfile" "$repo_gpgkey"
+    /ctx/shared/check-gpg-fingerprints "$repo_keyfile" "${repo_fingerprints[@]}"
+    rpm --import "$repo_keyfile"
+    rm -f "$repo_keyfile"
     ENABLED_REPOS+=("${ext_id}")
 
     echo "Installing ${repo_name} packages..."

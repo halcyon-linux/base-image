@@ -85,6 +85,13 @@ jobs:
       - name: Run repo audit and lint tests
         run: bash tests/test-audit-lint.sh
 
+      # Needed before the build to verify upstream image signatures, and after
+      # it to sign the pushed image.
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: "v3.1.3"
+
       # The image registry name must be lower-case, but GitHub usernames can be capitalized.
       - name: Get lower-case equivalent of the repository owner's username
         id: repo_owner_case
@@ -123,13 +130,28 @@ jobs:
           echo "Generated the following:"
           cat "$GITHUB_OUTPUT"
 
+      # Check the ublue-os signature of every input image (build_files/keys/
+      # ublue-os.pub) and build FROM the verified digests only.
+      - name: Verify upstream image signatures
+        id: upstream
+        run: |
+          set -euo pipefail
+          just_scripts/verify-upstream-images \
+            "${FEDORA_VERSION}" "${{ steps.base.outputs.akmods_tag }}" > upstream.env
+          cat upstream.env
+          if [[ $(grep -c '@sha256:' upstream.env) -ne 5 ]]; then
+            echo "expected 5 verified upstream digests" >&2
+            exit 1
+          fi
+          cat upstream.env >> "$GITHUB_OUTPUT"
+
       - name: Pull images and find versions
         id: labels
         run: |
           set -euo pipefail
 
-          podman pull "${{ steps.base.outputs.base_image }}"
-          skopeo inspect "docker://${{ steps.base.outputs.base_image }}" > source.json
+          podman pull "${{ steps.upstream.outputs.BASE_IMAGE }}"
+          skopeo inspect "docker://${{ steps.upstream.outputs.BASE_IMAGE }}" > source.json
           UPSTREAM_TAG=$(jq -r '.Labels["org.opencontainers.image.version"]' source.json)
           if [ -z "$UPSTREAM_TAG" ] || [ "null" = "$UPSTREAM_TAG" ]; then
             echo "inspected image version must not be empty or null"
@@ -142,16 +164,20 @@ jobs:
           echo "tag=${UPSTREAM_TAG}" >> "$GITHUB_OUTPUT"
           echo "pretty=Stable (F${UPSTREAM_TAG})" >> "$GITHUB_OUTPUT"
 
-          podman pull "ghcr.io/ublue-os/akmods:${{ steps.base.outputs.akmods_tag }}"
-          podman pull "ghcr.io/ublue-os/akmods-extra:${{ steps.base.outputs.akmods_tag }}"
-          podman pull "ghcr.io/ublue-os/akmods-nvidia-open:${{ steps.base.outputs.akmods_tag }}"
+          podman pull "${{ steps.upstream.outputs.AKMODS_REF }}"
+          podman pull "${{ steps.upstream.outputs.AKMODS_EXTRA_REF }}"
+          podman pull "${{ steps.upstream.outputs.AKMODS_NVIDIA_REF }}"
 
       # Generate a file with all the build-args passed to buildah
       - name: Prepare build args file
         run: |
           cat <<EOF > build_args.txt
           FEDORA_VERSION=${FEDORA_VERSION}
-          BASE_IMAGE=${{ steps.base.outputs.base_image }}
+          BASE_IMAGE=${{ steps.upstream.outputs.BASE_IMAGE }}
+          BREW_IMAGE=${{ steps.upstream.outputs.BREW_IMAGE }}
+          AKMODS_REF=${{ steps.upstream.outputs.AKMODS_REF }}
+          AKMODS_EXTRA_REF=${{ steps.upstream.outputs.AKMODS_EXTRA_REF }}
+          AKMODS_NVIDIA_REF=${{ steps.upstream.outputs.AKMODS_NVIDIA_REF }}
           IMAGE_NAME=${IMAGE_NAME}
           IMAGE_VENDOR=${{ steps.repo_owner_case.outputs.lowercase }}
           IMAGE_BRANCH=stable
@@ -362,11 +388,6 @@ jobs:
             done
 
             echo "digest=${digest}" >> "$GITHUB_OUTPUT"
-
-      - name: Install Cosign
-        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
-        with:
-          cosign-release: "v3.1.3"
 
       - name: Sign container image
         if: github.ref == 'refs/heads/containerfile'

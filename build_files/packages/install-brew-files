@@ -32,6 +32,23 @@ find "$source_dir" -type f -printf '/%P\0' > "$file_list"
 cp -a "$source_dir"/. /
 xargs -0 -r -a "$file_list" setfattr -h -n user.component -v homebrew 2>/dev/null || true
 
+# Root shells must not run the Homebrew tree: /home/linuxbrew is owned by the
+# first user, so `brew shellenv` and the sourced completions would let any
+# process running as that user execute code at the next `sudo -i` / `su -`.
+# Upstream (ublue-os/brew) ships these profile.d hooks unguarded.
+brew_root_guard='[ "$(id -u)" -ne 0 ] || return 0 # halcyon: never run user-owned brew as root'
+for profile in /etc/profile.d/brew.sh /etc/profile.d/brew-bash-completion.sh; do
+    if [[ ! -f "$profile" ]]; then
+        printf 'Homebrew profile hook missing: %s\n' "$profile" >&2
+        exit 1
+    fi
+    if head -n 1 "$profile" | grep -q '^#!'; then
+        sed -i "1a ${brew_root_guard}" "$profile"
+    else
+        sed -i "1i ${brew_root_guard}" "$profile"
+    fi
+done
+
 # Final permission fix on installed homebrew (Lynis compliance: no world-writable dirs)
 if [[ -d /home/linuxbrew ]]; then
     find /home/linuxbrew -type d -exec chmod 755 {} \; 2>/dev/null || true

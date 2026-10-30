@@ -28,6 +28,17 @@ if [[ -z ${akmods_tag} ]]; then
 fi
 kernel_version=${KERNEL_VERSION:-${akmods_tag#"${kernel_flavor}-${fedora_version}-"}}
 
+# Verify the upstream images' cosign signatures and build FROM the verified
+# digests, the same as CI.
+image_args=()
+while IFS= read -r line; do
+    image_args+=("--build-arg=${line}")
+done < <("${project_root}/just_scripts/verify-upstream-images" "${fedora_version}" "${akmods_tag}")
+if ((${#image_args[@]} != 5)); then
+    echo "Upstream image verification failed; refusing to build." >&2
+    exit 1
+fi
+
 # Get info
 container_mgr=$(just _container_mgr)
 tag=$(just _tag "${image}")
@@ -40,6 +51,7 @@ $container_mgr build -f Containerfile \
     --build-arg="KERNEL_FLAVOR=${kernel_flavor}" \
     --build-arg="KERNEL_VERSION=${kernel_version}" \
     --build-arg="AKMODS_TAG=${akmods_tag}" \
+    "${image_args[@]}" \
     --target="${target}" \
     --tag localhost/"${tag}:${latest}-${git_branch}" \
     "${project_root}"

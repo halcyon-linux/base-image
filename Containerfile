@@ -20,14 +20,21 @@ ARG KERNEL_VERSION=""
 ARG AKMODS_TAG="${AKMODS_TAG:-${KERNEL_FLAVOR}-${FEDORA_VERSION}-x86_64}"
 # Homebrew standalone root image
 ARG BREW_IMAGE="${BREW_IMAGE:-ghcr.io/ublue-os/brew:latest}"
+# Full refs of the akmods inputs. just_scripts/verify-upstream-images checks
+# each upstream image's cosign signature; CI and `just build` pass the verified
+# repo@sha256 digests here (and in BASE_IMAGE/BREW_IMAGE). The tag defaults only
+# serve a bare, unverified podman build.
+ARG AKMODS_REF="${AKMODS_REF:-ghcr.io/ublue-os/akmods:${AKMODS_TAG}}"
+ARG AKMODS_EXTRA_REF="${AKMODS_EXTRA_REF:-ghcr.io/ublue-os/akmods-extra:${AKMODS_TAG}}"
+ARG AKMODS_NVIDIA_REF="${AKMODS_NVIDIA_REF:-ghcr.io/ublue-os/akmods-nvidia-open:${AKMODS_TAG}}"
 
 # Pull the pre-compiled kernel and akmods rpms for the selected akmods tag
-FROM ghcr.io/ublue-os/akmods:${AKMODS_TAG} AS akmods
+FROM ${AKMODS_REF} AS akmods
 # Pull the akmods-extra trees (device-specific kmods and their userspace parts;
 # only nct6687d is installed, see build_files/kernel/install-kernel-akmods)
-FROM ghcr.io/ublue-os/akmods-extra:${AKMODS_TAG} AS akmods-extra
+FROM ${AKMODS_EXTRA_REF} AS akmods-extra
 # Pull the NVIDIA open driver rpms matching the pinned kernel
-FROM ghcr.io/ublue-os/akmods-nvidia-open:${AKMODS_TAG} AS akmods-nvidia
+FROM ${AKMODS_NVIDIA_REF} AS akmods-nvidia
 # Pull the pre-packaged Homebrew standalone root
 FROM ${BREW_IMAGE} AS brew
 
@@ -35,6 +42,15 @@ FROM ${BREW_IMAGE} AS brew
 FROM scratch AS ctx
 COPY build_files /
 COPY packages.json /
+
+# Pinned external downloads (build_files/downloads/manifest.tsv), sha256-checked.
+# This is the only stage that mounts GITHUB_TOKEN, and it installs no packages,
+# so no RPM scriptlet ever sees the token. Package stages bind-mount /out
+# read-only at /downloads.
+FROM ${BASE_IMAGE} AS downloads
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=secret,id=GITHUB_TOKEN \
+    /ctx/downloads/fetch-pinned /out
 
 ################
 # BAZZITE BASE
@@ -128,7 +144,7 @@ RUN --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
-    --mount=type=secret,id=GITHUB_TOKEN \
+    --mount=type=bind,from=downloads,source=/out,target=/downloads \
     /ctx/packages/install-common-packages && \
     /ctx/finalization/verify common-packages && \
     /ctx/shared/cleanup
@@ -138,7 +154,7 @@ RUN --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
-    --mount=type=secret,id=GITHUB_TOKEN \
+    --mount=type=bind,from=downloads,source=/out,target=/downloads \
     /ctx/packages/install-gaming-stack && \
     /ctx/finalization/verify gaming && \
     /ctx/shared/cleanup
@@ -201,12 +217,12 @@ RUN --mount=type=cache,dst=/var/cache \
     /ctx/finalization/verify nix && \
     /ctx/shared/cleanup
 
-# Install ujust-picker from the latest GitHub release.
+# Install the pinned ujust-picker release (downloads stage).
 RUN --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
-    --mount=type=secret,id=GITHUB_TOKEN \
+    --mount=type=bind,from=downloads,source=/out,target=/downloads \
     /ctx/packages/install-ujust-picker && \
     /ctx/finalization/verify picker && \
     /ctx/shared/cleanup
@@ -264,7 +280,7 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     /ctx/finalization/verify grub
 
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
-    --mount=type=secret,id=GITHUB_TOKEN \
+    --mount=type=bind,from=downloads,source=/out,target=/downloads \
     /ctx/packages/install-system-integration-files && \
     /ctx/finalization/verify integration-files
 
@@ -296,7 +312,6 @@ RUN --mount=type=cache,dst=/var/cache \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=bind,from=akmods-nvidia,src=/rpms,dst=/tmp/rpms/nvidia \
     --mount=type=tmpfs,dst=/tmp \
-    --mount=type=secret,id=GITHUB_TOKEN \
     /ctx/nvidia/install-nvidia-driver && \
     rm -f /usr/share/vulkan/icd.d/nouveau_icd.*.json && \
     /ctx/finalization/verify nvidia && \

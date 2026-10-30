@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+# Usage: check-gpg-fingerprints <keyfile> <fingerprint>...
+# Fails unless the key file holds at least one primary key and every primary
+# key fingerprint in it is in the allowlist. Uses a throwaway GNUPGHOME so the
+# build never writes a keyring into the image.
+
+keyfile=${1:?key file required}
+shift
+if (($# == 0)); then
+    echo "ERROR: no allowed fingerprints given for $keyfile" >&2
+    exit 1
+fi
+
+declare -A allowed=()
+for fpr in "$@"; do
+    allowed[${fpr^^}]=1
+done
+
+GNUPGHOME=$(mktemp -d)
+export GNUPGHOME
+trap 'rm -rf "$GNUPGHOME"' EXIT
+
+mapfile -t found < <(
+    gpg --batch --quiet --show-keys --with-colons "$keyfile" |
+        awk -F: '$1 == "pub" { want = 1; next } $1 == "fpr" && want { print $10; want = 0 }'
+)
+
+if ((${#found[@]} == 0)); then
+    echo "ERROR: no OpenPGP primary key found in $keyfile" >&2
+    exit 1
+fi
+
+for fpr in "${found[@]}"; do
+    if [[ -z "${allowed[${fpr^^}]:-}" ]]; then
+        echo "ERROR: unexpected key $fpr in $keyfile" >&2
+        exit 1
+    fi
+    echo "Key fingerprint OK: $fpr ($keyfile)"
+done

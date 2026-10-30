@@ -2,8 +2,6 @@
 
 set -Eeuo pipefail
 
-: "${FEDORA_VERSION:?FEDORA_VERSION must be set by the Containerfile}"
-
 # Read package list from packages.json
 PACKAGES_JSON="/ctx/packages.json"
 if [[ ! -f "$PACKAGES_JSON" ]]; then
@@ -13,13 +11,6 @@ fi
 
 # Extract common-packages list from JSON
 mapfile -t common_packages < <(jq -r '."common-packages".packages[]' "$PACKAGES_JSON")
-
-cicpoffs_url=$(
-    /ctx/shared/ghcurl https://api.github.com/repos/ublue-os/cicpoffs/releases/latest |
-        jq -er --arg name "cicpoffs-fc${FEDORA_VERSION}.rpm" \
-            '[.assets[] | select(.name == $name)][0].browser_download_url'
-)
-dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y install "$cicpoffs_url"
 
 dnf5 -y copr enable bieszczaders/kernel-cachyos-addons
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y install scx-scheds scx-tools
@@ -38,12 +29,7 @@ systemctl mask iscsi
 systemctl mask systemd-remount-fs.service
 systemctl mask fedora-atomic-desktop-appstream-cache-refresh
 
-extest_url=$(
-    /ctx/shared/ghcurl https://api.github.com/repos/ublue-os/extest/releases/latest |
-        jq -er '[.assets[] | select(.name | endswith(".so"))][0].browser_download_url'
-)
-install -d /usr/lib/extest
-/ctx/shared/ghcurl "$extest_url" -Lo /usr/lib/extest/libextest.so
+install -D -m 0644 /downloads/libextest.so /usr/lib/extest/libextest.so
 
 setfattr -n user.component -v extest /usr/lib/extest/libextest.so 2>/dev/null || true
 install -d /etc/xdg/autostart

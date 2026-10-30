@@ -42,7 +42,7 @@ A signed, bootc-native Fedora Atomic image for an NVIDIA gaming workstation. Bui
 Personal, opinionated image. Check first:
 
 - **NVIDIA GPU required.** The open modules support Turing (GTX 16 / RTX 20) and newer only.
-- **Your dotfiles will be replaced.** On first login the image clones the maintainer's dotfiles ([`aahsnr-configs/dotfiles`](https://github.com/aahsnr-configs/dotfiles)) and applies them to `$HOME` with `--force`. To opt out, run `sudo systemctl --global disable chezmoi-init.service chezmoi-update.timer` before first login (see [Dotfiles with chezmoi](#dotfiles-with-chezmoi)).
+- **Maintainer dotfiles are opt-in.** Nothing touches `$HOME` unless you run `ujust dotfiles enable`, which clones the maintainer's dotfiles ([`aahsnr-configs/dotfiles`](https://github.com/aahsnr-configs/dotfiles)), force-applies them to `$HOME` and keeps them applied daily (see [Dotfiles with chezmoi](#dotfiles-with-chezmoi)).
 - **Signatures are not enforced by default.** Stock hosts accept any image from `ghcr.io`. Verify before installing; for automatic updates read [Enforce signature checks](#enforce-signature-checks-on-your-host).
 - **No installer.** No ISOs or disk images are built. Install any bootc-capable Fedora Atomic system (Silverblue, Kinoite, Bazzite, Bluefin, …) and switch to this image, or build a disk image yourself with `bootc-image-builder`.
 
@@ -456,17 +456,17 @@ Local logs are the first thing an attacker with root edits. `audispd-plugins` is
 
 The image installs `chezmoi` and wires it through systemd user units to [`aahsnr-configs/dotfiles`](https://github.com/aahsnr-configs/dotfiles). Upstream docs: <https://chezmoi.io>.
 
-> **This is the maintainer's personal repo.** On first login it is cloned and force-applied to your `$HOME`, and a daily timer keeps it applied.
+> **This is the maintainer's personal repo, and it is opt-in per user.** The units are enabled globally but do nothing until `~/.config/halcyon/chezmoi-enable` exists. Running its `run_` scripts gives whoever controls that repo code execution as you, so enable it only if that is you.
 >
-> - Opt out for every user: `sudo systemctl --global disable chezmoi-init.service chezmoi-update.timer`
-> - Opt out for one user: `systemctl --user mask chezmoi-init.service chezmoi-update.timer`
+> - Opt in: `ujust dotfiles enable` (asks first, creates the flag, clones and force-applies, schedules daily updates)
+> - Opt out again: `ujust dotfiles disable` (removes the flag and stops the timer; managed files stay)
 
 | Component                | When it runs                                       | What it does                                                                 |
 | ------------------------ | -------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `chezmoi-init.service`   | At login, if `~/.local/share/chezmoi/.git` missing | `chezmoi init --apply --force aahsnr-configs/dotfiles` (5 attempts in 5 min) |
-| `chezmoi-update.timer`   | 5 min after boot, then daily                       | Triggers the update service                                                  |
+| `chezmoi-init.service`   | At login, if opted in and `~/.local/share/chezmoi/.git` missing | `chezmoi init --apply --force aahsnr-configs/dotfiles` (5 attempts in 5 min) |
+| `chezmoi-update.timer`   | If opted in: 5 min after boot, then daily          | Triggers the update service                                                  |
 | `chezmoi-update.service` | By the timer                                       | `chezmoi update --no-tty --force` (pull and apply)                           |
-| `ujust dotfiles`         | Manual                                             | Menu: `status` / `sync` / `diff` / `edit`                                    |
+| `ujust dotfiles`         | Manual                                             | Menu: `enable` / `disable` / `status` / `sync` / `diff` / `edit`             |
 
 - Units live in `/usr/lib/systemd/user/` (read-only, replaced on image updates). They skip system accounts and the `sddm` greeter.
 - The dotfiles repo is public, so clones and pulls use anonymous HTTPS. After init, the service rewrites only **pushes** to SSH (`pushInsteadOf`) and pins `core.sshCommand` to `~/.ssh/id_ed25519_aahsnr_configs`; manual pushes need that key. `/etc/ssh/ssh_config.d/10-halcyon-github.conf` uses the same key for `github.com`.
@@ -482,7 +482,7 @@ The image installs `chezmoi` and wires it through systemd user units to [`aahsnr
 - The daily timer **silently reverts** `$HOME` edits that were not added back. Edit via `chezmoi edit --apply <file>` or `chezmoi add` the change.
 - The first apply overwrites differing managed files; on an existing machine run `chezmoi diff` first.
 - Update conflicts are git conflicts in the source directory: `chezmoi cd`, resolve, commit, push, then `chezmoi apply --force`.
-- Deleting `~/.local/share/chezmoi` is recoverable: the next login re-clones and force-applies.
+- Deleting `~/.local/share/chezmoi` is recoverable: while opted in, the next login re-clones and force-applies.
 - Never `chezmoi add` plaintext secrets; use `chezmoi add --encrypt` (age/GPG) or a password manager via templates.
 - chezmoi owns `$HOME` only. Machine-level config belongs in this image's build files.
 
@@ -509,10 +509,10 @@ Full package lists: [`packages.json`](packages.json). Highlights:
 | `ublue-os/base-main:44`                                                                                              | Base OS                                                                                                 | Image base                                                                |
 | `ublue-os/akmods*` images                                                                                            | Kernel, kmods, NVIDIA RPMs                                                                              | Build inputs only                                                         |
 | `ublue-os/{bazzite,bazzite-multilib,staging,packages}` COPRs                                                         | Patched bluez and Xwayland (`bazzite-multilib`), Bazaar and media-automount (`packages`), helpers       | Enabled for the build, **disabled in the shipped image**                  |
-| Terra (`terra`, `terra-extras`, `terra-mesa`)                                                                        | gamescope, MangoHud, wireplumber, mesa bits                                                             | Priority 1 with excludes; disabled in the shipped image                   |
+| Terra (`terra`, `terra-extras`, `terra-mesa`)                                                                        | gamescope, MangoHud, wireplumber, mesa bits                                                             | Bootstrapped with the vendored, fingerprint-pinned key; priority 1 with excludes; disabled in the shipped image |
 | `aahsnr-work/cli-tools`, `python-packages`, `gaming`, `fonts`, `base-pkgs`, `applications`, `texlive-packages` COPRs | The Halcyon package sets                                                                                | Enabled at `priority=1` inside its own script, disabled before it returns |
-| Vendor repos (Tailscale, GitHub CLI, VS Code, VSCodium, Brave, Chrome, Edge, Vivaldi)                                | Their packages                                                                                          | Disabled in the shipped image by `configure-system-policy`                |
-| GitHub releases and raw files via `ghcurl`                                                                           | `cicpoffs`, `extest`, `ujust-picker`, winetricks, DXVK example config, Distrobox template, bash-preexec | Downloaded at build time                                                  |
+| Vendor repos (Tailscale, GitHub CLI, VS Code, VSCodium, Brave, Chrome, Edge, Vivaldi)                                | Their packages                                                                                          | Browser/IDE keys imported only if they match `gpg_fingerprints` in `packages.json`; disabled in the shipped image by `configure-system-policy` |
+| Pinned GitHub release assets and raw files (`build_files/downloads/manifest.tsv`)                                    | `extest`, `ujust-picker`, winetricks, DXVK example config, Distrobox template, bash-preexec             | Fetched by the `downloads` stage, sha256-checked                          |
 
 Version-locked: kernel set, `bluez*`, `xorg-x11-server-Xwayland`, core `mesa-*`, `NetworkManager*`.
 
@@ -570,7 +570,9 @@ The kernel swap (`build_files/kernel/install-kernel-akmods`) removes the stock k
 
 - mount `/var/cache` and `/var/log` caches and a tmpfs `/tmp`,
 - call one script, then `/ctx/finalization/verify <stage>`, then `/ctx/shared/cleanup`,
-- mount the `GITHUB_TOKEN` secret where a GitHub download or the NVIDIA installer needs it.
+- bind-mount `/downloads` (read-only) from the `downloads` stage when they install a pinned download.
+
+The `downloads` stage is the only place `GITHUB_TOKEN` is mounted. It installs no packages, so no RPM scriptlet or vendor installer can read the token (`tests/test-audit-lint.sh` enforces this). Upstream inputs (`base-main`, `akmods*`, `brew`) are cosign-verified against `build_files/keys/ublue-os.pub` by `just_scripts/verify-upstream-images`, and the build uses their verified `@sha256` digests.
 
 `build_files/shared/dnf5` is a build-only retry shim (up to 5 retries, 60 s apart) installed before the first dnf transaction to survive upstream metadata republishing. It is removed before the final lint.
 
@@ -607,11 +609,12 @@ just clean-images   # remove them
 just just-check     # check .just and Justfile formatting (uses `just --unstable`)
 ```
 
-- `just build` resolves the akmods tag with `resolve-akmods`, then runs `podman build` with the same build args as CI. Result: `localhost/alcyone-build:44-<git-branch>`.
+- `just build` resolves the akmods tag with `resolve-akmods`, verifies the upstream images' signatures (`cosign` required), then runs `podman build` with the same build args and digests as CI. Result: `localhost/alcyone-build:44-<git-branch>`.
 - `just_scripts/get-defaults` rejects any target other than `alcyone` (or `containerfile`).
 - Overrides: `CONTAINER_MGR` (`podman` or `podman-remote`), `KERNEL_FLAVOR`, `REQUIRED_KMOD`, `AKMODS_TAG`, `KERNEL_VERSION`.
 - Local images are **not rechunked and not signed**.
-- `just build` does not forward `GITHUB_TOKEN`; GitHub downloads run unauthenticated and may hit rate limits.
+- `just build` does not forward `GITHUB_TOKEN`; the pinned downloads fetch unauthenticated (no API calls, so rate limits rarely matter).
+- `just bump-downloads` prints newer candidates (tag or commit plus sha256) for the pinned downloads; review and copy rows into `build_files/downloads/manifest.tsv` by hand.
 
 Manual build (mirrors CI and forwards the token):
 
@@ -619,17 +622,19 @@ Manual build (mirrors CI and forwards the token):
 export GITHUB_TOKEN=…   # any token; or delete the --secret line below to build unauthenticated
 AKMODS_TAG=$(just_scripts/resolve-akmods ogc 44 x86_64 nct6687d)
 KERNEL_VERSION=${AKMODS_TAG#ogc-44-}
+mapfile -t IMAGE_ARGS < <(just_scripts/verify-upstream-images 44 "$AKMODS_TAG" | sed 's/^/--build-arg=/')
 
 podman build -f Containerfile --target alcyone \
   --build-arg FEDORA_VERSION=44 \
   --build-arg KERNEL_FLAVOR=ogc \
   --build-arg AKMODS_TAG="$AKMODS_TAG" \
   --build-arg KERNEL_VERSION="$KERNEL_VERSION" \
+  "${IMAGE_ARGS[@]}" \
   --secret id=GITHUB_TOKEN,env=GITHUB_TOKEN \
   -t localhost/alcyone:dev .
 ```
 
-The token is optional: without it `ghcurl` falls back to unauthenticated requests.
+The token is optional: without it `ghcurl` falls back to unauthenticated requests. It is only sent to GitHub hosts, over HTTPS.
 
 Fast checks without a full build:
 
@@ -652,7 +657,7 @@ for f in build_files/*/* just_scripts/* tests/*.sh; do bash -n "$f"; done
 | Concurrency     | Per trigger; pushes cancel older pushes, manual dispatches are never cancelled by a push                                                                                          |
 | Action pinning  | Every action pinned to a full commit SHA                                                                                                                                          |
 
-Steps: checkout → `just` syntax check → dnf5 shim test → resolve akmods tag → pull base and akmods images and read the upstream version → `buildah build --target alcyone --build-arg-file build_args.txt --secret id=GITHUB_TOKEN` → log disk usage and the largest RPMs/directories → compute OCI labels (including `ostree.bootable=true` and `ostree.linux`) → rechunk into an OCI directory (`--previous-build` reuses the published `:stable` layer plan so updates download only changed layers; on failure it rechunks again with a fresh plan) → log in to GHCR → **push** with `skopeo copy` straight from that directory, recompressed to **zstd** (`:stable`, then `:latest` and `:YYYYMMDD` copied by digest, with retry) → install cosign `v3.1.3` → **sign the digest**.
+Steps: checkout → `just` syntax check → dnf5 shim test → resolve akmods tag → install cosign and verify the signatures of `base-main`, `akmods*` and `brew` (`just_scripts/verify-upstream-images`) → pull the verified digests and read the upstream version → `buildah build --target alcyone --build-arg-file build_args.txt --secret id=GITHUB_TOKEN` → log disk usage and the largest RPMs/directories → compute OCI labels (including `ostree.bootable=true` and `ostree.linux`) → rechunk into an OCI directory (`--previous-build` reuses the published `:stable` layer plan so updates download only changed layers; on failure it rechunks again with a fresh plan) → log in to GHCR → **push** with `skopeo copy` straight from that directory, recompressed to **zstd** (`:stable`, then `:latest` and `:YYYYMMDD` copied by digest, with retry) → install cosign `v3.1.3` → **sign the digest**.
 
 Clients pull zstd layers, which needs a bootc/rpm-ostree that supports them (Fedora 44 ships bootc 1.17.1 and rpm-ostree 2026.3).
 
@@ -693,7 +698,7 @@ Pushes cancel older pushes automatically, but a manual run is never cancelled by
 ### Other automation config
 
 - `.github/renovate.json5`: `config:best-practices`; pin and pinDigest updates auto-merge; digest updates for container dependencies in workflow files are disabled.
-- `.github/pull.yml`: upstream-sync rule (merge from `ublue-os:main`, base `containerfile`, the release branch). Check that the Pull app is installed before relying on it, since a merge here triggers a publish.
+- No upstream auto-sync: `.github/pull.yml` was removed because it merged `ublue-os:main` into `containerfile`, the release branch, where a merge publishes and signs unreviewed. Upstream changes come in by hand.
 
 ---
 
@@ -723,6 +728,10 @@ Deliberate guardrails (Waydroid, bundled fonts/docs, trimmed kmods, renamed help
 - `cosign.key` and `*.key` are git-ignored and excluded from build contexts; signing uses an Actions secret only.
 - Build-only repositories are disabled in the shipped image; vendor browser/IDE repos use strict priority and immediate disablement.
 - Every stage is asserted by `verify`; the final gate is `bootc container lint`.
+- **Build inputs.** Upstream images are cosign-verified (`build_files/keys/ublue-os.pub`, one key for `base-main`, `akmods*` and `brew`) and consumed by digest. Every external file is pinned by tag or commit plus sha256 in `build_files/downloads/manifest.tsv`. Terra's bootstrap and the browser/IDE vendor keys are checked against pinned fingerprints before `rpm --import`; no step uses `--nogpgcheck`. `cicpoffs` was dropped (an unsigned RPM on a rolling tag) and is forbidden by `verify`.
+- **Build token.** `GITHUB_TOKEN` (which carries `packages: write` in CI) is mounted only in the package-free `downloads` stage, so no RPM scriptlet can read it and push to `ghcr.io/halcyon-linux`.
+- **Root shells and Homebrew.** `/home/linuxbrew` belongs to the first user, so `/etc/profile.d/brew.sh` and `brew-bash-completion.sh` return early for root (`install-brew-files` adds the guard; `verify_brew` checks it). Otherwise any process running as that user could plant code that runs at the next `sudo -i`. Upstream `ublue-os/brew` ships them unguarded; worth reporting there.
+- **polkit.** `20-privileged-ruser.rules` pre-authorises `privileged-user-setup` for wheel only when pkexec's command line is the helper plus the caller's own user name (what `user-setup.service` runs at login, before any polkit agent exists); any other call needs `auth_admin`.
 - **SSH.** Hardening drop-in `/etc/ssh/sshd_config.d/10-halcyon-hardening.conf` (Lynis `SSH-7408` items): keys-only authentication, no root, password or empty-password logins, `MaxAuthTries 3`, agent/TCP/X11 forwarding off, capped sessions and auth attempts (`MaxStartups 10:30:60`), legal banner before login, dead-session reaping, `LogLevel VERBOSE`. It applies whenever sshd is enabled (`ujust ssh`; disabled by default). Port is 47 per `SSH-7408`; cipher/KEX/MAC lists stay on Fedora's system crypto policy.
 - **Lynis hardening.** Legal banners on `/etc/issue` and `/etc/issue.net`; fail2ban enabled with an sshd jail on the systemd journal (bans via firewalld, 1 h first ban growing per repeat offence up to a week); cron files 0600 and cron spool directories 0700 (tmpfiles re-enforces every boot); `dccp`/`sctp`/`rds`/`tipc` blocked via modprobe; a boot-time unit keeps the hostname resolvable in `/etc/hosts` and another keeps `/etc/gshadow` consistent with `/etc/group` (the bootc split user database makes `usermod -aG` leave gshadow orphans).
 - **Entropy and cold-boot protection** (Lynis `CRYP-8004`/`8005`/`8006`): `rngd` feeds the TPM RNG into the kernel pool; `haveged` is deliberately not shipped (redundant on this kernel), and `CRYP-8005`, which only checks for its process, is skipped in `/etc/lynis/custom.prf`. `halcyon-mor.service` sets the TCG MemoryOverwriteRequestControl bit at boot and clears it on clean shutdown, so firmware wipes RAM only after a crash or power loss; no-op on non-UEFI boots or firmware without MOR.
@@ -767,8 +776,9 @@ Deliberate guardrails (Waydroid, bundled fonts/docs, trimmed kmods, renamed help
 | ID    | Severity | Item                                                                                                                                                                                                                                                                                              |
 | ----- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | A-002 | Low      | Whether `cosign.pub` corresponds to the CI `SIGNING_SECRET` is unconfirmed. Close it by verifying a published image against the key, or by comparing the public key derived from the private key.                                                                                                 |
-| A-008 | Low      | Several upstream downloads and repository metadata are mutable (GitHub `latest` releases, winetricks and bash-preexec from `master`, the Distrobox template from `main`), and the Terra bootstrap installs with `--nogpgcheck`. Pin revisions and verify checksums where upstream publishes them. |
+| A-008 | Low      | Build-time downloads, upstream images and the Terra bootstrap are now pinned or signature-checked (closed for the build). Still mutable: `install-pia` (latest installer scraped from PIA's changelog) and ujust recipes that download at runtime (boxtron, Resilio, steamcmd, framegen builds; run as the user, on demand). |
 | none  | Info     | The image ships no trust policy for `ghcr.io/halcyon-linux` (see [Enforce signature checks](#enforce-signature-checks-on-your-host)).                                                                                                                                                             |
+| none  | Info     | Opt-in ujust recipes add the user to `input` or `plugdev` (`80-bazzite.just`, `82-bazzite-apps.just`); `input` membership can read every input device (keylogging). Understood and accepted. |
 | none  | Info     | Builds are not bit-for-bit reproducible: a daily rebuild tracks COPR republishing.                                                                                                                                                                                                                |
 | none  | Info     | The last static audit (2026-10-19) did not build or boot the image.                                                                                                                                                                                                                               |
 
@@ -786,7 +796,7 @@ Deliberate guardrails (Waydroid, bundled fonts/docs, trimmed kmods, renamed help
 - **Removed services.** `bazzite-iwd-migration`, `force-wol`, `ntfs-nag`, incus workarounds, the `mesa-git` script.
 - **Kept deliberately.** `beesd@.timer`, `dev-hugepages1G.mount` (inert without `hugepagesz=1G`), `fstrim.service.d`, `kmod-sleep-workaround@.service`.
 - **TeX Live is baked at build time** because the COPR ships no `%post` scriptlets.
-- **Dotfiles over HTTPS, pushes over SSH**, so automation never needs credentials.
+- **Dotfiles over HTTPS, pushes over SSH**, so automation never needs credentials. They are opt-in per user (`ujust dotfiles enable`).
 
 ---
 
@@ -796,11 +806,12 @@ Deliberate guardrails (Waydroid, bundled fonts/docs, trimmed kmods, renamed help
 - [x] Build the initramfs once, after the NVIDIA step, instead of twice.
 - [ ] Document what `ujust automounting` does and which service is responsible (`ublue-os-media-automount`).
 - [ ] Trace where Flatpak apps get installed and make sure removal behaves correctly; removing Flatpak apps should not be a build action.
-- [ ] Close audit items A-002 and A-008.
+- [ ] Close audit item A-002 and the rest of A-008 (`install-pia`, runtime ujust downloads).
 - [x] Write comprehensive Audit rules and config.
 - [x] Packages in the cli-tools list must only be installed from aahsnr-work/cli-tools fedora copr
 - [ ] Fix selinux policy packages for nvidia driver and nvidia-container-toolkit
 - [ ] Harden security of base-image using security audit findings.
+- [ ] Remove all gaming related stuff except steam and lutris
 
 ---
 
@@ -819,17 +830,19 @@ Deliberate guardrails (Waydroid, bundled fonts/docs, trimmed kmods, renamed help
 │   ├── kernel/                   # kernel swap, kmods, initramfs
 │   ├── nvidia/                   # configure / install / finalize NVIDIA
 │   ├── packages/                 # one installer per package set + repo setup
-│   ├── shared/                   # cleanup, dnf5 retry shim, ghcurl
+│   ├── downloads/                # pinned download manifest + fetch-pinned (downloads stage)
+│   ├── keys/                     # vendored ublue cosign key, Terra RPM key
+│   ├── shared/                   # cleanup, dnf5 retry shim, ghcurl, check-gpg-fingerprints
 │   ├── system/                   # desktop integration, GRUB, services, repo policy
 │   └── just/                     # imports Bazzite ujust files into the composed justfile
-├── just_scripts/                 # build-image, run-image, resolve-akmods, manage-images, …
+├── just_scripts/                 # build-image, resolve-akmods, verify-upstream-images, bump-downloads, …
 ├── system_files/
 │   ├── desktop/                  # shared config: /etc, /usr/lib, /usr/share, /nix
 │   ├── nvidia/                   # NVIDIA-only payload (modprobe, udev, ujust, services)
 │   └── overrides/                # copied last so these win
 ├── tests/test-dnf5-retry.sh      # self-test for the dnf5 retry shim
 ├── .containerignore              # build-context exclusions (also .dockerignore)
-└── .github/                      # workflows (build, clean), renovate, pull.yml
+└── .github/                      # workflows (build, clean), renovate
 ```
 
 ---

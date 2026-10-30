@@ -164,9 +164,6 @@ done
 mapfile -t versionlocked_packages < <(jq -r '."gaming".versionlocks[]' "$PACKAGES_JSON")
 dnf5 versionlock add "${versionlocked_packages[@]}"
 
-# Download winetricks and mark component attribute
-/ctx/shared/ghcurl \
-    https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks \
-    -Lo /usr/bin/winetricks
-chmod +x /usr/bin/winetricks
+# Install the pinned winetricks (downloads stage) and mark component attribute
+install -D -m 0755 /downloads/winetricks /usr/bin/winetricks
 setfattr -n user.component -v winetricks /usr/bin/winetricks 2>/dev/null || true

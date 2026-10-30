@@ -2,6 +2,8 @@
 Description=Initialize chezmoi dotfiles from aahsnr-configs/dotfiles
 ConditionUser=!@system
 ConditionUser=!sddm
+# Opt-in: `ujust dotfiles enable` creates the flag (see README, Dotfiles with chezmoi).
+ConditionPathExists=%h/.config/halcyon/chezmoi-enable
 ConditionPathExists=!%h/.local/share/chezmoi/.git/
 # Five attempts across five minutes, then give up until the next boot/login
 # (e.g. while SSH keys or network are still missing).

@@ -1,0 +1,11 @@
+# Pinned external downloads, fetched by build_files/downloads/fetch-pinned in the
+# token-only `downloads` stage and bind-mounted read-only at /downloads into the
+# package stages. Columns are tab-separated: name, url, sha256, dest (relative to
+# /downloads). Release assets pin a tag, raw files pin a commit; the sha256 is the
+# real pin. Bump with `just bump-downloads`, review, edit.
+extest	https://github.com/ublue-os/extest/releases/download/1.0.5/libextest.so	70ef0b4dc19da19dceddd302ea3185ffad1c6db1f02e0e4f5c950dfa705b6cd3	libextest.so
+ujust-picker	https://github.com/ublue-os/bazzite-ujust-picker/releases/download/2025-12-09-044005/bazzite-ujust-picker_Linux_x86_64	7358f276c2843409f19c875a68391a015aee08ed4c26328866bb640a42dc49b6	ujust-picker
+winetricks	https://raw.githubusercontent.com/Winetricks/winetricks/f3890f670867b5ffbc3938726db45c0f7d16c8ba/src/winetricks	672a1ff4442e8691a3ffc0e6860137e201a1d1227e9b3044245f1731e9e9837e	winetricks
+bash-preexec	https://raw.githubusercontent.com/ublue-os/bash-preexec/8926de0a1f69d17f5b05099cfaaa52d833084c2f/bash-preexec.sh	e0c74f45709392451262b9178b3ec992139af85f026ea5ed0eface4446cf2fea	bash-preexec.sh
+distrobox-docker	https://raw.githubusercontent.com/ublue-os/toolboxes/c8809b894cbb6035d5df091db419b7859da9d46d/apps/docker/distrobox.ini	94b89f2b85249002efa673eea0da35371cf4e76ed37cf9b87e79cb64c591a66c	distrobox-docker.ini
+dxvk-conf	https://raw.githubusercontent.com/doitsujin/dxvk/3a4c6fa3cb1548d56a90a38dd8f526b6c13e63fd/dxvk.conf	9fe639a5a61575c31f005af1dbd7794d47c7d82778a91af3f1ea443b62139d5a	dxvk.conf

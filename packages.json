@@ -128,7 +128,6 @@
       "zsh"
     ],
     "extra_installs": [
-      "cicpoffs-fc${FEDORA_VERSION}.rpm (from ublue-os/cicpoffs releases)",
       "scx-scheds",
       "scx-tools"
     ],
@@ -403,6 +402,11 @@
         "name": "Brave Browser",
         "baseurl": "https://brave-browser-rpm-release.s3.brave.com/$basearch",
         "gpgkey": "https://brave-browser-rpm-release.s3.brave.com/brave-core.asc",
+        "gpg_fingerprints": [
+          "DBF1A116C220B8C7164F98230686B78420038257",
+          "47D32A74E9A9E013A4B4926C68D513D36A73CD96",
+          "B2A3DCA350E67256740DF904DE4EC67BE4B0DCA0"
+        ],
         "packages": [
           "brave-browser",
           "brave-origin"
@@ -413,6 +417,9 @@
         "name": "Visual Studio Code",
         "baseurl": "https://packages.microsoft.com/yumrepos/vscode",
         "gpgkey": "https://packages.microsoft.com/keys/microsoft.asc",
+        "gpg_fingerprints": [
+          "BC528686B50D79E339D3721CEB3E94ADBE1229CF"
+        ],
         "packages": [
           "code"
         ]
@@ -422,6 +429,9 @@
         "name": "VSCodium",
         "baseurl": "https://paulcarroty.gitlab.io/vscodium-deb-rpm-repo/rpms/",
         "gpgkey": "https://gitlab.com/paulcarroty/vscodium-deb-rpm-repo/raw/master/pub.gpg",
+        "gpg_fingerprints": [
+          "1302DE60231889FE1EBACADC54678CF75A278D9C"
+        ],
         "packages": [
           "codium"
         ]
@@ -431,6 +441,9 @@
         "name": "Google Chrome",
         "baseurl": "https://dl.google.com/linux/chrome/rpm/stable/$basearch",
         "gpgkey": "https://dl.google.com/linux/linux_signing_key.pub",
+        "gpg_fingerprints": [
+          "EB4C1BFD4F042F6DDDCCEC917721F63BD38B4796"
+        ],
         "packages": [
           "google-chrome-stable"
         ]
@@ -440,6 +453,9 @@
         "name": "Microsoft Edge",
         "baseurl": "https://packages.microsoft.com/yumrepos/edge",
         "gpgkey": "https://packages.microsoft.com/keys/microsoft.asc",
+        "gpg_fingerprints": [
+          "BC528686B50D79E339D3721CEB3E94ADBE1229CF"
+        ],
         "packages": [
           "microsoft-edge-stable"
         ]
@@ -449,6 +465,9 @@
         "name": "Vivaldi",
         "baseurl": "https://repo.vivaldi.com/stable/rpm/x86_64",
         "gpgkey": "https://repo.vivaldi.com/stable/linux_signing_key.pub",
+        "gpg_fingerprints": [
+          "8D1FA52AEF58A09D889DD4221256C34716BD9233"
+        ],
         "packages": [
           "vivaldi-stable"
         ]

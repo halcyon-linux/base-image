@@ -1,6 +1,13 @@
+// Halcyon: user-setup.service runs `pkexec /usr/bin/privileged-user-setup $USER`
+// at login, before a polkit agent is up, so this action is pre-authorised for
+// wheel. Only for the caller's own account: pkexec's command_line must be the
+// helper plus the subject's user name and nothing else. Any other invocation
+// falls back to the action default (auth_admin). The unit runs outside a
+// logind session, so subject.local/active cannot be required here.
 polkit.addRule(function(action, subject) {
-    if ((action.id == "org.bazzite.policykit.privileged.user.setup") &&
-         subject.isInGroup("wheel")) {
+    if (action.id == "org.bazzite.policykit.privileged.user.setup" &&
+        subject.isInGroup("wheel") &&
+        action.lookup("command_line") == "/usr/bin/privileged-user-setup " + subject.user) {
         return polkit.Result.YES;
     }
 });

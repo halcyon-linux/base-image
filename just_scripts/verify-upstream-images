@@ -1,0 +1,54 @@
+#!/usr/bin/bash
+# Verify the cosign signature of every upstream input image and print the
+# verified digests as build args (NAME=repo@sha256:...) on stdout; progress
+# goes to stderr. Fails closed: any unsigned or unverifiable image aborts.
+#
+# Usage: verify-upstream-images <fedora-version> <akmods-tag> [brew-ref]
+#
+# All ublue-os images (base-main, akmods*, brew) are signed with the same key,
+# vendored at build_files/keys/ublue-os.pub. Building FROM the printed digests
+# means the build uses exactly the manifests whose signatures were checked.
+
+set -Eeuo pipefail
+
+fedora=${1:?fedora version required}
+akmods_tag=${2:?akmods tag required}
+brew_ref=${3:-ghcr.io/ublue-os/brew:latest}
+
+project_root=${project_root:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
+key="${project_root}/build_files/keys/ublue-os.pub"
+repo_base=ghcr.io/ublue-os
+
+if ! command -v cosign >/dev/null 2>&1; then
+    echo "ERROR: cosign is required to verify upstream images" >&2
+    exit 1
+fi
+
+verified_digest() {
+    local ref=$1 digests
+    printf 'Verifying signature: %s\n' "${ref}" >&2
+    if ! digests=$(cosign verify --key "${key}" "${ref}" 2>/dev/null |
+        jq -r '.[].critical.image."docker-manifest-digest"' | sort -u); then
+        printf 'ERROR: signature verification failed for %s\n' "${ref}" >&2
+        return 1
+    fi
+    if [[ $(wc -l <<<"${digests}") -ne 1 || ! ${digests} =~ ^sha256:[0-9a-f]{64}$ ]]; then
+        printf 'ERROR: no single verified digest for %s\n' "${ref}" >&2
+        return 1
+    fi
+    printf '%s\n' "${digests}"
+}
+
+declare -A refs=(
+    [BASE_IMAGE]="${repo_base}/base-main:${fedora}"
+    [AKMODS_REF]="${repo_base}/akmods:${akmods_tag}"
+    [AKMODS_EXTRA_REF]="${repo_base}/akmods-extra:${akmods_tag}"
+    [AKMODS_NVIDIA_REF]="${repo_base}/akmods-nvidia-open:${akmods_tag}"
+    [BREW_IMAGE]="${brew_ref}"
+)
+
+for name in BASE_IMAGE AKMODS_REF AKMODS_EXTRA_REF AKMODS_NVIDIA_REF BREW_IMAGE; do
+    ref=${refs[${name}]}
+    digest=$(verified_digest "${ref}")
+    printf '%s=%s@%s\n' "${name}" "${ref%:*}" "${digest}"
+done

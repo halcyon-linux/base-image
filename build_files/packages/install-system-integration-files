@@ -2,23 +2,17 @@
 
 set -Eeuo pipefail
 
-# Download reference DXVK configuration.
-install -d /etc
-/ctx/shared/ghcurl \
-    'https://raw.githubusercontent.com/doitsujin/dxvk/3a4c6fa3cb1548d56a90a38dd8f526b6c13e63fd/dxvk.conf' \
-    -Lo /etc/dxvk-example.conf
+# Files below are pinned and sha256-checked by the downloads stage
+# (build_files/downloads/manifest.tsv).
 
-# Download the Distrobox Docker template configuration.
-install -d /etc/distrobox
-/ctx/shared/ghcurl \
-    'https://github.com/ublue-os/toolboxes/raw/refs/heads/main/apps/docker/distrobox.ini' \
-    -Lo /etc/distrobox/docker.ini
+# Reference DXVK configuration.
+install -D -m 0644 /downloads/dxvk.conf /etc/dxvk-example.conf
+
+# Distrobox Docker template configuration.
+install -D -m 0644 /downloads/distrobox-docker.ini /etc/distrobox/docker.ini
 setfattr -n user.component -v 'toolbox-config' /etc/distrobox/docker.ini 2>/dev/null || true
 
-# Download the bash-preexec shell hook.
-install -d /usr/share
-/ctx/shared/ghcurl \
-    'https://raw.githubusercontent.com/ublue-os/bash-preexec/master/bash-preexec.sh' \
-    -Lo /usr/share/bash-prexec
+# bash-preexec shell hook.
+install -D -m 0644 /downloads/bash-preexec.sh /usr/share/bash-prexec
 setfattr -n user.component -v 'bash-preexec' /usr/share/bash-prexec 2>/dev/null || true
 ln -sfn /usr/share/bash-prexec /usr/share/bash-preexec

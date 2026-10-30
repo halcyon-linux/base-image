@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+# Fetch every pinned download into $1 (default /out) and verify its sha256.
+# Runs only in the `downloads` stage, the one stage that mounts GITHUB_TOKEN;
+# it installs no packages, so no RPM scriptlet can read the token.
+
+manifest=/ctx/downloads/manifest.tsv
+out=${1:-/out}
+
+install -d "$out"
+count=0
+while IFS=$'\t' read -r name url sha256 dest; do
+    [[ -z "$name" || "$name" == \#* ]] && continue
+    if [[ -z "$url" || -z "$sha256" || -z "$dest" || "$dest" == */* ]]; then
+        printf 'ERROR: malformed manifest row: %s\n' "$name" >&2
+        exit 1
+    fi
+    printf 'Fetching %s\n' "$name"
+    /ctx/shared/ghcurl "$url" -o "$out/$dest"
+    printf '%s  %s\n' "$sha256" "$out/$dest" | sha256sum -c --strict -
+    count=$((count + 1))
+done < "$manifest"
+
+if ((count == 0)); then
+    echo "ERROR: no downloads in $manifest" >&2
+    exit 1
+fi

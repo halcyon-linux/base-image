@@ -2,6 +2,8 @@
 Description=Chezmoi Dotfiles Periodic Update
 ConditionUser=!@system
 ConditionUser=!sddm
+# Opt-in: `ujust dotfiles enable` creates the flag (see README, Dotfiles with chezmoi).
+ConditionPathExists=%h/.config/halcyon/chezmoi-enable
 ConditionPathExists=%h/.local/share/chezmoi/.git/
 
 [Service]

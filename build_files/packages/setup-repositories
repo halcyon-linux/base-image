@@ -2,6 +2,8 @@
 
 set -Eeuo pipefail
 
+: "${FEDORA_VERSION:?FEDORA_VERSION must be set by the Containerfile}"
+
 mkdir -p /var/roothome
 dnf5 config-manager setopt keepcache=1
 # Install no docs, man or info pages for build-time packages (image size).
@@ -34,8 +36,20 @@ for copr in "${copr_repositories[@]}"; do
     dnf5 -y config-manager setopt "${repo_id}.priority=98"
 done
 
-dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y install --nogpgcheck \
+# Bootstrap Terra with signature checks. terra-release{,-extras,-mesa} are all
+# signed with the main terra${FEDORA_VERSION} key, vendored in build_files/keys and
+# pinned by fingerprint here (bump both with FEDORA_VERSION, CLAUDE.md rule 7).
+terra_key="/ctx/keys/RPM-GPG-KEY-terra${FEDORA_VERSION}"
+terra_fingerprint=AE09157A4DE88B497EA1D5D300CDAB43DE226D6F # terra44
+if [[ ! -f "$terra_key" ]]; then
+    echo "ERROR: $terra_key missing; vendor the Terra key for Fedora ${FEDORA_VERSION}" >&2
+    exit 1
+fi
+/ctx/shared/check-gpg-fingerprints "$terra_key" "$terra_fingerprint"
+rpm --import "$terra_key"
+dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y install \
     --repofrompath 'terra,https://repos.fyralabs.com/terra$releasever' \
+    --setopt=terra.gpgcheck=1 --setopt="terra.gpgkey=file://${terra_key}" \
     terra-release terra-release-extras terra-release-mesa
 
 dnf5 -y config-manager addrepo \

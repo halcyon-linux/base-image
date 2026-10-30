@@ -34,7 +34,14 @@ while IFS= read -r script; do
     else
         not_ok "not executable: $script"
     fi
-done < <(find "$repo_root/build_files" "$repo_root/just_scripts" "$repo_root/tests" -type f -not -path '*/.*' -not -name "*.md" -not -name "*.txt")
+done < <(find "$repo_root/build_files" "$repo_root/just_scripts" "$repo_root/tests" -type f -not -path '*/.*' \
+    -not -name "*.md" -not -name "*.txt" -not -name "*.tsv" -not -path "$repo_root/build_files/keys/*")
+
+# Static data (download manifest, vendored keys) must not be executable.
+while IFS= read -r data; do
+    not_ok "static data file is executable: $data"
+done < <(find "$repo_root/build_files/keys" "$repo_root/build_files/downloads" -type f \
+    \( -name "*.tsv" -o -path "$repo_root/build_files/keys/*" \) -perm /111)
 
 # 3. Validate packages.json
 if jq . "$repo_root/packages.json" >/dev/null 2>&1; then
@@ -170,6 +177,46 @@ if [[ -f "$audit_conf" ]]; then
     fi
 else
     not_ok "auditd.conf missing: $audit_conf"
+fi
+
+# 6. Supply-chain guards (security audit: pinned downloads, token isolation, GPG)
+# GITHUB_TOKEN may be mounted only in the package-free `downloads` stage.
+token_leaks=$(awk '
+    toupper($1) == "FROM" { stage = ""; for (i = 1; i <= NF; i++) if (toupper($i) == "AS") stage = $(i + 1) }
+    /id=GITHUB_TOKEN/ && stage != "downloads" { printf "%s:%d (stage %s)\n", FILENAME, FNR, stage }
+' "$repo_root/Containerfile")
+if [[ -n "$token_leaks" ]]; then
+    not_ok "GITHUB_TOKEN mounted outside the downloads stage: $token_leaks"
+else
+    ok "GITHUB_TOKEN mounted only in the downloads stage"
+fi
+
+if grep -rnE 'releases/latest|/(master|main)/|refs/heads/' "$repo_root/build_files" \
+    --include='*' -l 2>/dev/null | grep -v '/keys/'; then
+    not_ok "mutable download ref (releases/latest, master, main) in build_files"
+else
+    ok "no mutable download refs in build_files"
+fi
+
+if grep -rnE -- '--nogpgcheck|rpm --import[^|]*\|\|[[:space:]]*true' "$repo_root/build_files" 2>/dev/null; then
+    not_ok "build_files bypasses or ignores GPG verification"
+else
+    ok "no --nogpgcheck or ignored rpm --import"
+fi
+
+manifest="$repo_root/build_files/downloads/manifest.tsv"
+bad_rows=$(awk -F'\t' '!/^#/ && NF && (NF != 4 || $2 !~ /^https:\/\// || $3 !~ /^[0-9a-f]{64}$/ || $4 ~ /\//) { print FNR }' "$manifest")
+if [[ -n "$bad_rows" ]]; then
+    not_ok "malformed download manifest rows (line $bad_rows)"
+else
+    ok "download manifest rows are pinned (https URL, sha256, flat dest)"
+fi
+
+if jq -e '[.applications.external_repos[] | select((.gpg_fingerprints // []) | length == 0)] | length == 0' \
+    "$repo_root/packages.json" >/dev/null; then
+    ok "every external repo pins its GPG key fingerprints"
+else
+    not_ok "external repo without gpg_fingerprints in packages.json"
 fi
 
 if ((failures)); then

@@ -19,8 +19,15 @@ URL="$1"
 shift
 OPTIONS=("$@")
 
+# Send the token only to GitHub hosts; curl already drops it on cross-host
+# redirects. HTTPS only, redirects included.
+case "$URL" in
+  https://api.github.com/* | https://github.com/* | https://raw.githubusercontent.com/*) ;;
+  *) AUTH_HEADER="" ;;
+esac
+
 if [[ -n "$AUTH_HEADER" ]]; then
-  curl --fail --retry 3 --retry-delay 2 --retry-max-time 60 -sSL -H "$AUTH_HEADER" "${OPTIONS[@]}" "$URL"
+  curl --proto =https --proto-redir =https --fail --retry 3 --retry-delay 2 --retry-max-time 60 -sSL -H "$AUTH_HEADER" "${OPTIONS[@]}" "$URL"
 else
-  curl --fail --retry 3 --retry-delay 2 --retry-max-time 60 -sSL "${OPTIONS[@]}" "$URL"
+  curl --proto =https --proto-redir =https --fail --retry 3 --retry-delay 2 --retry-max-time 60 -sSL "${OPTIONS[@]}" "$URL"
 fi
