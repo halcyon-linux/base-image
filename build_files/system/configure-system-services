@@ -29,7 +29,10 @@ system_services=(
     halcyon-aide-init.service
     halcyon-aide-check.timer
     rngd.service
+    psacct.service
+    sysstat.service
     halcyon-mor.service
+    piavpn.service
 )
 
 global_services=(

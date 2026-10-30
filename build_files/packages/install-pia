@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+
+# Install Private Internet Access VPN from the latest upstream installer.
+# Fetches the latest version URL and SHA-256 checksum from the PIA changelog page.
+#
+# The upstream install.sh is not run: it refuses root, calls sudo, a package
+# manager and systemctl, and installs to /opt and /usr/local, which are
+# symlinks into /var on this image and are wiped by finalize. The makeself
+# payload is extracted instead and laid out under /usr; the unit, tmpfiles,
+# sysusers and NetworkManager files live in system_files/desktop.
+
+set -Eeuo pipefail
+
+CHANGELOG_URL="https://www.privateinternetaccess.com/pages/changelog"
+INSTALLER_BASE_URL="https://installers.privateinternetaccess.com/download/"
+
+# Fetch the changelog page
+echo "Fetching PIA changelog page..."
+changelog_html=$(
+    curl --fail --retry 3 --retry-delay 2 --retry-max-time 60 -sSL "$CHANGELOG_URL"
+)
+
+# Extract the latest Linux x64 .run download URL and SHA-256
+# The changelog has entries like:
+# <a ... href="https://installers.privateinternetaccess.com/download/pia-linux-3.8-08539.run">
+# <p class="sha256">pia-linux-3.8-08539.run:<span class="code">a3cf2e2b50d29693ba58f0ae232e52c5785f0244a56e6ed005b684b18767399f</span></p>
+
+# PIA publishes no stable "latest" URL or signature, so the newest x64 .run is
+# the one with the highest build number. Do not rely on page order. arm64 and
+# armhf names do not match the [0-9.]+ version field.
+installer_url=$(echo "$changelog_html" | grep -oE 'https://installers\.privateinternetaccess\.com/download/pia-linux-[0-9.]+-[0-9]+\.run' | sort -u | sort -t- -k4,4n | tail -n1)
+
+if [[ -z "$installer_url" ]]; then
+    echo "ERROR: Could not find latest PIA Linux installer URL" >&2
+    exit 1
+fi
+
+echo "Found installer URL: $installer_url"
+
+# Extract the filename from URL
+installer_filename=$(basename "$installer_url")
+echo "Installer filename: $installer_filename"
+
+# Extract the SHA-256 for this specific filename from the changelog
+# The checksum is in: <p class="sha256">pia-linux-3.8-08539.run:<span class="code">CHECKSUM</span></p>
+# Escape dots and hyphens in filename for regex
+installer_filename_regex=$(printf '%s\n' "$installer_filename" | sed 's/[.-]/\\&/g')
+
+expected_sha256=$(echo "$changelog_html" | sed -n "s/.*${installer_filename_regex}:<span class=\"code\">\([a-f0-9]*\)<\/span>.*/\1/p" | head -n1)
+
+if [[ -z "$expected_sha256" ]]; then
+    echo "ERROR: Could not find SHA-256 checksum for $installer_filename" >&2
+    exit 1
+fi
+
+echo "Expected SHA-256: $expected_sha256"
+
+# Download the installer to a temp file
+PIA_INSTALLER=$(mktemp --suffix=.run)
+PIA_EXTRACT=$(mktemp -d)
+trap 'rm -rf "$PIA_INSTALLER" "$PIA_EXTRACT"' EXIT
+
+echo "Downloading PIA installer..."
+curl --fail --retry 3 --retry-delay 2 --retry-max-time 60 -sSL -o "$PIA_INSTALLER" "$installer_url"
+
+# Verify SHA-256
+echo "Verifying SHA-256 checksum..."
+actual_sha256=$(sha256sum "$PIA_INSTALLER" | cut -d' ' -f1)
+
+if [[ "$actual_sha256" != "$expected_sha256" ]]; then
+    echo "ERROR: SHA-256 mismatch!" >&2
+    echo "  Expected: $expected_sha256" >&2
+    echo "  Actual:   $actual_sha256" >&2
+    exit 1
+fi
+
+echo "Checksum verified successfully."
+
+# Extract the payload without running install.sh
+echo "Extracting PIA payload..."
+sh "$PIA_INSTALLER" --noexec --target "$PIA_EXTRACT" > /dev/null
+
+for required in piafiles installfiles/piavpn.desktop installfiles/app-icon.png; do
+    if [[ ! -e "$PIA_EXTRACT/$required" ]]; then
+        echo "ERROR: installer payload is missing $required" >&2
+        exit 1
+    fi
+done
+
+# Lay out under /usr/lib/piavpn. The unit, desktop file and scripts point at
+# /opt/piavpn upstream; rewrite them to the final location.
+install_dir=/usr/lib/piavpn
+mkdir -p "$install_dir"
+cp -a "$PIA_EXTRACT/piafiles/." "$install_dir/"
+install -m 0755 "$PIA_EXTRACT"/installfiles/*.sh "$install_dir/bin/"
+sed -i "s#/opt/piavpn#${install_dir}#g" \
+    "$install_dir/bin/qt.conf" \
+    "$install_dir/bin/openvpn-updown.sh"
+
+# The daemon writes state under <install dir>/var and <install dir>/etc.
+# /usr is read-only at runtime, so point both at /var/lib/piavpn
+# (system_files/desktop/usr/lib/tmpfiles.d/piavpn.conf creates it at boot).
+rm -rf "${install_dir:?}/var" "${install_dir:?}/etc"
+ln -s /var/lib/piavpn/var "$install_dir/var"
+ln -s /var/lib/piavpn/etc "$install_dir/etc"
+
+# Allow unbound to bind privileged ports without root, as upstream does.
+if setcap 'cap_net_bind_service=+ep' "$install_dir/bin/pia-unbound"; then
+    echo "pia-unbound may bind privileged ports."
+else
+    echo "WARNING: setcap failed on pia-unbound" >&2
+fi
+
+install -Dm 0644 "$PIA_EXTRACT/installfiles/app-icon.png" /usr/share/pixmaps/piavpn.png
+install -Dm 0644 "$PIA_EXTRACT/installfiles/piavpn.desktop" /usr/share/applications/piavpn.desktop
+sed -i "s#/opt/piavpn#${install_dir}#g" /usr/share/applications/piavpn.desktop
+ln -sf "$install_dir/bin/piactl" /usr/bin/piactl
+
+echo "PIA installation complete."

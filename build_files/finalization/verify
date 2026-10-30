@@ -12,7 +12,7 @@ set -Eeuo pipefail
 
 group="${1:-}"
 case "$group" in
-brew | kernel | repos | cli-tools | utils | removals | common-packages | gaming | fonts | base-pkgs | hyprpm | applications | texlive-packages | nix | picker | media | desktop-integration | justfiles | services | grub | integration-files | image-info | initramfs | finalize | nvidia-config | nvidia | system-policy | nvidia-finalize | security | security-hardening | packages | final) ;;
+brew | kernel | repos | cli-tools | utils | removals | common-packages | gaming | fonts | base-pkgs | hyprpm | applications | texlive-packages | nix | picker | media | desktop-integration | justfiles | services | grub | integration-files | image-info | initramfs | finalize | nvidia-config | nvidia | system-policy | nvidia-finalize | security | security-hardening | packages | final | pia) ;;
 *)
     printf 'Usage: %s <stage>\n' "$0" >&2
     exit 2
@@ -683,6 +683,7 @@ verify_nix() {
         /usr/lib/systemd/system/var-nix.service \
         /usr/lib/systemd/system/nix.mount \
         /usr/lib/tmpfiles.d/nix.conf \
+        /usr/lib/user-tmpfiles.d/halcyon-nix.conf \
         /etc/profile.d/00-nix-resolve-home-env.sh \
         /etc/nix/nix.conf; do
         if [[ -e "$f" ]]; then
@@ -691,6 +692,13 @@ verify_nix() {
             fail "nix file missing: $f"
         fi
     done
+
+    # home-manager needs this directory to exist (see the file's header).
+    if grep -qE '^d %S/nix/profiles ' /usr/lib/user-tmpfiles.d/halcyon-nix.conf 2>/dev/null; then
+        pass "user tmpfiles creates \$XDG_STATE_HOME/nix/profiles for home-manager"
+    else
+        fail "/usr/lib/user-tmpfiles.d/halcyon-nix.conf must create %S/nix/profiles"
+    fi
 
     if grep -q "NIX_REMOTE=daemon" /etc/profile.d/00-nix-resolve-home-env.sh; then
         pass "NIX_REMOTE=daemon configured in profile"
@@ -704,6 +712,68 @@ verify_picker() {
         pass "ujust-picker present and executable: /usr/bin/ujust-picker"
     else
         fail "ujust-picker missing or not executable: /usr/bin/ujust-picker"
+    fi
+}
+
+verify_pia() {
+    # install-pia lays PIA out under /usr/lib/piavpn. /opt and /usr/local are
+    # symlinks into /var on this image and finalize wipes /var.
+    local bin
+    for bin in pia-client pia-daemon piactl; do
+        if [[ -x "/usr/lib/piavpn/bin/$bin" ]]; then
+            pass "PIA binary present and executable: /usr/lib/piavpn/bin/$bin"
+        else
+            fail "PIA binary missing or not executable: /usr/lib/piavpn/bin/$bin"
+        fi
+    done
+
+    if [[ "$(readlink /usr/bin/piactl 2>/dev/null)" == /usr/lib/piavpn/bin/piactl ]]; then
+        pass "piactl symlink points into /usr/lib/piavpn"
+    else
+        fail "/usr/bin/piactl must link to /usr/lib/piavpn/bin/piactl"
+    fi
+
+    # State must live in /var/lib/piavpn, not the read-only /usr tree.
+    local state
+    for state in var etc; do
+        if [[ "$(readlink "/usr/lib/piavpn/$state" 2>/dev/null)" == "/var/lib/piavpn/$state" ]]; then
+            pass "PIA state dir links to /var/lib/piavpn/$state"
+        else
+            fail "/usr/lib/piavpn/$state must link to /var/lib/piavpn/$state"
+        fi
+    done
+
+    if [[ -f /usr/lib/systemd/system/piavpn.service ]]; then
+        pass "PIA daemon unit present: /usr/lib/systemd/system/piavpn.service"
+    else
+        fail "PIA daemon unit missing: /usr/lib/systemd/system/piavpn.service"
+    fi
+
+    if [[ -f /usr/share/applications/piavpn.desktop ]]; then
+        pass "PIA desktop entry present: /usr/share/applications/piavpn.desktop"
+    else
+        fail "PIA desktop entry missing: /usr/share/applications/piavpn.desktop"
+    fi
+
+    # Nothing may still point at /opt/piavpn, and nothing may sit under /opt
+    # or /usr/local (both wiped by finalize).
+    local pia_file
+    for pia_file in \
+        /usr/lib/systemd/system/piavpn.service \
+        /usr/share/applications/piavpn.desktop \
+        /usr/lib/piavpn/bin/qt.conf \
+        /usr/lib/piavpn/bin/openvpn-updown.sh; do
+        if grep -qF /opt/piavpn "$pia_file" 2>/dev/null; then
+            fail "$pia_file still references /opt/piavpn"
+        else
+            pass "$pia_file has no /opt/piavpn reference"
+        fi
+    done
+
+    if [[ -e /opt/piavpn || -e /usr/local/bin/piactl ]]; then
+        fail "PIA must not be installed under /opt or /usr/local (wiped by finalize)"
+    else
+        pass "no PIA files under /opt or /usr/local"
     fi
 }
 
@@ -877,7 +947,8 @@ verify_services() {
         greenboot-healthcheck.service greenboot-set-rollback-trigger.service \
         dmemcg-booster-system.service cardwired.service \
         sddm.service cups.service bpftune.service tuned.service fstrim.timer \
-        nix-daemon.socket nix-daemon.service auditd.service audit-rules.service; do
+        nix-daemon.socket nix-daemon.service auditd.service audit-rules.service \
+        piavpn.service; do
         if [[ "$(systemctl is-enabled "$svc" 2>/dev/null)" == enabled ]]; then
             pass "system service enabled: $svc"
         else
@@ -1376,6 +1447,13 @@ verify_security_hardening() {
         fail "tmpfiles rule for /var/lib/fail2ban missing"
     fi
 
+    # psacct.service is conditioned on /var/account, which finalize wipes.
+    if grep -q '^d /var/account' /usr/lib/tmpfiles.d/halcyon-hardening.conf 2>/dev/null; then
+        pass "tmpfiles rule creates process accounting directory"
+    else
+        fail "tmpfiles rule for /var/account missing (psacct.service would be skipped)"
+    fi
+
     # Security units enabled by configure-system-services.
     local unit
     for unit in \
@@ -1386,6 +1464,11 @@ verify_security_hardening() {
         /etc/systemd/system/multi-user.target.wants/halcyon-aide-init.service \
         /etc/systemd/system/timers.target.wants/halcyon-aide-check.timer \
         /etc/systemd/system/multi-user.target.wants/rngd.service \
+        /etc/systemd/system/multi-user.target.wants/psacct.service \
+        /etc/systemd/system/multi-user.target.wants/sysstat.service \
+        /etc/systemd/system/sysstat.service.wants/sysstat-collect.timer \
+        /etc/systemd/system/sysstat.service.wants/sysstat-summary.timer \
+        /etc/systemd/system/sysstat.service.wants/sysstat-rotate.timer \
         /etc/systemd/system/multi-user.target.wants/halcyon-mor.service; do
         if [[ -e "$unit" ]]; then
             pass "security unit enabled: $unit"
@@ -2001,7 +2084,7 @@ verify_final() {
     if [[ -f "$sshd_conf" ]]; then
         pass "sshd hardening drop-in present: $sshd_conf"
         for sshd_directive in \
-            'Port 43210' \
+            'Port 47' \
             'PermitRootLogin no' \
             'PasswordAuthentication no' \
             'KbdInteractiveAuthentication no' \
@@ -2116,6 +2199,7 @@ applications) verify_applications ;;
 texlive-packages) verify_texlive_packages ;;
 nix) verify_nix ;;
 picker) verify_picker ;;
+pia) verify_pia ;;
 media) verify_media ;;
 desktop-integration) verify_desktop_integration ;;
 justfiles) verify_justfiles ;;

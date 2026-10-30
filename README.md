@@ -2,18 +2,18 @@
 
 A signed, bootc-native Fedora Atomic image for an NVIDIA gaming workstation. Built from a single `Containerfile` on Universal Blue `base-main`, with the OGC gaming kernel, the NVIDIA **open** kernel modules, and a Hyprland + Noctalia desktop.
 
-| | |
-| --- | --- |
-| **Image** | `ghcr.io/halcyon-linux/alcyone` (tags `stable`, `latest`, `YYYYMMDD`: same digest) |
-| **Base** | `ghcr.io/ublue-os/base-main:44` (Fedora 44, x86_64) |
-| **Kernel** | OGC (Open Gaming Collective) kernel from `ublue-os/akmods`, version-locked |
-| **GPU** | NVIDIA open modules (`akmods-nvidia-open`), multilib |
-| **Extra kmod** | `nct6687d` only (NCT6687 sensors, MSI Z790-P target) |
-| **Desktop** | SDDM + Hyprland + Noctalia shell |
-| **Update stack** | bootc / rpm-ostree, `uupd`, greenboot |
-| **Signing** | cosign key pair; public key is [`cosign.pub`](cosign.pub) |
-| **Source branch** | `containerfile` (default and release branch) |
-| **License** | Apache-2.0 |
+|                   |                                                                                    |
+| ----------------- | ---------------------------------------------------------------------------------- |
+| **Image**         | `ghcr.io/halcyon-linux/alcyone` (tags `stable`, `latest`, `YYYYMMDD`: same digest) |
+| **Base**          | `ghcr.io/ublue-os/base-main:44` (Fedora 44, x86_64)                                |
+| **Kernel**        | OGC (Open Gaming Collective) kernel from `ublue-os/akmods`, version-locked         |
+| **GPU**           | NVIDIA open modules (`akmods-nvidia-open`), multilib                               |
+| **Extra kmod**    | `nct6687d` only (NCT6687 sensors, MSI Z790-P target)                               |
+| **Desktop**       | SDDM + Hyprland + Noctalia shell                                                   |
+| **Update stack**  | bootc / rpm-ostree, `uupd`, greenboot                                              |
+| **Signing**       | cosign key pair; public key is [`cosign.pub`](cosign.pub)                          |
+| **Source branch** | `containerfile` (default and release branch)                                       |
+| **License**       | Apache-2.0                                                                         |
 
 ## Contents
 
@@ -135,12 +135,12 @@ To track `stable` instead (`sudo bootc switch "$IMAGE:stable"`), first [enforce 
 
 ### Troubleshooting
 
-| Symptom | Likely cause and action |
-| --- | --- |
-| `no signatures found` | Pass `@$DIGEST`, not a tag. Update cosign: v3.1+ detects the legacy format itself; on older releases retry with `--new-bundle-format=false`. |
-| Transparency-log errors | The signing flags are in `.github/workflows/build.yml`. Check how the signature was recorded before relaxing tlog checks (`--insecure-ignore-tlog`), and only do so deliberately. |
-| `invalid signature` / fingerprint mismatch | Wrong or rotated key. Re-check step 2. Treat as a security event until explained. |
-| `denied`, `unauthorized`, rate limiting | Retry later, or authenticate with `podman login ghcr.io` / `skopeo login ghcr.io`. |
+| Symptom                                    | Likely cause and action                                                                                                                                                           |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `no signatures found`                      | Pass `@$DIGEST`, not a tag. Update cosign: v3.1+ detects the legacy format itself; on older releases retry with `--new-bundle-format=false`.                                      |
+| Transparency-log errors                    | The signing flags are in `.github/workflows/build.yml`. Check how the signature was recorded before relaxing tlog checks (`--insecure-ignore-tlog`), and only do so deliberately. |
+| `invalid signature` / fingerprint mismatch | Wrong or rotated key. Re-check step 2. Treat as a security event until explained.                                                                                                 |
+| `denied`, `unauthorized`, rate limiting    | Retry later, or authenticate with `podman login ghcr.io` / `skopeo login ghcr.io`.                                                                                                |
 
 If the signature verifies but you end up with a different image, you deployed something other than the verified digest. Always deploy the same `@sha256:` digest.
 
@@ -230,19 +230,19 @@ The tag suffix is your git branch (`44-<branch>`). Your previous deployment stay
 
 Run `ujust` for the full list. Common ones:
 
-| Recipe | Purpose |
-| --- | --- |
-| `update` / `upgrade` | Update the OS image and apps via `uupd` |
-| `changelogs` | Open recent image changes |
-| `verify-image` | Rebase an unverified ref to `ostree-image-signed:` form (no cosign check) |
-| `dotfiles` | chezmoi menu: `status`, `sync`, `diff`, `edit` |
-| `configure-grub`, `regenerate-grub`, `grub-timeout` | GRUB maintenance |
-| `configure-snapshots`, `configure-beesd` | Btrfs snapshots and deduplication |
-| `tailscale` | Manage Tailscale |
-| `update-nvidia-runtime` | Sync the NVIDIA Flatpak runtime |
-| `aide-init`, `aide-check`, `aide-rebaseline` | AIDE file-integrity baseline and checks |
+| Recipe                                                       | Purpose                                                                                                                               |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `update` / `upgrade`                                         | Update the OS image and apps via `uupd`                                                                                               |
+| `changelogs`                                                 | Open recent image changes                                                                                                             |
+| `verify-image`                                               | Rebase an unverified ref to `ostree-image-signed:` form (no cosign check)                                                             |
+| `dotfiles`                                                   | chezmoi menu: `status`, `sync`, `diff`, `edit`                                                                                        |
+| `configure-grub`, `regenerate-grub`, `grub-timeout`          | GRUB maintenance                                                                                                                      |
+| `configure-snapshots`, `configure-beesd`                     | Btrfs snapshots and deduplication                                                                                                     |
+| `tailscale`                                                  | Manage Tailscale                                                                                                                      |
+| `update-nvidia-runtime`                                      | Sync the NVIDIA Flatpak runtime                                                                                                       |
+| `aide-init`, `aide-check`, `aide-rebaseline`                 | AIDE file-integrity baseline and checks                                                                                               |
 | `audit-status`, `audit-report`, `audit-lock`, `audit-unlock` | Show audit state, summarise failed events, lock or unlock the audit rules (`-e 2`); see [Auditing with auditd](#auditing-with-auditd) |
-| `nix-relabel-unit [unit\|store path]` | Relabel Nix store paths holding systemd units; see [Nix, Home Manager and flakes](#nix-home-manager-and-flakes) |
+| `nix-relabel-unit [unit\|store path]`                        | Relabel Nix store paths holding systemd units; see [Nix, Home Manager and flakes](#nix-home-manager-and-flakes)                       |
 
 ### Installing software
 
@@ -307,28 +307,28 @@ sudo rm /etc/audit/rules.d/audit.rules && sudo augenrules --load
 
 #### Where things live
 
-| Path | Purpose |
-| --- | --- |
-| `/etc/audit/rules.d/*.rules` | Rule files, merged in natural (`sort -V`) order by `augenrules` at boot. Only names ending in `.rules` |
-| `/etc/audit/audit.rules` | The merged result, generated by `augenrules`. Do not edit |
-| `/etc/audit/auditd.conf` | Daemon settings: log format, rotation, disk-space actions |
-| `/etc/audit/plugins.d/` | Event dispatcher plugins (`sedispatch` for setroubleshoot is active; the `audispd-plugins` ones are off) |
-| `/var/log/audit/audit.log` | The log, mode 0700 directory, root only |
+| Path                         | Purpose                                                                                                  |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `/etc/audit/rules.d/*.rules` | Rule files, merged in natural (`sort -V`) order by `augenrules` at boot. Only names ending in `.rules`   |
+| `/etc/audit/audit.rules`     | The merged result, generated by `augenrules`. Do not edit                                                |
+| `/etc/audit/auditd.conf`     | Daemon settings: log format, rotation, disk-space actions                                                |
+| `/etc/audit/plugins.d/`      | Event dispatcher plugins (`sedispatch` for setroubleshoot is active; the `audispd-plugins` ones are off) |
+| `/var/log/audit/audit.log`   | The log, mode 0700 directory, root only                                                                  |
 
-| Rule file | What it covers |
-| --- | --- |
-| `10-base-config.rules` | `-D`, `-b 8192`, `--backlog_wait_time 60000`, `-f 1`, `--loginuid-immutable` |
-| `12-cont-fail.rules` | `-c`: keep loading after a bad rule but make `audit-rules.service` fail, so a broken rule is visible |
-| `20-dont-audit.rules` | Noise filters: cron jobs, chrony clock slewing, tracefs/debugfs, kernel keyring events |
-| `30-identity.rules` | Account, sudo/polkit, PAM, SSH and host-identity files |
-| `31-privileged.rules` | Generated at image build: execution of every setuid/setgid or file-capability binary under `/usr` by a real user |
-| `32-power-abuse.rules` | Root (after sudo/su) touching files owned by another user in `/var/home` |
-| `40-kernel.rules` | Module load/unload, kexec, bpf by real users, ptrace code injection, clock changes, swap, sysctl/modprobe/ld.so configuration |
-| `41-persistence.rules` | cron, systemd units under `/etc/systemd/system`, shell start-up files, fstab, crypttab, GRUB, `/boot` |
-| `44-installers.rules` | `dnf5`, `rpm-ostree`, `bootc`, `pipx` run by a real user; repository, Flatpak, container and Nix configuration |
+| Rule file                  | What it covers                                                                                                                                           |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `10-base-config.rules`     | `-D`, `-b 8192`, `--backlog_wait_time 60000`, `-f 1`, `--loginuid-immutable`                                                                             |
+| `12-cont-fail.rules`       | `-c`: keep loading after a bad rule but make `audit-rules.service` fail, so a broken rule is visible                                                     |
+| `20-dont-audit.rules`      | Noise filters: cron jobs, chrony clock slewing, tracefs/debugfs, kernel keyring events                                                                   |
+| `30-identity.rules`        | Account, sudo/polkit, PAM, SSH and host-identity files                                                                                                   |
+| `31-privileged.rules`      | Generated at image build: execution of every setuid/setgid or file-capability binary under `/usr` by a real user                                         |
+| `32-power-abuse.rules`     | Root (after sudo/su) touching files owned by another user in `/var/home`                                                                                 |
+| `40-kernel.rules`          | Module load/unload, kexec, bpf by real users, ptrace code injection, clock changes, swap, sysctl/modprobe/ld.so configuration                            |
+| `41-persistence.rules`     | cron, systemd units under `/etc/systemd/system`, shell start-up files, fstab, crypttab, GRUB, `/boot`                                                    |
+| `44-installers.rules`      | `dnf5`, `rpm-ostree`, `bootc`, `pipx` run by a real user; repository, Flatpak, container and Nix configuration                                           |
 | `50-security-config.rules` | SELinux policy and the audit, fail2ban, AIDE, firewalld, NetworkManager and chrony configuration; `setenforce`, `semodule`, `auditctl` and similar tools |
-| `60-access-denied.rules` | Failed opens (`EACCES`/`EPERM`) by a real user under `/etc`, `/var/roothome`, `/boot`, `/var/log/audit`, `/var/lib/aide` |
-| `99-finalize.rules` | `-e 1`: auditing enabled, rules changeable |
+| `60-access-denied.rules`   | Failed opens (`EACCES`/`EPERM`) by a real user under `/etc`, `/var/roothome`, `/boot`, `/var/log/audit`, `/var/lib/aide`                                 |
+| `99-finalize.rules`        | `-e 1`: auditing enabled, rules changeable                                                                                                               |
 
 "Real user" = a set login uid of 1000 or more (`auid>=1000`, `auid!=unset`), so boot-time services are not logged.
 
@@ -336,29 +336,29 @@ sudo rm /etc/audit/rules.d/audit.rules && sudo augenrules --load
 
 Every rule carries a key; search with `ausearch -k <key>`.
 
-| Key | Event |
-| --- | --- |
-| `identity` | Write to passwd, shadow, group, gshadow, subuid or subgid |
-| `sudoers` | Change to sudoers, `sudoers.d` or polkit rules |
-| `auth-config` | Change to login.defs, nsswitch, PAM, `/etc/security` or authselect |
-| `sshd-config` | Change under `/etc/ssh` |
-| `system-identity` | Change to `/etc/hostname`, `/etc/hosts`, `/etc/issue`, `/etc/issue.net` |
-| `module-load`, `module-unload` | Kernel module inserted or removed |
-| `kexec` | `kexec_load` / `kexec_file_load` |
-| `bpf` | bpf syscall by a real user |
-| `code-injection`, `data-injection`, `register-injection` | ptrace POKETEXT, POKEDATA, SETREGS |
-| `time-change` | Wall-clock changes (not chrony) |
-| `swap` | `swapon` / `swapoff` |
-| `kernel-config`, `ld-preload` | modprobe.d, modules-load.d, sysctl, `ld.so.*` |
-| `persistence-cron`, `persistence-systemd`, `persistence-shell` | cron, `/etc/systemd/system`, shell start-up files |
-| `boot-config` | fstab, crypttab, GRUB configuration, `/boot` |
-| `software-installer`, `package-config` | Package manager run; repository and tool configuration changed |
-| `selinux-config`, `selinux-tool` | SELinux config or policy changed; `setenforce`, `semodule` and friends run |
-| `audit-config`, `audit-tool` | Audit configuration changed; `auditctl` / `augenrules` run |
-| `security-tools`, `firewall-config`, `network-config` | fail2ban, AIDE, firewalld, NetworkManager, chrony configuration |
-| `privileged` | Setuid/setgid or file-capability binary executed |
-| `power-abuse` | Root reading or changing another user's files in `/var/home` |
-| `access-denied` | Permission denied on a sensitive path |
+| Key                                                            | Event                                                                      |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `identity`                                                     | Write to passwd, shadow, group, gshadow, subuid or subgid                  |
+| `sudoers`                                                      | Change to sudoers, `sudoers.d` or polkit rules                             |
+| `auth-config`                                                  | Change to login.defs, nsswitch, PAM, `/etc/security` or authselect         |
+| `sshd-config`                                                  | Change under `/etc/ssh`                                                    |
+| `system-identity`                                              | Change to `/etc/hostname`, `/etc/hosts`, `/etc/issue`, `/etc/issue.net`    |
+| `module-load`, `module-unload`                                 | Kernel module inserted or removed                                          |
+| `kexec`                                                        | `kexec_load` / `kexec_file_load`                                           |
+| `bpf`                                                          | bpf syscall by a real user                                                 |
+| `code-injection`, `data-injection`, `register-injection`       | ptrace POKETEXT, POKEDATA, SETREGS                                         |
+| `time-change`                                                  | Wall-clock changes (not chrony)                                            |
+| `swap`                                                         | `swapon` / `swapoff`                                                       |
+| `kernel-config`, `ld-preload`                                  | modprobe.d, modules-load.d, sysctl, `ld.so.*`                              |
+| `persistence-cron`, `persistence-systemd`, `persistence-shell` | cron, `/etc/systemd/system`, shell start-up files                          |
+| `boot-config`                                                  | fstab, crypttab, GRUB configuration, `/boot`                               |
+| `software-installer`, `package-config`                         | Package manager run; repository and tool configuration changed             |
+| `selinux-config`, `selinux-tool`                               | SELinux config or policy changed; `setenforce`, `semodule` and friends run |
+| `audit-config`, `audit-tool`                                   | Audit configuration changed; `auditctl` / `augenrules` run                 |
+| `security-tools`, `firewall-config`, `network-config`          | fail2ban, AIDE, firewalld, NetworkManager, chrony configuration            |
+| `privileged`                                                   | Setuid/setgid or file-capability binary executed                           |
+| `power-abuse`                                                  | Root reading or changing another user's files in `/var/home`               |
+| `access-denied`                                                | Permission denied on a sensitive path                                      |
 
 #### Searching and reporting
 
@@ -437,16 +437,16 @@ Check `du` and `aureport --key --summary` after a day of normal use: the rules s
 
 #### Troubleshooting
 
-| Symptom | Cause and fix |
-| --- | --- |
-| `audit-rules.service` is `failed` | At least one rule was rejected (the rest still loaded, because of `-c`). Read `sudo journalctl -u audit-rules -b` and fix the line it names; common errors: `Rule exists` (duplicate), `Unknown syscall` (name not valid for that `arch`, e.g. `kexec_file_load` on `b32`), `No such file or directory` (a `dir=` target missing) |
-| `auditctl -l` prints `No rules` | `audit-rules.service` did not run or all rules failed; check `systemctl status audit-rules`, and `cat /proc/cmdline` for `audit=0`, which disables auditing |
-| `auditctl -l` shows only `-a never,task` | The stock `audit.rules` is back: `sudo rm /etc/audit/rules.d/audit.rules && sudo augenrules --load` |
-| `auditctl -s` shows `enabled 2` | Rules are locked: reboot after `ujust audit-unlock` to change them |
-| `lost` or `backlog` keeps growing | The event queue overflowed. Raise `-b` (see above), find the noisy key with `aureport --key --summary`, and silence it |
-| `ausearch` prints nothing or hangs | Run it with `sudo`; add `--input-logs` in scripts |
-| Login inside a systemd container fails | `--loginuid-immutable` (in `10-base-config.rules`) can break `pam_loginuid` in some containers. Remove that line from a local copy only if you hit it |
-| SELinux denials not shown | AVC records are always logged; search `-m avc`. Confinement problems are not an audit-rules matter |
+| Symptom                                  | Cause and fix                                                                                                                                                                                                                                                                                                                     |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `audit-rules.service` is `failed`        | At least one rule was rejected (the rest still loaded, because of `-c`). Read `sudo journalctl -u audit-rules -b` and fix the line it names; common errors: `Rule exists` (duplicate), `Unknown syscall` (name not valid for that `arch`, e.g. `kexec_file_load` on `b32`), `No such file or directory` (a `dir=` target missing) |
+| `auditctl -l` prints `No rules`          | `audit-rules.service` did not run or all rules failed; check `systemctl status audit-rules`, and `cat /proc/cmdline` for `audit=0`, which disables auditing                                                                                                                                                                       |
+| `auditctl -l` shows only `-a never,task` | The stock `audit.rules` is back: `sudo rm /etc/audit/rules.d/audit.rules && sudo augenrules --load`                                                                                                                                                                                                                               |
+| `auditctl -s` shows `enabled 2`          | Rules are locked: reboot after `ujust audit-unlock` to change them                                                                                                                                                                                                                                                                |
+| `lost` or `backlog` keeps growing        | The event queue overflowed. Raise `-b` (see above), find the noisy key with `aureport --key --summary`, and silence it                                                                                                                                                                                                            |
+| `ausearch` prints nothing or hangs       | Run it with `sudo`; add `--input-logs` in scripts                                                                                                                                                                                                                                                                                 |
+| Login inside a systemd container fails   | `--loginuid-immutable` (in `10-base-config.rules`) can break `pam_loginuid` in some containers. Remove that line from a local copy only if you hit it                                                                                                                                                                             |
+| SELinux denials not shown                | AVC records are always logged; search `-m avc`. Confinement problems are not an audit-rules matter                                                                                                                                                                                                                                |
 
 #### Sending events off the machine
 
@@ -461,12 +461,12 @@ The image installs `chezmoi` and wires it through systemd user units to [`aahsnr
 > - Opt out for every user: `sudo systemctl --global disable chezmoi-init.service chezmoi-update.timer`
 > - Opt out for one user: `systemctl --user mask chezmoi-init.service chezmoi-update.timer`
 
-| Component | When it runs | What it does |
-| --- | --- | --- |
-| `chezmoi-init.service` | At login, if `~/.local/share/chezmoi/.git` missing | `chezmoi init --apply --force aahsnr-configs/dotfiles` (5 attempts in 5 min) |
-| `chezmoi-update.timer` | 5 min after boot, then daily | Triggers the update service |
-| `chezmoi-update.service` | By the timer | `chezmoi update --no-tty --force` (pull and apply) |
-| `ujust dotfiles` | Manual | Menu: `status` / `sync` / `diff` / `edit` |
+| Component                | When it runs                                       | What it does                                                                 |
+| ------------------------ | -------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `chezmoi-init.service`   | At login, if `~/.local/share/chezmoi/.git` missing | `chezmoi init --apply --force aahsnr-configs/dotfiles` (5 attempts in 5 min) |
+| `chezmoi-update.timer`   | 5 min after boot, then daily                       | Triggers the update service                                                  |
+| `chezmoi-update.service` | By the timer                                       | `chezmoi update --no-tty --force` (pull and apply)                           |
+| `ujust dotfiles`         | Manual                                             | Menu: `status` / `sync` / `diff` / `edit`                                    |
 
 - Units live in `/usr/lib/systemd/user/` (read-only, replaced on image updates). They skip system accounts and the `sddm` greeter.
 - The dotfiles repo is public, so clones and pulls use anonymous HTTPS. After init, the service rewrites only **pushes** to SSH (`pushInsteadOf`) and pins `core.sshCommand` to `~/.ssh/id_ed25519_aahsnr_configs`; manual pushes need that key. `/etc/ssh/ssh_config.d/10-halcyon-github.conf` uses the same key for `github.com`.
@@ -492,27 +492,27 @@ The image installs `chezmoi` and wires it through systemd user units to [`aahsnr
 
 Full package lists: [`packages.json`](packages.json). Highlights:
 
-| Area | Contents |
-| --- | --- |
-| **Desktop** | SDDM (default target `graphical.target`), Hyprland + Noctalia, Bazaar software center (Flathub declared, no Flatpak apps pre-installed) |
-| **Shell and CLI** | zsh as default login shell (fish and `greetd` removed); a pinentry dispatcher (GUI in a graphical session, curses/tty otherwise); `bat`, `eza`, `fzf`, `ripgrep`, `atuin`, `starship`, `zellij`, `yazi`, `lazygit`, `uv`, `pixi`, … |
-| **Gaming** | Steam (no autostart), Lutris, gamescope, MangoHud, vkBasalt, umu-launcher, ProtonPlus, Heroic, winetricks, `scx` schedulers, `ds-inhibit`, `input-remapper`. Handheld packages removed; Waydroid intentionally absent |
-| **System** | Btrfs tooling (`btrfs-assistant`, `snapper`, `compsize`), `bees` deduplication (timers via `ujust configure-beesd`), greenboot, `fail2ban`, `lynis`, Tailscale (installed, `tailscaled` disabled) |
-| **Package ecosystems** | Homebrew (standalone), Nix (`nix`, `nix-daemon`, `busybox` for the build-sandbox shell, `/nix` mount units for the immutable root), Distrobox/Toolbx, Flatpak runtime |
-| **Apps and toolchains** | Firefox, Chrome, Brave, Edge, Vivaldi, Zen; VS Code, VSCodium, Zed, Neovim, Emacs; Obsidian, OnlyOffice, Bitwarden; Go, Rust (`cargo`), Node 22, CMake, Ninja; TeX Live with formats baked at build time |
-| **Runtime tuning** | zram, sysctl drop-ins (gaming, networking, inotify), TuneD profiles (`*-bazzite`), an optional 1 GiB hugepage mount, `ntsync` module load |
+| Area                    | Contents                                                                                                                                                                                                                            |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Desktop**             | SDDM (default target `graphical.target`), Hyprland + Noctalia, Bazaar software center (Flathub declared, no Flatpak apps pre-installed)                                                                                             |
+| **Shell and CLI**       | zsh as default login shell (fish and `greetd` removed); a pinentry dispatcher (GUI in a graphical session, curses/tty otherwise); `bat`, `eza`, `fzf`, `ripgrep`, `atuin`, `starship`, `zellij`, `yazi`, `lazygit`, `uv`, `pixi`, … |
+| **Gaming**              | Steam (no autostart), Lutris, gamescope, MangoHud, vkBasalt, umu-launcher, ProtonPlus, Heroic, winetricks, `scx` schedulers, `ds-inhibit`, `input-remapper`. Handheld packages removed; Waydroid intentionally absent               |
+| **System**              | Btrfs tooling (`btrfs-assistant`, `snapper`, `compsize`), `bees` deduplication (timers via `ujust configure-beesd`), greenboot, `fail2ban`, `lynis`, Tailscale (installed, `tailscaled` disabled)                                   |
+| **Package ecosystems**  | Homebrew (standalone), Nix (`nix`, `nix-daemon`, `busybox` for the build-sandbox shell, `/nix` mount units for the immutable root), Distrobox/Toolbx, Flatpak runtime                                                               |
+| **Apps and toolchains** | Firefox, Chrome, Brave, Edge, Vivaldi, Zen; VS Code, VSCodium, Zed, Neovim, Emacs; Obsidian, OnlyOffice, Bitwarden; Go, Rust (`cargo`), Node 22, CMake, Ninja; TeX Live with formats baked at build time                            |
+| **Runtime tuning**      | zram, sysctl drop-ins (gaming, networking, inotify), TuneD profiles (`*-bazzite`), an optional 1 GiB hugepage mount, `ntsync` module load                                                                                           |
 
 ### Package sources and repository lifecycle
 
-| Source | Used for | Lifecycle |
-| --- | --- | --- |
-| `ublue-os/base-main:44` | Base OS | Image base |
-| `ublue-os/akmods*` images | Kernel, kmods, NVIDIA RPMs | Build inputs only |
-| `ublue-os/{bazzite,bazzite-multilib,staging,packages}` COPRs | Patched bluez and Xwayland (`bazzite-multilib`), Bazaar and media-automount (`packages`), helpers | Enabled for the build, **disabled in the shipped image** |
-| Terra (`terra`, `terra-extras`, `terra-mesa`) | gamescope, MangoHud, wireplumber, mesa bits | Priority 1 with excludes; disabled in the shipped image |
-| `aahsnr-work/cli-tools`, `python-packages`, `gaming`, `fonts`, `base-pkgs`, `applications`, `texlive-packages` COPRs | The Halcyon package sets | Enabled at `priority=1` inside its own script, disabled before it returns |
-| Vendor repos (Tailscale, GitHub CLI, VS Code, VSCodium, Brave, Chrome, Edge, Vivaldi) | Their packages | Disabled in the shipped image by `configure-system-policy` |
-| GitHub releases and raw files via `ghcurl` | `cicpoffs`, `extest`, `ujust-picker`, winetricks, DXVK example config, Distrobox template, bash-preexec | Downloaded at build time |
+| Source                                                                                                               | Used for                                                                                                | Lifecycle                                                                 |
+| -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `ublue-os/base-main:44`                                                                                              | Base OS                                                                                                 | Image base                                                                |
+| `ublue-os/akmods*` images                                                                                            | Kernel, kmods, NVIDIA RPMs                                                                              | Build inputs only                                                         |
+| `ublue-os/{bazzite,bazzite-multilib,staging,packages}` COPRs                                                         | Patched bluez and Xwayland (`bazzite-multilib`), Bazaar and media-automount (`packages`), helpers       | Enabled for the build, **disabled in the shipped image**                  |
+| Terra (`terra`, `terra-extras`, `terra-mesa`)                                                                        | gamescope, MangoHud, wireplumber, mesa bits                                                             | Priority 1 with excludes; disabled in the shipped image                   |
+| `aahsnr-work/cli-tools`, `python-packages`, `gaming`, `fonts`, `base-pkgs`, `applications`, `texlive-packages` COPRs | The Halcyon package sets                                                                                | Enabled at `priority=1` inside its own script, disabled before it returns |
+| Vendor repos (Tailscale, GitHub CLI, VS Code, VSCodium, Brave, Chrome, Edge, Vivaldi)                                | Their packages                                                                                          | Disabled in the shipped image by `configure-system-policy`                |
+| GitHub releases and raw files via `ghcurl`                                                                           | `cicpoffs`, `extest`, `ujust-picker`, winetricks, DXVK example config, Distrobox template, bash-preexec | Downloaded at build time                                                  |
 
 Version-locked: kernel set, `bluez*`, `xorg-x11-server-Xwayland`, core `mesa-*`, `NetworkManager*`.
 
@@ -644,13 +644,13 @@ for f in build_files/*/* just_scripts/* tests/*.sh; do bash -n "$f"; done
 
 ### `.github/workflows/build.yml`: build alcyone
 
-| Item | Value |
-| --- | --- |
-| Triggers | Daily `40 4 * * *` UTC; push to `containerfile` (ignoring `**.md`, `**.txt`); manual dispatch |
+| Item            | Value                                                                                                                                                                             |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Triggers        | Daily `40 4 * * *` UTC; push to `containerfile` (ignoring `**.md`, `**.txt`); manual dispatch                                                                                     |
 | Runner / limits | `ubuntu-26.04`, 120-minute timeout, free-disk-space (incl. tool cache, without the slow apt `large-packages` removal), container storage + TMPDIR on a zstd btrfs loopback on `/` |
-| Permissions | `permissions: {}` at top level; the job gets `contents: read`, `packages: write`, `id-token: write` |
-| Concurrency | Per trigger; pushes cancel older pushes, manual dispatches are never cancelled by a push |
-| Action pinning | Every action pinned to a full commit SHA |
+| Permissions     | `permissions: {}` at top level; the job gets `contents: read`, `packages: write`, `id-token: write`                                                                               |
+| Concurrency     | Per trigger; pushes cancel older pushes, manual dispatches are never cancelled by a push                                                                                          |
+| Action pinning  | Every action pinned to a full commit SHA                                                                                                                                          |
 
 Steps: checkout → `just` syntax check → dnf5 shim test → resolve akmods tag → pull base and akmods images and read the upstream version → `buildah build --target alcyone --build-arg-file build_args.txt --secret id=GITHUB_TOKEN` → log disk usage and the largest RPMs/directories → compute OCI labels (including `ostree.bootable=true` and `ostree.linux`) → rechunk into an OCI directory (`--previous-build` reuses the published `:stable` layer plan so updates download only changed layers; on failure it rechunks again with a fresh plan) → log in to GHCR → **push** with `skopeo copy` straight from that directory, recompressed to **zstd** (`:stable`, then `:latest` and `:YYYYMMDD` copied by digest, with retry) → install cosign `v3.1.3` → **sign the digest**.
 
@@ -723,9 +723,10 @@ Deliberate guardrails (Waydroid, bundled fonts/docs, trimmed kmods, renamed help
 - `cosign.key` and `*.key` are git-ignored and excluded from build contexts; signing uses an Actions secret only.
 - Build-only repositories are disabled in the shipped image; vendor browser/IDE repos use strict priority and immediate disablement.
 - Every stage is asserted by `verify`; the final gate is `bootc container lint`.
-- **SSH.** Hardening drop-in `/etc/ssh/sshd_config.d/10-halcyon-hardening.conf` (Lynis `SSH-7408` items): keys-only authentication, no root, password or empty-password logins, `MaxAuthTries 3`, agent/TCP/X11 forwarding off, capped sessions and auth attempts (`MaxStartups 10:30:60`), legal banner before login, dead-session reaping, `LogLevel VERBOSE`. It applies whenever sshd is enabled (`ujust ssh`; disabled by default). Port is 43210 per `SSH-7408`; cipher/KEX/MAC lists stay on Fedora's system crypto policy.
+- **SSH.** Hardening drop-in `/etc/ssh/sshd_config.d/10-halcyon-hardening.conf` (Lynis `SSH-7408` items): keys-only authentication, no root, password or empty-password logins, `MaxAuthTries 3`, agent/TCP/X11 forwarding off, capped sessions and auth attempts (`MaxStartups 10:30:60`), legal banner before login, dead-session reaping, `LogLevel VERBOSE`. It applies whenever sshd is enabled (`ujust ssh`; disabled by default). Port is 47 per `SSH-7408`; cipher/KEX/MAC lists stay on Fedora's system crypto policy.
 - **Lynis hardening.** Legal banners on `/etc/issue` and `/etc/issue.net`; fail2ban enabled with an sshd jail on the systemd journal (bans via firewalld, 1 h first ban growing per repeat offence up to a week); cron files 0600 and cron spool directories 0700 (tmpfiles re-enforces every boot); `dccp`/`sctp`/`rds`/`tipc` blocked via modprobe; a boot-time unit keeps the hostname resolvable in `/etc/hosts` and another keeps `/etc/gshadow` consistent with `/etc/group` (the bootc split user database makes `usermod -aG` leave gshadow orphans).
 - **Entropy and cold-boot protection** (Lynis `CRYP-8004`/`8005`/`8006`): `rngd` feeds the TPM RNG into the kernel pool; `haveged` is deliberately not shipped (redundant on this kernel), and `CRYP-8005`, which only checks for its process, is skipped in `/etc/lynis/custom.prf`. `halcyon-mor.service` sets the TCG MemoryOverwriteRequestControl bit at boot and clears it on clean shutdown, so firmware wipes RAM only after a crash or power loss; no-op on non-UEFI boots or firmware without MOR.
+- **Accounting** (Lynis `ACCT-9622`/`9626`): `psacct.service` records process accounting to `/var/account/pacct` (`lastcomm`, `sa`; the directory comes from `/usr/lib/tmpfiles.d/halcyon-hardening.conf` because the unit is conditioned on it); `sysstat.service` enables its collect, summary and rotate timers, writing `sar` data under `/var/log/sa`.
 - **File integrity.** AIDE with a bootc-scoped config (baseline over `/etc` and `/root`, created on first boot, checked weekly at idle priority by `halcyon-aide-check.timer`; re-baseline with `ujust aide-rebaseline`). The Wazuh agent is deliberately **not** shipped: its RPM installs entirely under `/var/ossec` (419 files, 34 MB), which `finalize` wipes and bootc never refreshes on image updates, so an in-image agent could not work. `verify` forbids `wazuh-agent` and the Wazuh repository.
 - **Auditing** (usage: [Auditing with auditd](#auditing-with-auditd)). `auditd` runs with Halcyon rules in `/etc/audit/rules.d/`, loaded at boot by `audit-rules.service` (augenrules, `sort -V` order), and `audit=1` / `audit_backlog_limit=8192` kernel arguments (matching `-b 8192`) start auditing before auditd does. Fedora's stock `audit.rules` (`-D` plus `-a task,never`) switched syscall auditing off and sorts after every numbered file, so `configure-security-hardening` deletes it and `verify` rejects any `task,never` rule. The set is deliberately a _security_ set, not an activity log.
   - File rules use `path=`, directory rules `dir=` (recursive), in the syscall form auditctl(8) recommends over deprecated `-w` watches, one rule per ABI. `dir=` rules need the directory to exist at load, so only directories tmpfiles or the image always provide are used (root's `~/.ssh` is not watched for that reason). Real paths (`/var/home`, `/var/roothome`) are required because `/home` and `/root` are symlinks on bootc and a `dir=` rule on a symlink matches nothing; `verify` rejects a symlinked `dir=`. "Real user" is `auid>=1000` and not unset.
@@ -763,13 +764,13 @@ Deliberate guardrails (Waydroid, bundled fonts/docs, trimmed kmods, renamed help
 
 **Known open items**
 
-| ID | Severity | Item |
-| --- | --- | --- |
-| A-002 | Low | Whether `cosign.pub` corresponds to the CI `SIGNING_SECRET` is unconfirmed. Close it by verifying a published image against the key, or by comparing the public key derived from the private key. |
-| A-008 | Low | Several upstream downloads and repository metadata are mutable (GitHub `latest` releases, winetricks and bash-preexec from `master`, the Distrobox template from `main`), and the Terra bootstrap installs with `--nogpgcheck`. Pin revisions and verify checksums where upstream publishes them. |
-| none | Info | The image ships no trust policy for `ghcr.io/halcyon-linux` (see [Enforce signature checks](#enforce-signature-checks-on-your-host)). |
-| none | Info | Builds are not bit-for-bit reproducible: a daily rebuild tracks COPR republishing. |
-| none | Info | The last static audit (2026-10-19) did not build or boot the image. |
+| ID    | Severity | Item                                                                                                                                                                                                                                                                                              |
+| ----- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A-002 | Low      | Whether `cosign.pub` corresponds to the CI `SIGNING_SECRET` is unconfirmed. Close it by verifying a published image against the key, or by comparing the public key derived from the private key.                                                                                                 |
+| A-008 | Low      | Several upstream downloads and repository metadata are mutable (GitHub `latest` releases, winetricks and bash-preexec from `master`, the Distrobox template from `main`), and the Terra bootstrap installs with `--nogpgcheck`. Pin revisions and verify checksums where upstream publishes them. |
+| none  | Info     | The image ships no trust policy for `ghcr.io/halcyon-linux` (see [Enforce signature checks](#enforce-signature-checks-on-your-host)).                                                                                                                                                             |
+| none  | Info     | Builds are not bit-for-bit reproducible: a daily rebuild tracks COPR republishing.                                                                                                                                                                                                                |
+| none  | Info     | The last static audit (2026-10-19) did not build or boot the image.                                                                                                                                                                                                                               |
 
 ---
 
@@ -799,6 +800,7 @@ Deliberate guardrails (Waydroid, bundled fonts/docs, trimmed kmods, renamed help
 - [x] Write comprehensive Audit rules and config.
 - [x] Packages in the cli-tools list must only be installed from aahsnr-work/cli-tools fedora copr
 - [ ] Fix selinux policy packages for nvidia driver and nvidia-container-toolkit
+- [ ] Harden security of base-image using security audit findings.
 
 ---
 

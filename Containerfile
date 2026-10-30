@@ -174,6 +174,15 @@ RUN --mount=type=cache,dst=/var/cache \
     /ctx/finalization/verify applications && \
     /ctx/shared/cleanup
 
+# Install Private Internet Access VPN (latest from upstream)
+RUN --mount=type=cache,dst=/var/cache \
+    --mount=type=cache,dst=/var/log \
+    --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=tmpfs,dst=/tmp \
+    /ctx/packages/install-pia && \
+    /ctx/finalization/verify pia && \
+    /ctx/shared/cleanup
+
 # Install TeX Live distribution packages.
 RUN --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \

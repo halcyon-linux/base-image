@@ -368,7 +368,6 @@
       "obsidian",
       "onlyoffice-desktopeditors",
       "openchamber",
-      "private-internet-access",
       "proton-vpn-daemon",
       "proton-vpn-gtk-app",
       "python3-proton-core",
@@ -495,7 +494,7 @@
     ]
   },
   "security": {
-    "description": "Security tooling: AIDE file integrity, fail2ban journal backend, rngd entropy daemon, audit daemon and plugins, SELinux policy utilities",
+    "description": "Security tooling: AIDE file integrity, fail2ban journal backend, rngd entropy daemon, psacct process accounting, sysstat activity collection, audit daemon and plugins, SELinux policy utilities",
     "copr": null,
     "repos": [
       "fedora",
@@ -508,8 +507,10 @@
       "audit-rules",
       "policycoreutils-devel",
       "policycoreutils-restorecond",
+      "psacct",
       "python3-systemd",
-      "rng-tools"
+      "rng-tools",
+      "sysstat"
     ]
   },
   "kernel": {
