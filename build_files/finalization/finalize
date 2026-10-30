@@ -3,6 +3,7 @@
 set -eoux pipefail
 
 dnf5 config-manager setopt keepcache=0
+dnf5 config-manager unsetopt tsflags
 
 rm -rf /tmp/* || true
 find /var/* -maxdepth 0 -type d \! -name cache -exec rm -fr {} \;

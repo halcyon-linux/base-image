@@ -32,7 +32,8 @@ jobs:
   build:
     name: Build and push
     runs-on: ubuntu-26.04
-    timeout-minutes: 90
+    # Room for a rechunk retry without --previous-build and the zstd push.
+    timeout-minutes: 120
 
     permissions:
       contents: read
@@ -44,6 +45,9 @@ jobs:
         uses: jlumbroso/free-disk-space@ceedf095f4ec1a097402bc6bd80831f2e1a6fde6 # v2.0.0
         with:
           tool-cache: true
+          # apt removal of large packages is the slow part (~1.5 min); the
+          # compressed storage loopback below leaves enough headroom without it.
+          large-packages: false
 
       # The final commit holds the image delta three times (working container,
       # layer blob, unpacked layer; ~30 GB each) and the rechunker copies it
@@ -199,6 +203,17 @@ jobs:
           sudo du -xh -d1 / 2>/dev/null | sort -h | tail -n 15 || true
           sudo du -xh -d1 /var /home/runner 2>/dev/null | sort -h | tail -n 15 || true
 
+      # Size data for deciding what to trim from the image.
+      - name: Report image contents
+        if: steps.build_image.outcome == 'success'
+        run: |
+          podman run --rm --pull=never --network=none raw-img sh -c '
+            echo "Largest RPMs (bytes):"
+            rpm -qa --qf "%{SIZE}\t%{NAME}\n" | sort -rn | head -n 40
+            echo "Largest directories:"
+            du -xh -d2 /usr /opt 2>/dev/null | sort -h | tail -n 30
+          ' || true
+
       # Apply labels and gather the kernel version before rechunking.
       - name: Apply Labels
         id: relabel
@@ -237,6 +252,8 @@ jobs:
       # Reprocess raw-img using rechunker which will delete it
       - name: Run Rechunker
         id: rechunk
+        env:
+          OUTPUT_IMAGE: ${{ steps.base.outputs.output_image }}
         run: |
           set -euo pipefail
 
@@ -248,8 +265,10 @@ jobs:
             buildah commit --identity-label=false --rm "$container" raw-img
           '
 
-          RECHUNK_DIR="$(mktemp -d "${TMPDIR:-$RUNNER_TEMP}/rechunk-XXXXXX")"
-          trap 'rm -rf "${RECHUNK_DIR}"' EXIT
+          # Kept until the job ends: the push step copies straight from it.
+          RECHUNK_DIR="${TMPDIR:-$RUNNER_TEMP}/rechunk"
+          rm -rf "${RECHUNK_DIR}"
+          mkdir -p "${RECHUNK_DIR}"
 
           label_args=()
           while IFS= read -r line; do
@@ -258,27 +277,50 @@ jobs:
             fi
           done < "${RUNNER_TEMP}/labels.txt"
 
-          podman run --rm \
-              --pull=never \
-              --privileged \
-              --mount=type=image,src=localhost/raw-img,target=/rpm-ostree \
-              --volume "${RECHUNK_DIR}:/run/out:Z" \
-              --entrypoint /usr/bin/rpm-ostree \
-              localhost/raw-img \
-              compose build-chunked-oci \
-              --bootc --max-layers 127 --format-version 2 \
-              "${label_args[@]}" \
-              --rootfs /rpm-ostree --output oci-archive:/run/out/chunked.oci
+          # Reuse the published image's layer plan so unchanged packages stay
+          # in unchanged layers and clients only download what changed.
+          previous_args=()
+          previous="docker://${OUTPUT_IMAGE}:stable"
+          if skopeo inspect --raw "${previous}" >/dev/null 2>&1; then
+            previous_args=(--previous-build "${previous}")
+          else
+            echo "No previous build at ${previous}; using a fresh layer plan."
+          fi
+
+          rechunk() {
+            podman run --rm \
+                --pull=never \
+                --privileged \
+                --mount=type=image,src=localhost/raw-img,target=/rpm-ostree \
+                --volume "${RECHUNK_DIR}:/run/out:Z" \
+                --entrypoint /usr/bin/rpm-ostree \
+                localhost/raw-img \
+                compose build-chunked-oci \
+                --bootc --max-layers 127 --format-version 2 \
+                "$@" \
+                "${label_args[@]}" \
+                --rootfs /rpm-ostree --output oci:/run/out/chunked
+          }
+
+          # The previous build is only an optimization: if reading it fails,
+          # rechunk again with a fresh layer plan instead of failing the run.
+          if ! rechunk "${previous_args[@]}"; then
+            if [ "${#previous_args[@]}" -eq 0 ]; then
+              exit 1
+            fi
+            echo "::warning::Rechunk with --previous-build failed; retrying with a fresh layer plan."
+            rm -rf "${RECHUNK_DIR:?}"/*
+            rechunk
+          fi
 
           podman rmi -f localhost/raw-img
 
-          chunked=$(podman pull oci-archive:"${RECHUNK_DIR}/chunked.oci")
-          podman tag "${chunked}" localhost/chunked-img
-
-          echo "ref=containers-storage:localhost/chunked-img" >> "$GITHUB_OUTPUT"
+          # Push straight from the OCI directory: no pull into containers-storage
+          # and no second copy of the image on disk.
+          echo "ref=oci:${RECHUNK_DIR}/chunked" >> "$GITHUB_OUTPUT"
 
       # cosign reads credentials from the Docker config path, so point podman's
-      # login there; podman push and skopeo copy also use it as a fallback.
+      # login there; skopeo copy also uses it as a fallback.
       - name: Login to GitHub Container Registry
         run: |
           mkdir -p "$HOME/.docker"
@@ -299,12 +341,15 @@ jobs:
         with:
           max_attempts: 3
           retry_wait_seconds: 15
-          timeout_minutes: 10
+          # zstd recompression of every layer needs more than 10 minutes.
+          timeout_minutes: 30
           command: |
             set -euo pipefail
 
-            podman push --digestfile=/tmp/digestfile \
-              "${RECHUNK_REF#containers-storage:}" "docker://${OUTPUT_IMAGE}:stable"
+            # zstd layers are smaller than gzip and faster for clients to unpack.
+            skopeo copy --dest-compress-format zstd --dest-force-compress-format \
+              --digestfile /tmp/digestfile \
+              "${RECHUNK_REF}" "docker://${OUTPUT_IMAGE}:stable"
 
             digest="$(< /tmp/digestfile)"
             if [[ -z "$digest" ]]; then

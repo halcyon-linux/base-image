@@ -229,6 +229,13 @@ verify_repos() {
         'copr:copr.fedorainfracloud.org:ublue-os:bazzite-multilib' \
         'copr:copr.fedorainfracloud.org:ublue-os:staging' \
         'copr:copr.fedorainfracloud.org:ublue-os:packages'
+
+    # Build-time packages ship without docs; finalize removes the setting again.
+    if grep -qE '^tsflags[[:space:]]*=[[:space:]]*nodocs' /etc/dnf/dnf.conf 2>/dev/null; then
+        pass "dnf tsflags=nodocs set for the build"
+    else
+        fail "dnf tsflags=nodocs missing from /etc/dnf/dnf.conf"
+    fi
 }
 
 # Every cli-tools package must come from the aahsnr-work/cli-tools COPR. Compare
@@ -1015,6 +1022,12 @@ verify_finalize() {
         pass "system account databases exist in /usr/lib"
     else
         fail "system account databases missing from /usr/lib"
+    fi
+
+    if grep -qE '^tsflags[[:space:]]*=' /etc/dnf/dnf.conf 2>/dev/null; then
+        fail "build-only tsflags still set in /etc/dnf/dnf.conf"
+    else
+        pass "build-only tsflags removed from /etc/dnf/dnf.conf"
     fi
 }
 

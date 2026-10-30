@@ -57,7 +57,7 @@ RUN --mount=type=cache,dst=/var/cache \
 ```
 
 - Any `RUN` whose script calls `ghcurl` (`install-common-packages`, `install-gaming-stack`, `install-system-integration-files`, `install-ujust-picker`) needs `--mount=type=secret,id=GITHUB_TOKEN`. The NVIDIA driver step mounts it too; leave that.
-- Stage order matters: kernel → repos → COPR sets → removals → common/gaming → … → overrides → system config → finalize → NVIDIA → system policy → NVIDIA finalize → audit privileged rules → image-info/initramfs/finalize again → `verify final` → lint. Trace dependencies before reordering.
+- Stage order matters: kernel → repos → COPR sets → removals → common/gaming → … → overrides → system config → NVIDIA → system policy → NVIDIA finalize → audit privileged rules → image-info/initramfs/finalize (once; dracut runs only here) → `verify final` → lint. Trace dependencies before reordering.
 
 ## Where to change what
 

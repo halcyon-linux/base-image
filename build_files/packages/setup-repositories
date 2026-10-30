@@ -4,6 +4,9 @@ set -Eeuo pipefail
 
 mkdir -p /var/roothome
 dnf5 config-manager setopt keepcache=1
+# Install no docs, man or info pages for build-time packages (image size).
+# finalize unsets it so the shipped dnf.conf keeps the stock default.
+dnf5 config-manager setopt tsflags=nodocs
 
 # Ensure /opt is a real directory in the immutable root filesystem, not a symlink to /var/opt.
 # Fedora Atomic base images ship /opt -> var/opt; replacing it with a directory avoids

@@ -227,8 +227,8 @@ COPY system_files/overrides/ /
 
 # Apply shared desktop defaults after packages and overlays are present. The CLI/Python installers
 # disable their own COPRs; system policy below disables the remaining build repositories after the
-# NVIDIA package transaction. Metadata, initramfs, and account finalization run here and once more
-# after the NVIDIA section, so the last pass includes everything.
+# NVIDIA package transaction. Metadata, initramfs, and account finalization run once, after the
+# NVIDIA section, so that pass includes the NVIDIA modules and dracut config.
 RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     rm -f /etc/profile.d/toolbox.sh && \
     /ctx/system/configure-desktop-integration && \
@@ -259,30 +259,6 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     /ctx/packages/install-system-integration-files && \
     /ctx/finalization/verify integration-files
 
-RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
-    /ctx/finalization/image-info && \
-    /ctx/finalization/verify image-info
-
-RUN --mount=type=cache,dst=/var/cache \
-    --mount=type=cache,dst=/var/log \
-    --mount=type=bind,from=ctx,source=/,target=/ctx \
-    --mount=type=tmpfs,dst=/tmp \
-    /ctx/kernel/build-initramfs && \
-    /ctx/finalization/verify initramfs
-
-RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
-    --mount=type=tmpfs,dst=/tmp \
-    /ctx/finalization/finalize && \
-    rm -rf \
-        /etc/.pwd.lock \
-        /etc/passwd- \
-        /etc/group- \
-        /etc/shadow- \
-        /etc/gshadow- \
-        /etc/subuid- \
-        /etc/subgid- && \
-    /ctx/finalization/verify finalize
-
 #############################
 # NVIDIA DRIVER INTEGRATION
 #############################
@@ -295,14 +271,6 @@ ARG KERNEL_FLAVOR="${KERNEL_FLAVOR:-ogc}"
 # Fetch NVIDIA driver
 # Copy NVIDIA driver configuration files into root.
 COPY system_files/nvidia/ /
-
-# finalize removes everything under /var, including /var/usrlocal where the
-# dnf5 retry shim lives (/usr/local -> ../var/usrlocal). Reinstall it for the
-# NVIDIA transactions; the second finalize removes it again.
-RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
-    usr_local=$(readlink -f /usr/local) && \
-    mkdir -p "$usr_local/bin" && \
-    install -m0755 /ctx/shared/dnf5 "$usr_local/bin/dnf5"
 
 # Remove everything that doesn't work well with NVIDIA.
 RUN --mount=type=cache,dst=/var/cache \

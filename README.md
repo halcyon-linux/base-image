@@ -582,13 +582,14 @@ Every step below is followed by its `verify <stage>` gate (see [Build-time verif
 2. Swap in the OGC kernel and `nct6687d`.
 3. Set up repositories, priorities and excludes.
 4. Install the package sets in order: CLI tools, Python utilities, removal of superseded packages, common packages, gaming stack, fonts, Hyprland/Noctalia, applications (browsers, `bees`), TeX Live (then bake its formats), Nix, `ujust-picker`, media automount.
-5. Copy `system_files/overrides/` (after packages, so intentional overrides win), then desktop integration, justfiles, services, GRUB, integration files, image-info, initramfs, finalize.
-6. NVIDIA: copy its payload, configure, install the driver, apply system policy (disables the remaining build repos), finalize. Then image-info, initramfs and finalize **again**: the second pass must include the NVIDIA modules.
+5. Copy `system_files/overrides/` (after packages, so intentional overrides win), then desktop integration, justfiles, services, GRUB, integration files.
+6. NVIDIA: copy its payload, configure, install the driver, apply system policy (disables the remaining build repos), NVIDIA finalize, privileged audit rules. Then image-info, initramfs and finalize, **once**: dracut runs a single time, after the NVIDIA modules and dracut config are in place (the kernel swap deletes the base initramfs, so it is needed on every build).
 7. Final assertions (`verify final`), remove the dnf5 shim, `bootc container lint`.
 
 ### Payload rules
 
 - Static content lives under `/usr`; `/etc` carries defaults and overrides; `finalize` strips `/var`, so nothing static may live there.
+- Packages installed during the build ship without docs, man or info pages (`tsflags=nodocs`, set in `setup-repositories`, removed again by `finalize`; `verify repos` / `verify finalize` check both). Docs from the base image stay.
 - Commands that upstream shipped from `usr/bin` now come from RPMs (`brh`, `bruh`, `crh`, `gameclass`, `ublue-motd`, `uupd-update`, …). `system_files/desktop/usr/bin` intentionally does not exist.
 
 ---
@@ -646,12 +647,14 @@ for f in build_files/*/* just_scripts/* tests/*.sh; do bash -n "$f"; done
 | Item            | Value                                                                                               |
 | --------------- | --------------------------------------------------------------------------------------------------- |
 | Triggers        | Daily `40 4 * * *` UTC; push to `containerfile` (ignoring `**.md`, `**.txt`); manual dispatch       |
-| Runner / limits | `ubuntu-26.04`, 90-minute timeout, free-disk-space (incl. tool cache), container storage + TMPDIR on a zstd btrfs loopback on `/` |
+| Runner / limits | `ubuntu-26.04`, 120-minute timeout, free-disk-space (incl. tool cache, without the slow apt `large-packages` removal), container storage + TMPDIR on a zstd btrfs loopback on `/` |
 | Permissions     | `permissions: {}` at top level; the job gets `contents: read`, `packages: write`, `id-token: write` |
 | Concurrency     | Per trigger; pushes cancel older pushes, manual dispatches are never cancelled by a push            |
 | Action pinning  | Every action pinned to a full commit SHA                                                            |
 
-Steps: checkout → `just` syntax check → dnf5 shim test → resolve akmods tag → pull base and akmods images and read the upstream version → `buildah build --target alcyone --build-arg-file build_args.txt --secret id=GITHUB_TOKEN` → compute OCI labels (including `ostree.bootable=true` and `ostree.linux`) → rechunk → log in to GHCR → **push** (`:stable`, then `:latest` and `:YYYYMMDD` copied by digest, with retry) → install cosign `v3.1.3` → **sign the digest**.
+Steps: checkout → `just` syntax check → dnf5 shim test → resolve akmods tag → pull base and akmods images and read the upstream version → `buildah build --target alcyone --build-arg-file build_args.txt --secret id=GITHUB_TOKEN` → log disk usage and the largest RPMs/directories → compute OCI labels (including `ostree.bootable=true` and `ostree.linux`) → rechunk into an OCI directory (`--previous-build` reuses the published `:stable` layer plan, so updates only download changed layers; if that fails it rechunks again with a fresh plan) → log in to GHCR → **push** with `skopeo copy` straight from that directory, recompressed to **zstd** (`:stable`, then `:latest` and `:YYYYMMDD` copied by digest, with retry) → install cosign `v3.1.3` → **sign the digest**.
+
+Clients pull zstd-compressed layers, which needs a bootc/rpm-ostree that supports them (Fedora 44 ships bootc 1.17.1 and rpm-ostree 2026.3).
 
 Publishing and signing run **only** when `github.ref == refs/heads/containerfile`, so a manual dispatch on another ref or tag cannot overwrite `stable` or `latest`.
 
@@ -763,7 +766,7 @@ Deliberate guardrails (Waydroid, bundled fonts/docs, trimmed kmods, renamed help
 ## Roadmap
 
 - [ ] Switch to `uwsm` and systemd user units.
-- [ ] Build the initramfs once, after the NVIDIA step, instead of twice.
+- [x] Build the initramfs once, after the NVIDIA step, instead of twice.
 - [ ] Document what `ujust automounting` does and which service is responsible (`ublue-os-media-automount`).
 - [ ] Trace where Flatpak apps get installed and make sure removal behaves correctly; removing Flatpak apps should not be a build action.
 - [ ] Close audit items A-002 and A-008.
