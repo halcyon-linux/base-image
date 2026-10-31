@@ -1,6 +1,6 @@
 [Desktop Entry]
 Name=Bitwarden
-Exec=/opt/Bitwarden/bitwarden --ozone-platform-hint=auto --enable-features=WaylandWindowDecorations %U
+Exec=/opt/Bitwarden/bitwarden --ozone-platform=wayland
 Terminal=false
 Type=Application
 Icon=bitwarden
