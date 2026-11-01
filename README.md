@@ -461,12 +461,12 @@ The image installs `chezmoi` and wires it through systemd user units to [`aahsnr
 > - Opt in: `ujust dotfiles enable` (asks first, creates the flag, clones and force-applies, schedules daily updates)
 > - Opt out again: `ujust dotfiles disable` (removes the flag and stops the timer; managed files stay)
 
-| Component                | When it runs                                       | What it does                                                                 |
-| ------------------------ | -------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Component                | When it runs                                                    | What it does                                                                 |
+| ------------------------ | --------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | `chezmoi-init.service`   | At login, if opted in and `~/.local/share/chezmoi/.git` missing | `chezmoi init --apply --force aahsnr-configs/dotfiles` (5 attempts in 5 min) |
-| `chezmoi-update.timer`   | If opted in: 5 min after boot, then daily          | Triggers the update service                                                  |
-| `chezmoi-update.service` | By the timer                                       | `chezmoi update --no-tty --force` (pull and apply)                           |
-| `ujust dotfiles`         | Manual                                             | Menu: `enable` / `disable` / `status` / `sync` / `diff` / `edit`             |
+| `chezmoi-update.timer`   | If opted in: 5 min after boot, then daily                       | Triggers the update service                                                  |
+| `chezmoi-update.service` | By the timer                                                    | `chezmoi update --no-tty --force` (pull and apply)                           |
+| `ujust dotfiles`         | Manual                                                          | Menu: `enable` / `disable` / `status` / `sync` / `diff` / `edit`             |
 
 - Units live in `/usr/lib/systemd/user/` (read-only, replaced on image updates). They skip system accounts and the `sddm` greeter.
 - The dotfiles repo is public, so clones and pulls use anonymous HTTPS. After init, the service rewrites only **pushes** to SSH (`pushInsteadOf`) and pins `core.sshCommand` to `~/.ssh/id_ed25519_aahsnr_configs`; manual pushes need that key. `/etc/ssh/ssh_config.d/10-halcyon-github.conf` uses the same key for `github.com`.
@@ -504,15 +504,15 @@ Full package lists: [`packages.json`](packages.json). Highlights:
 
 ### Package sources and repository lifecycle
 
-| Source                                                                                                               | Used for                                                                                                | Lifecycle                                                                 |
-| -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `ublue-os/base-main:44`                                                                                              | Base OS                                                                                                 | Image base                                                                |
-| `ublue-os/akmods*` images                                                                                            | Kernel, kmods, NVIDIA RPMs                                                                              | Build inputs only                                                         |
-| `ublue-os/{bazzite,bazzite-multilib,staging,packages}` COPRs                                                         | Patched bluez and Xwayland (`bazzite-multilib`), Bazaar and media-automount (`packages`), helpers       | Enabled for the build, **disabled in the shipped image**                  |
-| Terra (`terra`, `terra-extras`, `terra-mesa`)                                                                        | gamescope, MangoHud, wireplumber, mesa bits                                                             | Bootstrapped with the vendored, fingerprint-pinned key; priority 1 with excludes; disabled in the shipped image |
-| `aahsnr-work/cli-tools`, `python-packages`, `gaming`, `fonts`, `base-pkgs`, `applications`, `texlive-packages` COPRs | The Halcyon package sets                                                                                | Enabled at `priority=1` inside its own script, disabled before it returns |
-| Vendor repos (Tailscale, GitHub CLI, VS Code, VSCodium, Brave, Chrome, Edge, Vivaldi)                                | Their packages                                                                                          | Browser/IDE keys imported only if they match `gpg_fingerprints` in `packages.json`; disabled in the shipped image by `configure-system-policy` |
-| Pinned GitHub release assets and raw files (`build_files/downloads/manifest.tsv`)                                    | `extest`, `ujust-picker`, winetricks, DXVK example config, Distrobox template, bash-preexec             | Fetched by the `downloads` stage, sha256-checked                          |
+| Source                                                                                                               | Used for                                                                                          | Lifecycle                                                                                                                                      |
+| -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ublue-os/base-main:44`                                                                                              | Base OS                                                                                           | Image base                                                                                                                                     |
+| `ublue-os/akmods*` images                                                                                            | Kernel, kmods, NVIDIA RPMs                                                                        | Build inputs only                                                                                                                              |
+| `ublue-os/{bazzite,bazzite-multilib,staging,packages}` COPRs                                                         | Patched bluez and Xwayland (`bazzite-multilib`), Bazaar and media-automount (`packages`), helpers | Enabled for the build, **disabled in the shipped image**                                                                                       |
+| Terra (`terra`, `terra-extras`, `terra-mesa`)                                                                        | gamescope, MangoHud, wireplumber, mesa bits                                                       | Bootstrapped with the vendored, fingerprint-pinned key; priority 1 with excludes; disabled in the shipped image                                |
+| `aahsnr-work/cli-tools`, `python-packages`, `gaming`, `fonts`, `base-pkgs`, `applications`, `texlive-packages` COPRs | The Halcyon package sets                                                                          | Enabled at `priority=1` inside its own script, disabled before it returns                                                                      |
+| Vendor repos (Tailscale, GitHub CLI, VS Code, VSCodium, Brave, Chrome, Edge, Vivaldi)                                | Their packages                                                                                    | Browser/IDE keys imported only if they match `gpg_fingerprints` in `packages.json`; disabled in the shipped image by `configure-system-policy` |
+| Pinned GitHub release assets and raw files (`build_files/downloads/manifest.tsv`)                                    | `extest`, `ujust-picker`, winetricks, DXVK example config, Distrobox template, bash-preexec       | Fetched by the `downloads` stage, sha256-checked                                                                                               |
 
 Version-locked: kernel set, `bluez*`, `xorg-x11-server-Xwayland`, core `mesa-*`, `NetworkManager*`.
 
@@ -773,14 +773,14 @@ Deliberate guardrails (Waydroid, bundled fonts/docs, trimmed kmods, renamed help
 
 **Known open items**
 
-| ID    | Severity | Item                                                                                                                                                                                                                                                                                              |
-| ----- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A-002 | Low      | Whether `cosign.pub` corresponds to the CI `SIGNING_SECRET` is unconfirmed. Close it by verifying a published image against the key, or by comparing the public key derived from the private key.                                                                                                 |
+| ID    | Severity | Item                                                                                                                                                                                                                                                                                                                         |
+| ----- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A-002 | Low      | Whether `cosign.pub` corresponds to the CI `SIGNING_SECRET` is unconfirmed. Close it by verifying a published image against the key, or by comparing the public key derived from the private key.                                                                                                                            |
 | A-008 | Low      | Build-time downloads, upstream images and the Terra bootstrap are now pinned or signature-checked (closed for the build). Still mutable: `install-pia` (latest installer scraped from PIA's changelog) and ujust recipes that download at runtime (boxtron, Resilio, steamcmd, framegen builds; run as the user, on demand). |
-| none  | Info     | The image ships no trust policy for `ghcr.io/halcyon-linux` (see [Enforce signature checks](#enforce-signature-checks-on-your-host)).                                                                                                                                                             |
-| none  | Info     | Opt-in ujust recipes add the user to `input` or `plugdev` (`80-bazzite.just`, `82-bazzite-apps.just`); `input` membership can read every input device (keylogging). Understood and accepted. |
-| none  | Info     | Builds are not bit-for-bit reproducible: a daily rebuild tracks COPR republishing.                                                                                                                                                                                                                |
-| none  | Info     | The last static audit (2026-10-19) did not build or boot the image.                                                                                                                                                                                                                               |
+| none  | Info     | The image ships no trust policy for `ghcr.io/halcyon-linux` (see [Enforce signature checks](#enforce-signature-checks-on-your-host)).                                                                                                                                                                                        |
+| none  | Info     | Opt-in ujust recipes add the user to `input` or `plugdev` (`80-bazzite.just`, `82-bazzite-apps.just`); `input` membership can read every input device (keylogging). Understood and accepted.                                                                                                                                 |
+| none  | Info     | Builds are not bit-for-bit reproducible: a daily rebuild tracks COPR republishing.                                                                                                                                                                                                                                           |
+| none  | Info     | The last static audit (2026-10-19) did not build or boot the image.                                                                                                                                                                                                                                                          |
 
 ---
 
@@ -810,8 +810,9 @@ Deliberate guardrails (Waydroid, bundled fonts/docs, trimmed kmods, renamed help
 - [x] Write comprehensive Audit rules and config.
 - [x] Packages in the cli-tools and applications lists must only be installed from their aahsnr-work COPRs
 - [ ] Fix selinux policy packages for nvidia driver and nvidia-container-toolkit
-- [ ] Harden security of base-image using security audit findings.
+- [x] Harden security of base-image using security audit findings.
 - [ ] Remove all gaming related stuff except steam and lutris
+- [ ] Opencode and Openchamber are still not installing the base-image custom system. Ditch the packages.json support completely and the package list should be present in the install bash scripts only.
 
 ---
 
