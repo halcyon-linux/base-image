@@ -874,10 +874,10 @@ verify_desktop_integration() {
     fi
 
     if rpm -q bitwarden >/dev/null 2>&1; then
-        if grep -q '^Exec=/opt/Bitwarden/bitwarden --ozone-platform-hint=auto' /usr/share/applications/bitwarden.desktop; then
-            pass "Bitwarden launcher uses native Wayland (ozone auto)"
+        if grep -q '^Exec=/opt/Bitwarden/bitwarden --ozone-platform=wayland' /usr/share/applications/bitwarden.desktop; then
+            pass "Bitwarden launcher forces native Wayland (ozone wayland)"
         else
-            fail "Bitwarden launcher lacks --ozone-platform-hint=auto"
+            fail "Bitwarden launcher lacks --ozone-platform=wayland"
         fi
     fi
 
