@@ -85,6 +85,7 @@
       "pkgconf-pkg-config",
       "pnpm",
       "python3-icoextract",
+      "python3-jsonschema",
       "python3-pip",
       "re2-devel",
       "ripgrep",
