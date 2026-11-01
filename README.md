@@ -808,7 +808,7 @@ Deliberate guardrails (Waydroid, bundled fonts/docs, trimmed kmods, renamed help
 - [ ] Trace where Flatpak apps get installed and make sure removal behaves correctly; removing Flatpak apps should not be a build action.
 - [ ] Close audit item A-002 and the rest of A-008 (`install-pia`, runtime ujust downloads).
 - [x] Write comprehensive Audit rules and config.
-- [x] Packages in the cli-tools list must only be installed from aahsnr-work/cli-tools fedora copr
+- [x] Packages in the cli-tools and applications lists must only be installed from their aahsnr-work COPRs
 - [ ] Fix selinux policy packages for nvidia driver and nvidia-container-toolkit
 - [ ] Harden security of base-image using security audit findings.
 - [ ] Remove all gaming related stuff except steam and lutris

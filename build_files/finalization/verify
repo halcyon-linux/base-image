@@ -574,6 +574,26 @@ verify_hyprpm() {
     fi
 }
 
+# Every applications COPR package must come from the aahsnr-work/applications
+# COPR. Fedora and Terra ship some of the same names, and the presence checks
+# below would not notice a shadow; compare the recorded source repository.
+verify_applications_source() {
+    local repo_id name from_repo pkg
+    local -A source_repo=()
+    repo_id=$(jq -r '."applications".repo_id' "$PACKAGES_JSON")
+    load_packages "applications" "copr_packages" || return 0
+    while read -r name from_repo; do
+        source_repo[$name]="$from_repo"
+    done < <(dnf5 repoquery --installed --qf '%{name} %{from_repo}\n' "${PKG_ARRAY[@]}")
+    for pkg in "${PKG_ARRAY[@]}"; do
+        if [[ "${source_repo[$pkg]:-}" == "$repo_id" ]]; then
+            pass "applications package installed from the COPR: $pkg"
+        else
+            fail "applications package not from $repo_id: $pkg (${source_repo[$pkg]:-not installed})"
+        fi
+    done
+}
+
 verify_applications() {
     require_rpms_from_json "applications" "copr_packages"
     require_rpms_from_json "applications" "fedora_packages"
@@ -635,6 +655,8 @@ verify_applications() {
     else
         fail "/opt is missing or a symlink"
     fi
+
+    verify_applications_source
 }
 
 verify_texlive_packages() {
@@ -1739,9 +1761,11 @@ verify_final() {
     # The GRUB menu must still be visible in the published image.
     verify_grub
 
-    # Later stages (Terra, Fedora) must not have replaced a cli-tools COPR build,
-    # and the generated audit rules must cover the finished image.
+    # Later stages (Terra, Fedora) must not have replaced a cli-tools or
+    # applications COPR build, and the generated audit rules must cover the
+    # finished image.
     verify_cli_tools_source
+    verify_applications_source
     verify_audit_privileged_rules
 
     require_repos_disabled \
