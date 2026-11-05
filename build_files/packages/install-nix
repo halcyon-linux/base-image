@@ -16,8 +16,10 @@ fi
 # Read packages from packages.json
 mapfile -t nix_packages < <(jq -r '."nix".packages[]' "$PACKAGES_JSON")
 
+# nix-legacy provides classical nix-* command shims (nix-shell, nix-env, nix-build, etc.)
+# Requires nix-core of same EVR; pull it in for full legacy CLI compatibility.
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' \
-    -y install "${nix_packages[@]}"
+    -y install "${nix_packages[@]}" nix-legacy
 
 # Ensure mountpoint directory exists in root with correct base permissions
 mkdir -p /nix

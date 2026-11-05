@@ -507,6 +507,7 @@
     "packages": [
       "nix",
       "nix-daemon",
+      "nix-legacy",
       "busybox"
     ]
   },
