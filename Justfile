@@ -1,6 +1,6 @@
 export project_root := `git rev-parse --show-toplevel`
 export git_branch := `git branch --show-current`
-export latest := "44"
+export latest := "45"
 export default_image := "alcyone"
 export default_target := "alcyone"
 

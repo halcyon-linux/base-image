@@ -40,7 +40,7 @@ done
 # signed with the main terra${FEDORA_VERSION} key, vendored in build_files/keys and
 # pinned by fingerprint here (bump both with FEDORA_VERSION, CLAUDE.md rule 7).
 terra_key="/ctx/keys/RPM-GPG-KEY-terra${FEDORA_VERSION}"
-terra_fingerprint=AE09157A4DE88B497EA1D5D300CDAB43DE226D6F # terra44
+terra_fingerprint=C2AC02124AF114F086592E3C8DDE7D14C1C23D8C # terra45
 if [[ ! -f "$terra_key" ]]; then
     echo "ERROR: $terra_key missing; vendor the Terra key for Fedora ${FEDORA_VERSION}" >&2
     exit 1

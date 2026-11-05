@@ -23,7 +23,7 @@ concurrency:
 
 env:
   REPO_OWNER: ${{ github.repository_owner }}
-  FEDORA_VERSION: "44"
+  FEDORA_VERSION: "45"
   KERNEL_FLAVOR: "ogc"
   IMAGE_NAME: "alcyone"
   PULL_REGISTRY: "ghcr.io/ublue-os"

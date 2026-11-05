@@ -242,10 +242,10 @@ verify_repos() {
     # The Terra bootstrap installs with gpgcheck against the vendored key.
     local terra_pkg
     for terra_pkg in terra-release terra-release-extras terra-release-mesa; do
-        if rpm -q --qf '%{SIGPGP:pgpsig}\n' "$terra_pkg" 2>/dev/null | grep -qi '00cdab43de226d6f'; then
+        if rpm -q --qf '%{SIGPGP:pgpsig}\n' "$terra_pkg" 2>/dev/null | grep -qi '8dde7d14c1c23d8c'; then
             pass "$terra_pkg signed by the pinned Terra key"
         else
-            fail "$terra_pkg missing or not signed by the pinned Terra key (00cdab43de226d6f)"
+            fail "$terra_pkg missing or not signed by the pinned Terra key (8dde7d14c1c23d8c)"
         fi
     done
 

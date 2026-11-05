@@ -5,7 +5,7 @@
 # Keep the Containerfile build: the image uses multi-stage akmods inputs, bind mounts,
 # and package swaps to build the single published NVIDIA image (alcyone).
 # Upstream Fedora release number
-ARG FEDORA_VERSION="${FEDORA_VERSION:-44}"
+ARG FEDORA_VERSION="${FEDORA_VERSION:-45}"
 
 # Full registry URL to the upstream Universal Blue base image
 ARG BASE_IMAGE="${BASE_IMAGE:-ghcr.io/ublue-os/base-main:${FEDORA_VERSION}}"
@@ -66,7 +66,7 @@ ARG IMAGE_VENDOR="${IMAGE_VENDOR:-halcyon-linux}"
 # Image release branch (stable, testing, unstable)
 ARG IMAGE_BRANCH="${IMAGE_BRANCH:-stable}"
 # Fedora release number (redeclared in this stage so RUN instructions can use it)
-ARG FEDORA_VERSION="${FEDORA_VERSION:-44}"
+ARG FEDORA_VERSION="${FEDORA_VERSION:-45}"
 # Build version tag
 ARG VERSION_TAG="${VERSION_TAG}"
 # Formatted user-facing version string
