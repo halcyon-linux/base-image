@@ -58,6 +58,12 @@ for section in applications base-pkgs cli-tools common-packages fonts gaming ker
     fi
 done
 
+if jq -e '."common-packages".packages | index("virtiofsd")' "$repo_root/packages.json" >/dev/null; then
+    ok "virtiofsd is installed from common-packages"
+else
+    not_ok "common-packages must install virtiofsd"
+fi
+
 # 4. Validate YAML files
 if python3 -c "
 import os, glob, sys
