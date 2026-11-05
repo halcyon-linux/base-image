@@ -191,6 +191,14 @@ else
     ok "GITHUB_TOKEN mounted only in the downloads stage"
 fi
 
+system_policy="$repo_root/build_files/system/configure-system-policy"
+if grep -qE '^[[:space:]]*dnf5 -y config-manager setopt terra\.enabled=0 terra-extras\.enabled=0$' \
+    "$system_policy"; then
+    ok "Terra repositories are explicitly disabled"
+else
+    not_ok "configure-system-policy must explicitly disable terra and terra-extras"
+fi
+
 if grep -rnE 'releases/latest|/(master|main)/|refs/heads/' "$repo_root/build_files" \
     --include='*' -l 2>/dev/null | grep -v '/keys/'; then
     not_ok "mutable download ref (releases/latest, master, main) in build_files"

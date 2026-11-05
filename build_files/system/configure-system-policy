@@ -28,6 +28,7 @@ for repo in "${repositories[@]}"; do
         sed -i 's@enabled=1@enabled=0@g' "/etc/yum.repos.d/${repo}.repo"
     fi
 done
+dnf5 -y config-manager setopt terra.enabled=0 terra-extras.enabled=0
 
 coprs=(
     ublue-os/bazzite
