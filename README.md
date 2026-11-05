@@ -805,11 +805,11 @@ Deliberate guardrails (Waydroid, bundled fonts/docs, trimmed kmods, renamed help
 - [ ] Switch to `uwsm` and systemd user units.
 - [x] Build the initramfs once, after the NVIDIA step, instead of twice.
 - [ ] Document what `ujust automounting` does and which service is responsible (`ublue-os-media-automount`).
-- [ ] Trace where Flatpak apps get installed and make sure removal behaves correctly; removing Flatpak apps should not be a build action.
-- [ ] Close audit item A-002 and the rest of A-008 (`install-pia`, runtime ujust downloads).
+- [x] Trace where Flatpak apps get installed and make sure removal behaves correctly; removing Flatpak apps should not be a build action.
+- [x] Close audit item A-002 and the rest of A-008 (`install-pia`, runtime ujust downloads).
 - [x] Write comprehensive Audit rules and config.
 - [x] Packages in the cli-tools and applications lists must only be installed from their aahsnr-work COPRs
-- [ ] Fix selinux policy packages for nvidia driver and nvidia-container-toolkit
+- [x] Fix selinux policy packages for nvidia driver and nvidia-container-toolkit
 - [x] Harden security of base-image using security audit findings.
 - [ ] Remove all gaming related stuff except steam and lutris
 - [ ] Opencode and Openchamber are still not installing the base-image custom system. Ditch the packages.json support completely and the package list should be present in the install bash scripts only.
