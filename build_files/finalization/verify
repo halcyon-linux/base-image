@@ -436,8 +436,6 @@ verify_common_packages() {
 verify_gaming() {
     require_rpms_from_json "gaming" "packages"
 
-    require_repos_disabled 'copr:copr.fedorainfracloud.org:aahsnr-work:gaming'
-
     forbid_rpms_from_json "gaming" "removals"
 
     local locks
@@ -1734,7 +1732,6 @@ verify_final() {
     require_repos_disabled \
         'copr:copr.fedorainfracloud.org:aahsnr-work:cli-tools' \
         'copr:copr.fedorainfracloud.org:aahsnr-work:python-packages' \
-        'copr:copr.fedorainfracloud.org:aahsnr-work:gaming' \
         'copr:copr.fedorainfracloud.org:aahsnr-work:fonts' \
         'copr:copr.fedorainfracloud.org:aahsnr-work:base-pkgs' \
         'copr:copr.fedorainfracloud.org:aahsnr-work:applications' \
