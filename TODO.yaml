@@ -17,7 +17,7 @@ tasks:
     title: Remove gaming applications and packages
     category: packages
     priority: low
-    status: pending
+    status: completed
     description: >-
       Remove all gaming-related applications and packages, including
       Steam, Lutris, and Heroic Games Launcher. Preserve gaming-related
@@ -64,7 +64,7 @@ tasks:
     title: Centralize package names in packages.json
     category: refactoring
     priority: medium
-    status: pending
+    status: completed
     description: >-
       Ensure package names exist only in packages.json and not
       in Bash scripts under build_files/packages/.
@@ -96,3 +96,11 @@ tasks:
       Determine whether packages.json and
       build_files/packages/install-common-packages contain
       overlapping or duplicated instructions.
+
+  - id: TASK-11
+    title: Rewrite and optimize code using Ponytail
+    category: optimization
+    priority: medium
+    status: pending
+    description: >-
+      Use the Ponytail extension to rewrite and optimize the code.

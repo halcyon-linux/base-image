@@ -25,7 +25,6 @@ rows:
       appids:
         list:
           - com.vysp3r.ProtonPlus
-          - com.heroicgameslauncher.hgl
           - io.itch.itch
           - io.github.Faugus.faugus-launcher
           - org.prismlauncher.PrismLauncher

@@ -34,12 +34,8 @@ done
 # Swap wireplumber to terra-wireplumber
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y swap --allowerasing --repo terra-extras wireplumber terra-wireplumber
 
-# Mesa: every package below must come from one repository at one EVR, on both
-# arches. Mesa subpackages require each other's exact EVR, and dnf5 rejects an
-# implicitly pulled i686 package whose EVR differs from its installed x86_64
-# sibling ("has inferior architecture"). terra-mesa publishes each arch on its
-# own schedule and keeps only the newest build, so its x86_64 and i686 EVRs can
-# differ. Use the newest EVR terra-mesa ships for every package; when there is
+# Mesa: every package below must come from one repository at one EVR.
+# Use the newest EVR terra-mesa ships for every package; when there is
 # none, fall back to fedora-multimedia (negativo17, what base-main ships).
 mesa_specs=(
     mesa-filesystem.x86_64
@@ -50,12 +46,6 @@ mesa_specs=(
     mesa-vulkan-drivers.x86_64
     mesa-libGL-devel.x86_64
     mesa-libgbm-devel.x86_64
-    mesa-filesystem.i686
-    mesa-dri-drivers.i686
-    mesa-libEGL.i686
-    mesa-libGL.i686
-    mesa-libgbm.i686
-    mesa-vulkan-drivers.i686
 )
 
 # Print the newest EVR that $mesa_repo ships for every entry of mesa_specs.
@@ -82,8 +72,8 @@ if [[ -z "$mesa_evr" ]]; then
     if [[ -n "$mesa_evr" ]]; then
         # GitHub Actions workflow command: shows the fallback on the run
         # summary. It goes away on its own once terra-mesa publishes one EVR
-        # for both arches.
-        printf '::warning title=Mesa from fedora-multimedia::terra-mesa has no Mesa EVR common to x86_64 and i686 (%s); installing Mesa %s from fedora-multimedia\n' \
+        # for x86_64.
+        printf '::warning title=Mesa from fedora-multimedia::terra-mesa has no Mesa EVR common to x86_64 (%s); installing Mesa %s from fedora-multimedia\n' \
             "$(awk '{ sub(/.*\./, "", $1); print $1 " " $2 }' <<<"$terra_mesa_evrs" | sort -u | paste -sd ',' | sed 's/,/, /g')" \
             "$mesa_evr"
     fi
@@ -96,9 +86,9 @@ printf 'Installing Mesa %s from %s\n' "$mesa_evr" "$mesa_repo"
 
 # Packages already at that EVR from another repository (base-main ships
 # negativo17 builds) are left alone by install; reinstall them from $mesa_repo
-# first. Otherwise install adds $mesa_repo i686 next to the foreign x86_64 build,
-# and shared non-ELF files that differ between the builds (for example
-# /usr/share/drirc.d/00-radv-defaults.conf) make the RPM transaction conflict.
+# first. Otherwise shared non-ELF files that differ between the builds (for
+# example /usr/share/drirc.d/00-radv-defaults.conf) make the RPM transaction
+# conflict.
 mapfile -t mesa_foreign < <(
     dnf5 -q repoquery --installed --qf '%{name}.%{arch} %{epoch}:%{version}-%{release} %{from_repo}\n' "${mesa_specs[@]}" |
         awk -v evr="$mesa_evr" -v repo="$mesa_repo" '$2 == evr && $3 != repo { print $1 }'
@@ -108,7 +98,7 @@ if ((${#mesa_foreign[@]})); then
         -y reinstall --from-repo="$mesa_repo" "${mesa_foreign[@]}"
 fi
 
-# Explicit versions make dnf5 upgrade or downgrade both arches in one transaction.
+# Explicit versions make dnf5 upgrade or downgrade in one transaction.
 mesa_nevras=()
 for spec in "${mesa_specs[@]}"; do
     mesa_nevras+=("${spec%.*}-${mesa_evr}.${spec##*.}")
@@ -121,20 +111,9 @@ for package in bluez xorg-x11-server-Xwayland; do
     dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y swap --from-repo="copr:copr.fedorainfracloud.org:ublue-os:bazzite-multilib" "$package" "$package"
 done
 
-# Enable aahsnr-work/gaming at priority=1 to install protonplus, then disable immediately
-dnf5 -y copr enable "$copr"
-copr_enabled=1
-dnf5 -y config-manager setopt "${repo_id}.priority=1"
-
 # Read packages from packages.json
 mapfile -t gaming_packages < <(jq -r '."gaming".packages[]' "$PACKAGES_JSON")
 mapfile -t removal_packages < <(jq -r '."gaming".removals[]' "$PACKAGES_JSON")
-
-# Install gaming packages from COPR (protonplus, heroic-games-launcher)
-dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' \
-    -y install protonplus heroic-games-launcher
-
-disable_copr
 
 # Codecs, OpenCL, and graphics headers (Mesa itself is pinned above)
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' --enable-repo=terra-mesa -y install \
@@ -144,17 +123,13 @@ dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' --e
     clinfo
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y install libfreeaptx
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y install --enable-repo='*fedora-multimedia*' --allowerasing \
-    openh264.x86_64 \
-    openh264.i686
+    openh264.x86_64
 
-# Gaming middleware, Steam, and Lutris
+# Gaming middleware
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y install dmemcg-booster
 
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' --enable-repo=terra-mesa --enable-repo=terra --enable-repo=terra-extras \
     -y install "${gaming_packages[@]}"
-
-dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y --enable-repo=terra-mesa --enable-repo=terra \
-    install steam lutris
 
 # Remove unwanted packages
 for pkg in "${removal_packages[@]}"; do
@@ -166,7 +141,3 @@ done
 # Versionlock core graphics and system packages
 mapfile -t versionlocked_packages < <(jq -r '."gaming".versionlocks[]' "$PACKAGES_JSON")
 dnf5 versionlock add "${versionlocked_packages[@]}"
-
-# Install the pinned winetricks (downloads stage) and mark component attribute
-install -D -m 0755 /downloads/winetricks /usr/bin/winetricks
-setfattr -n user.component -v winetricks /usr/bin/winetricks 2>/dev/null || true

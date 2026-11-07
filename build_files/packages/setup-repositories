@@ -78,9 +78,9 @@ if [[ -f /etc/yum.repos.d/negativo17-fedora-multimedia.repo ]]; then
 fi
 
 dnf5 -y config-manager setopt \
-    '*fedora*'.exclude='mesa-* kernel-core-* kernel-modules-* kernel-uki-virt-* steam noopenh264'
+    '*fedora*'.exclude='mesa-* kernel-core-* kernel-modules-* kernel-uki-virt-* noopenh264'
 dnf5 -y config-manager setopt \
-    'updates*'.exclude='mesa-* kernel-core-* kernel-modules-* kernel-uki-virt-* steam noopenh264'
+    'updates*'.exclude='mesa-* kernel-core-* kernel-modules-* kernel-uki-virt-* noopenh264'
 
 # dnf5 -y config-manager setopt '*audinux*'.exclude='kernel*'
 dnf5 -y config-manager setopt \

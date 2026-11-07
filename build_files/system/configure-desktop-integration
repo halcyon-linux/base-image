@@ -30,12 +30,6 @@ if [[ -f /usr/bin/grub2-mkconfig ]]; then
         /usr/bin/grub2-mkconfig
 fi
 
-# Prevent Steam from autostarting on user login.
-rm -f \
-    /etc/skel/.config/autostart/steam.desktop \
-    /etc/xdg/autostart/steam.desktop \
-    /usr/share/autostart/steam.desktop
-
 # Set zsh as the default login shell.
 # 1. Ensure /etc/shells contains the zsh path (it should already be there
 #    after the zsh RPM install, but be explicit).

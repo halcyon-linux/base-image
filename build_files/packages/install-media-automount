@@ -2,8 +2,17 @@
 
 set -Eeuo pipefail
 
+# Read package list from packages.json
+PACKAGES_JSON="/ctx/packages.json"
+if [[ ! -f "$PACKAGES_JSON" ]]; then
+    echo "ERROR: packages.json not found at $PACKAGES_JSON" >&2
+    exit 1
+fi
+
+mapfile -t media_packages < <(jq -r '."common-packages".packages[]' "$PACKAGES_JSON" | grep 'ublue-os-media-automount-udev')
+
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' install -y \
     --enable-repo=copr:copr.fedorainfracloud.org:ublue-os:packages \
-    ublue-os-media-automount-udev
+    "${media_packages[@]}"
 
 systemctl enable ublue-os-media-automount.service

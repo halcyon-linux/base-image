@@ -2,8 +2,6 @@ blocklists:
   - priority: 0
     block:
     - io.github.kolunmi.Bazaar
-    - com.valvesoftware.Steam
-    - net.lutris.Lutris
     - io.neovim.nvim
     - org.vim.Vim
     - io.github.zyedidia.micro

@@ -269,9 +269,7 @@ verify_repos() {
 verify_mesa_stack() {
     require_rpms \
         mesa-filesystem mesa-dri-drivers mesa-libEGL mesa-libGL \
-        mesa-libgbm mesa-vulkan-drivers mesa-libGL-devel mesa-libgbm-devel \
-        mesa-filesystem.i686 mesa-dri-drivers.i686 mesa-libEGL.i686 \
-        mesa-libGL.i686 mesa-libgbm.i686 mesa-vulkan-drivers.i686
+        mesa-libgbm mesa-vulkan-drivers mesa-libGL-devel mesa-libgbm-devel
 
     local -a mesa_pkgs=()
     local -A mesa_evrs=() mesa_repos=()
@@ -306,7 +304,7 @@ verify_mesa_stack() {
                 pass "Mesa packages installed from terra-mesa"
                 ;;
             fedora-multimedia)
-                pass "Mesa packages installed from fedora-multimedia (terra-mesa had no EVR common to x86_64 and i686)"
+                pass "Mesa packages installed from fedora-multimedia (terra-mesa had no EVR common to x86_64)"
                 ;;
             *)
                 fail "Mesa packages from '${!mesa_repos[*]}', expected terra-mesa or fedora-multimedia"
@@ -441,18 +439,6 @@ verify_gaming() {
     require_repos_disabled 'copr:copr.fedorainfracloud.org:aahsnr-work:gaming'
 
     forbid_rpms_from_json "gaming" "removals"
-
-    if [[ -x /usr/bin/winetricks ]]; then
-        pass "winetricks present and executable: /usr/bin/winetricks"
-    else
-        fail "winetricks missing or not executable: /usr/bin/winetricks"
-    fi
-
-    if [[ -x /usr/bin/protonplus ]]; then
-        pass "protonplus present and executable: /usr/bin/protonplus"
-    else
-        fail "protonplus missing or not executable: /usr/bin/protonplus"
-    fi
 
     local locks
     locks="$(dnf5 versionlock list 2>/dev/null || true)"
@@ -863,16 +849,6 @@ verify_desktop_integration() {
         fi
     fi
 
-    if rpm -q steam >/dev/null 2>&1; then
-        steam_exec_total="$(grep -c '^Exec=' /usr/share/applications/steam.desktop || true)"
-        steam_exec_scaled="$(grep -c '^Exec=env STEAM_FORCE_DESKTOPUI_SCALING=2 /usr/bin/steam' /usr/share/applications/steam.desktop || true)"
-        if [[ "$steam_exec_total" -gt 0 && "$steam_exec_total" == "$steam_exec_scaled" ]]; then
-            pass "Steam launcher and actions force 2x UI scaling"
-        else
-            fail "Steam launcher lacks STEAM_FORCE_DESKTOPUI_SCALING=2 on ${steam_exec_total} Exec lines (${steam_exec_scaled} scaled)"
-        fi
-    fi
-
     if rpm -q bitwarden >/dev/null 2>&1; then
         if grep -q '^Exec=/opt/Bitwarden/bitwarden --ozone-platform=wayland' /usr/share/applications/bitwarden.desktop; then
             pass "Bitwarden launcher forces native Wayland (ozone wayland)"
@@ -886,18 +862,6 @@ verify_desktop_integration() {
     else
         fail "UserspaceHID not enabled in /etc/bluetooth/input.conf"
     fi
-
-    local autostart_path
-    for autostart_path in \
-        /etc/skel/.config/autostart/steam.desktop \
-        /etc/xdg/autostart/steam.desktop \
-        /usr/share/autostart/steam.desktop; do
-        if [[ -e "$autostart_path" ]]; then
-            fail "Steam autostart entry present: $autostart_path"
-        else
-            pass "Steam autostart entry absent: $autostart_path"
-        fi
-    done
 
     if grep -qxF '/usr/bin/zsh' /etc/shells 2>/dev/null; then
         pass "zsh present in /etc/shells"
@@ -1957,7 +1921,7 @@ verify_final() {
         /usr/bin/ujust /usr/bin/ujust-picker /usr/bin/bbrew-helper /usr/bin/bruh \
         /usr/bin/hardware-setup /usr/bin/user-setup /usr/bin/dynamic-fixes \
         /usr/bin/ublue-motd /usr/bin/uupd-update /usr/bin/dlss-swapper \
-        /usr/bin/steam /usr/bin/lutris /usr/bin/protonplus /usr/bin/winetricks \
+        /usr/bin/protonplus /usr/bin/winetricks \
         /usr/bin/bazaar /usr/bin/uupd /usr/bin/fastfetch /usr/bin/btop \
         /usr/bin/input-remapper-control /usr/bin/snapper /usr/bin/btrfs-assistant \
         /usr/bin/chezmoi /usr/bin/flatpak /usr/bin/sddm \
