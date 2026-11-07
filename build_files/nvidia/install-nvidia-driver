@@ -6,17 +6,14 @@ set -Eeuo pipefail
 dnf5 config-manager setopt 'terra-mesa'.enabled=1
 dnf5 -y copr enable ublue-os/staging
 
-# Install the 64-bit and 32-bit EGL Wayland bridges.
+# Install the 64-bit EGL Wayland bridges.
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y install \
     egl-wayland.x86_64 \
-    egl-wayland.i686 \
-    egl-wayland2.x86_64 \
-    egl-wayland2.i686
+    egl-wayland2.x86_64
 
 # Use the prebuilt open NVIDIA modules mounted by the Containerfile.
 IMAGE_NAME=SKIP_PACKAGE_INSTALL \
     AKMODNV_PATH=/tmp/rpms/nvidia \
-    MULTILIB=1 \
     /tmp/rpms/nvidia/ublue-os/nvidia-install.sh
 
 # Expose NVML for monitoring applications.

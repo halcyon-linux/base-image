@@ -262,9 +262,8 @@ verify_repos() {
 # same for every aahsnr-work COPR. Terra and Fedora ship some of the same names
 # and would shadow or pre-empt the COPR build.
 # Mesa must be one build: every package from the mesa source RPM shares one
-# EVR across x86_64 and i686 (dnf5 refuses mismatched multilib siblings) and
-# one repository. install-gaming-stack picks terra-mesa and falls back to
-# fedora-multimedia only when terra-mesa ships no EVR common to both arches.
+# EVR and one repository. install-gaming-stack picks terra-mesa and falls back to
+# fedora-multimedia only when terra-mesa ships no EVR.
 # mesa-libGL-devel and mesa-libgbm-devel are part of the set: hyprpm needs them.
 verify_mesa_stack() {
     require_rpms \
@@ -1902,7 +1901,7 @@ verify_final() {
     fi
 
     # The graphics stack must survive the whole build: Mesa (Fedora's is
-    # excluded) must still be one build, x86_64 and i686, next to the NVIDIA
+    # excluded) must still be one build, next to the NVIDIA
     # driver in the published image.
     verify_mesa_stack
 
