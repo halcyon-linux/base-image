@@ -1,0 +1,98 @@
+version: 2
+
+project: Base Image
+description: Track development, maintenance, and security improvements.
+
+tasks:
+  - id: TASK-01
+    title: Migrate to UWSM and systemd user units
+    category: architecture
+    priority: medium
+    status: pending
+    description: >-
+      Adopt UWSM for graphical session management and migrate
+      applicable user-level services to systemd user units.
+
+  - id: TASK-02
+    title: Remove gaming applications and packages
+    category: packages
+    priority: low
+    status: pending
+    description: >-
+      Remove all gaming-related applications and packages, including
+      Steam, Lutris, and Heroic Games Launcher. Preserve gaming-related
+      system optimizations, performance enhancements, and all Mesa
+      packages.
+
+  - id: TASK-03
+    title: Consolidate initramfs generation
+    category: build
+    priority: high
+    status: completed
+    description: >-
+      Ensure initramfs generation occurs only once during the entire
+      build process, after NVIDIA driver setup is complete.
+
+  - id: TASK-04
+    title: Implement comprehensive audit configuration
+    category: security
+    priority: high
+    status: completed
+    description: >-
+      Implement comprehensive system audit rules and associated
+      audit configuration.
+
+  - id: TASK-05
+    title: Harden base-image security
+    category: security
+    priority: high
+    status: completed
+    description: >-
+      Implement base-image security hardening based on findings
+      from the security audit.
+
+  - id: TASK-06
+    title: Condense comments across the base-image project
+    category: maintenance
+    priority: medium
+    status: pending
+    description: >-
+      Condense comments in all files across the base-image project,
+      excluding README.md.
+
+  - id: TASK-07
+    title: Centralize package names in packages.json
+    category: refactoring
+    priority: medium
+    status: pending
+    description: >-
+      Ensure package names exist only in packages.json and not
+      in Bash scripts under build_files/packages/.
+
+  - id: TASK-08
+    title: Review global-remove for redundancies
+    category: maintenance
+    priority: medium
+    status: pending
+    description: >-
+      Determine whether any operations in
+      build_files/packages/global-remove are redundant.
+
+  - id: TASK-09
+    title: Review install-brew-files for redundancies
+    category: maintenance
+    priority: medium
+    status: pending
+    description: >-
+      Determine whether any operations in
+      build_files/packages/install-brew-files are redundant.
+
+  - id: TASK-10
+    title: Review package installation instructions for duplication
+    category: maintenance
+    priority: medium
+    status: pending
+    description: >-
+      Determine whether packages.json and
+      build_files/packages/install-common-packages contain
+      overlapping or duplicated instructions.
