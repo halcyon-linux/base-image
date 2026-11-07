@@ -1899,7 +1899,6 @@ verify_final() {
         /usr/bin/ujust /usr/bin/ujust-picker /usr/bin/bbrew-helper /usr/bin/bruh \
         /usr/bin/hardware-setup /usr/bin/user-setup /usr/bin/dynamic-fixes \
         /usr/bin/ublue-motd /usr/bin/uupd-update /usr/bin/dlss-swapper \
-        /usr/bin/protonplus /usr/bin/winetricks \
         /usr/bin/bazaar /usr/bin/uupd /usr/bin/fastfetch /usr/bin/btop \
         /usr/bin/input-remapper-control /usr/bin/snapper /usr/bin/btrfs-assistant \
         /usr/bin/chezmoi /usr/bin/flatpak /usr/bin/sddm \

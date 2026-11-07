@@ -24,6 +24,5 @@ for pkg in \
     fi
 done
 
-# Wipe any residual fish shell configuration or integration directories
-rm -rf /etc/fish /usr/share/fish
-
+# Wipe residual fish shell configuration left by RPM removal
+rm -rf /etc/fish

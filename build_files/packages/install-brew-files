@@ -48,13 +48,3 @@ for profile in /etc/profile.d/brew.sh /etc/profile.d/brew-bash-completion.sh; do
         sed -i "1i ${brew_root_guard}" "$profile"
     fi
 done
-
-# Final permission fix on installed homebrew (Lynis compliance: no world-writable dirs)
-if [[ -d /home/linuxbrew ]]; then
-    find /home/linuxbrew -type d -exec chmod 755 {} \; 2>/dev/null || true
-    find /home/linuxbrew -type f -exec chmod 644 {} \; 2>/dev/null || true
-    find /home/linuxbrew -type f -name "brew" -exec chmod 755 {} \; 2>/dev/null || true
-    find /home/linuxbrew -type f -path "*/bin/*" -exec chmod 755 {} \; 2>/dev/null || true
-    # Ensure no world-writable directories (Lynis check)
-    find /home/linuxbrew -type d -perm -002 -exec chmod o-w {} \; 2>/dev/null || true
-fi

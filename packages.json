@@ -277,9 +277,6 @@
       "mesa-libgbm-devel",
       "mesa-vulkan-drivers",
       "xorg-x11-server-Xwayland"
-    ],
-    "external_downloads": [
-      "winetricks (from Winetricks/winetricks master)"
     ]
   },
   "fonts": {

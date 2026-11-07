@@ -73,7 +73,7 @@ tasks:
     title: Review global-remove for redundancies
     category: maintenance
     priority: medium
-    status: pending
+    status: completed
     description: >-
       Determine whether any operations in
       build_files/packages/global-remove are redundant.
@@ -82,7 +82,7 @@ tasks:
     title: Review install-brew-files for redundancies
     category: maintenance
     priority: medium
-    status: pending
+    status: completed
     description: >-
       Determine whether any operations in
       build_files/packages/install-brew-files are redundant.

@@ -71,6 +71,38 @@ else
     not_ok "DRM verification must not require the 32-bit /usr/lib/libdrm.so"
 fi
 
+if grep -Fq '/usr/share/fish' "$repo_root/build_files/packages/global-remove"; then
+    not_ok "global-remove must not repeat fish package and Brew staging cleanup"
+else
+    ok "global-remove leaves fish file removal to package and staging cleanup"
+fi
+
+if grep -Fq 'find /home/linuxbrew' "$repo_root/build_files/packages/install-brew-files"; then
+    not_ok "install-brew-files must not chmod the absent first-boot Brew tree"
+else
+    ok "install-brew-files does not chmod the absent first-boot Brew tree"
+fi
+
+if grep -Eq '/usr/bin/(protonplus|winetricks)' "$repo_root/build_files/finalization/verify"; then
+    not_ok "final verification must not require removed gaming commands"
+else
+    ok "final verification does not require ProtonPlus or Winetricks"
+fi
+
+if awk -F '\t' '$1 == "winetricks" { found = 1 } END { exit !found }' \
+    "$repo_root/build_files/downloads/manifest.tsv"; then
+    not_ok "removed Winetricks must not be fetched"
+else
+    ok "Winetricks download removed"
+fi
+
+if jq -e '.gaming.external_downloads // [] | any(startswith("winetricks"))' \
+    "$repo_root/packages.json" >/dev/null; then
+    not_ok "removed Winetricks must not remain in package metadata"
+else
+    ok "Winetricks removed from package metadata"
+fi
+
 # 4. Validate YAML files
 if python3 -c "
 import os, glob, sys

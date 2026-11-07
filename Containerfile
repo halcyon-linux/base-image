@@ -149,7 +149,7 @@ RUN --mount=type=cache,dst=/var/cache \
     /ctx/finalization/verify common-packages && \
     /ctx/shared/cleanup
 
-# Install the gaming stack: protonplus, Steam, Lutris, and Winetricks.
+# Install gaming-related packages and graphics components.
 RUN --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
