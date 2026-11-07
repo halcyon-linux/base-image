@@ -6,16 +6,6 @@ set -Eeuo pipefail
 mkdir -p /var/tmp
 chmod 1777 /var/tmp
 
-# Symlink Direct Rendering Manager libraries (libdrm package only provides libdrm.so.2,
-# libdrm-devel may not create unversioned libdrm.so symlink in all Fedora versions)
-# Always create/update the symlink if target exists
-if [[ -e /usr/lib/libdrm.so.2 ]]; then
-    ln -sfn libdrm.so.2 /usr/lib/libdrm.so
-fi
-if [[ -e /usr/lib64/libdrm.so.2 ]]; then
-    ln -sfn libdrm.so.2 /usr/lib64/libdrm.so
-fi
-
 # Hide CLI utilities from graphical application menus.
 for app in nvtop btop yad-icon-browser; do
     if [[ -f "/usr/share/applications/${app}.desktop" ]]; then
@@ -95,4 +85,3 @@ default-cache-ttl 28800
 max-cache-ttl 86400
 GPGCONF
 chmod 0600 /etc/skel/.gnupg/gpg-agent.conf
-

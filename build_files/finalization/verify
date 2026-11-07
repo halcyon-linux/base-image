@@ -807,10 +807,10 @@ verify_desktop_integration() {
         fail "/var/tmp permissions are $perm, expected 1777"
     fi
 
-    if [[ -e /usr/lib/libdrm.so && -e /usr/lib64/libdrm.so ]]; then
-        pass "DRM library symlinks present"
+    if [[ -e /usr/lib64/libdrm.so ]]; then
+        pass "DRM 64-bit development library present"
     else
-        fail "DRM library symlink missing (/usr/lib[64]/libdrm.so)"
+        fail "DRM 64-bit development library missing (/usr/lib64/libdrm.so)"
     fi
 
     local app

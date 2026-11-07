@@ -64,6 +64,13 @@ else
     not_ok "common-packages must install virtiofsd"
 fi
 
+if grep -Fq '[[ -e /usr/lib64/libdrm.so ]]' "$repo_root/build_files/finalization/verify" \
+    && ! grep -Fq '/usr/lib/libdrm.so' "$repo_root/build_files/finalization/verify"; then
+    ok "DRM verification requires only the native 64-bit development library"
+else
+    not_ok "DRM verification must not require the 32-bit /usr/lib/libdrm.so"
+fi
+
 # 4. Validate YAML files
 if python3 -c "
 import os, glob, sys
