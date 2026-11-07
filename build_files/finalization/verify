@@ -1136,7 +1136,6 @@ verify_system_policy() {
         'copr:copr.fedorainfracloud.org:aahsnr-work:cli-tools' \
         'copr:copr.fedorainfracloud.org:aahsnr-work:python-packages' \
         'copr:copr.fedorainfracloud.org:ublue-os:bazzite-multilib:ml' \
-        'copr:copr.fedorainfracloud.org:aahsnr-work:gaming' \
         terra terra-extras terra-mesa tailscale-stable fedora-multimedia
 
     if [[ -L /usr/bin/pulseaudio && "$(readlink /usr/bin/pulseaudio)" == "/usr/bin/true" ]]; then

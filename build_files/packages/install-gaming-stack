@@ -9,21 +9,6 @@ if [[ ! -f "$PACKAGES_JSON" ]]; then
     exit 1
 fi
 
-copr='aahsnr-work/gaming'
-repo_id="copr:copr.fedorainfracloud.org:${copr////:}"
-copr_enabled=0
-
-disable_copr() {
-    if ((copr_enabled)); then
-        if ! dnf5 -y copr disable "$copr"; then
-            printf 'ERROR: failed to disable COPR %s\n' "$copr" >&2
-            return 1
-        fi
-        copr_enabled=0
-    fi
-}
-trap 'disable_copr || true' EXIT
-
 # Remove packages that conflict with gaming stack
 for pkg in pipewire-config-raop mesa-va-drivers; do
     if rpm -q "$pkg" >/dev/null 2>&1; then
