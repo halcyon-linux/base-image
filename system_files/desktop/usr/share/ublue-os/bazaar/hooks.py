@@ -172,41 +172,6 @@ def handle_vscode():
             # always prevent installation of VSCode flatpak
             return 'deny'
 
-def handle_vscodium():
-
-    def appid_is_vscodium(appid):
-        return appid.startswith('com.vscodium.codium')
-
-    match stage:
-        case 'setup':
-            if transaction_type == 'install' and appid_is_vscodium(transaction_appid):
-                return 'ok'
-            else:
-                return 'pass'
-
-        case 'setup-dialog':
-            return 'ok'
-
-        case 'teardown-dialog':
-            if dialog_response_id == 'run-brew':
-                return 'ok'
-            else:
-                return 'abort'
-
-        case 'catch':
-            return 'abort'
-
-        case 'action':
-            try:
-                spawn_brew_ublue('vscodium-linux')
-            except:
-                pass
-            return ''
-
-        case 'teardown':
-            # always prevent installation of VSCodium flatpak
-            return 'deny'
-
 # ---
 
 response = 'pass'
@@ -215,8 +180,6 @@ match hook_id:
         response = handle_jetbrains()
     case 'vscode':
         response = handle_vscode()
-    case 'vscodium':
-        response = handle_vscodium()
 
 print(response)
 sys.exit(0)

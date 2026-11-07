@@ -64,6 +64,62 @@ else
     not_ok "common-packages must install virtiofsd"
 fi
 
+if jq -e '
+    .["common-packages"].packages as $common
+    | .security.packages as $security
+    | ($common | index("setools-console") | not)
+      and ($common | index("setroubleshoot") | not)
+      and ($common | index("lynis") | not)
+      and ($security | index("setools-console") != null)
+      and ($security | index("setroubleshoot") != null)
+      and ($security | index("lynis") != null)
+      and ($common | index("gdu") != null)
+      and ($common | index("perl") != null)
+      and ($common | index("nautilus") != null)
+      and ($common | index("file-roller") != null)
+      and ($common | index("ScopeBuddy") | not)
+      and ($common | map(select(test("(?i)^thunar$|^thunar-"))) | length == 0)
+      and ([.gaming.packages[] | select(. == "dmemcg-booster")] | length == 0)
+      and ([.. | strings | select(test("bazzite-multilib|i686"))] | length == 0)
+' "$repo_root/packages.json" >/dev/null; then
+    ok "requested package metadata is consistent"
+else
+    not_ok "requested package metadata is inconsistent"
+fi
+
+if grep -Fq 'reinstall --from-repo=fedora bluez xorg-x11-server-Xwayland' \
+    "$repo_root/build_files/packages/install-common-packages" \
+    && grep -Fq 'require_rpms_from_repo fedora bluez xorg-x11-server-Xwayland' \
+        "$repo_root/build_files/finalization/verify"; then
+    ok "BlueZ and Xwayland are installed and verified from Fedora"
+else
+    not_ok "BlueZ and Xwayland must be installed and verified from Fedora"
+fi
+
+if ! grep -Eiq 'vscodium|codium|microsoft-edge|vivaldi|firefox' \
+    "$repo_root/packages.json" \
+    "$repo_root/build_files/packages/install-applications" \
+    "$repo_root/build_files/system/configure-system-policy" \
+    "$repo_root/system_files/desktop/usr/share/ublue-os/bazaar/main.yaml" \
+    "$repo_root/system_files/desktop/usr/share/ublue-os/bazaar/hooks.py" \
+    "$repo_root/system_files/desktop/usr/share/yafti/yafti.yml"; then
+    ok "removed browsers absent from app metadata and integration"
+else
+    not_ok "a removed browser remains configured"
+fi
+if ! grep -Fq 'forbid_rpms codium firefox microsoft-edge-stable vivaldi-stable' \
+    "$repo_root/build_files/finalization/verify"; then
+    not_ok "final verification must forbid removed browsers"
+fi
+if [[ -e "$repo_root/system_files/desktop/usr/share/ublue-os/bazaar/content.yaml" || \
+      -L "$repo_root/system_files/desktop/usr/share/ublue-os/bazaar/content.yaml" ]] || \
+   grep -Fq '/usr/share/ublue-os/bazaar/content.yaml' \
+       "$repo_root/system_files/desktop/usr/share/ublue-os/bazaar/main.yaml"; then
+    not_ok "redundant Bazaar content file or reference remains"
+else
+    ok "redundant Bazaar content file and reference absent"
+fi
+
 if grep -Fq '[[ -e /usr/lib64/libdrm.so ]]' "$repo_root/build_files/finalization/verify" \
     && ! grep -Fq '/usr/lib/libdrm.so' "$repo_root/build_files/finalization/verify"; then
     ok "DRM verification requires only the native 64-bit development library"

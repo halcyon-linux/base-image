@@ -20,8 +20,6 @@ repositories=(
     vscode
     brave-browser
     google-chrome
-    microsoft-edge
-    vivaldi
 )
 for repo in "${repositories[@]}"; do
     if [[ -f "/etc/yum.repos.d/${repo}.repo" ]]; then
@@ -66,10 +64,3 @@ fi
 
 # Prevent applications from starting a separate PulseAudio server.
 ln -sfn /usr/bin/true /usr/bin/pulseaudio
-
-# Install Bazzite Firefox preferences for the RPM Firefox.
-firefox_config=/usr/share/ublue-os/firefox-config
-if [[ -d "$firefox_config" ]] && compgen -G "$firefox_config"/*.js >/dev/null; then
-    install -d /usr/lib64/firefox/defaults/pref
-    cp "$firefox_config"/*.js /usr/lib64/firefox/defaults/pref/
-fi

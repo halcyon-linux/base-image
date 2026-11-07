@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Enable aahsnr-work/applications COPR at priority=1 and install desktop applications and bees deduplication daemon.
-# Install developer tools (vscode, vscodium) and web browsers (firefox, brave, brave-origin, chrome, edge, vivaldi)
+# Install Visual Studio Code and supported web browsers.
 # following strict repository lifecycle: enable with priority=1 and weak deps disabled, install, disable repo.
 
 set -Eeuo pipefail
@@ -94,7 +94,7 @@ if [[ -n "$repo_file" && -f "$repo_file" ]]; then
 fi
 
 # -----------------------------------------------------------------------------
-# STEP 3: Install Fedora repository packages (firefox, neovim)
+# STEP 3: Install Fedora repository packages (neovim)
 # -----------------------------------------------------------------------------
 mapfile -t FEDORA_PACKAGES < <(jq -r '."applications".fedora_packages[]' "$PACKAGES_JSON")
 
@@ -103,7 +103,7 @@ dnf5 -y install "${COMMON_INSTALL_OPTS[@]}" "${FEDORA_PACKAGES[@]}"
 rpm -q "${FEDORA_PACKAGES[@]}"
 
 # -----------------------------------------------------------------------------
-# STEP 4: Install external repository packages (VS Code, VSCodium, browsers)
+# STEP 4: Install external repository packages (VS Code and supported browsers)
 # -----------------------------------------------------------------------------
 # Read external repos from packages.json
 EXTERNAL_REPOS_COUNT=$(jq '.["applications"].external_repos | length' "$PACKAGES_JSON")

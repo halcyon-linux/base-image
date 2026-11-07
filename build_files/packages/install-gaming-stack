@@ -105,9 +105,6 @@ dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y 
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y install --enable-repo='*fedora-multimedia*' --allowerasing \
     openh264.x86_64
 
-# Gaming middleware
-dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y install dmemcg-booster
-
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' --enable-repo=terra-mesa --enable-repo=terra --enable-repo=terra-extras \
     -y install "${gaming_packages[@]}"
 

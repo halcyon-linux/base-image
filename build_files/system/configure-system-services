@@ -11,7 +11,6 @@ system_services=(
     ds-inhibit.service
     greenboot-healthcheck.service
     greenboot-set-rollback-trigger.service
-    dmemcg-booster-system.service
     cardwired.service
     sddm.service
     cups.service
@@ -40,7 +39,6 @@ global_services=(
     podman.socket
     systemd-tmpfiles-setup.service
     dynamic-fixes.service
-    dmemcg-booster-user.service
     chezmoi-init.service
     chezmoi-update.timer
 )

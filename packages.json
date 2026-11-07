@@ -15,6 +15,7 @@
       "bazzite-updater",
       "bibata-cursor-theme",
       "bleachbit",
+      "bluez",
       "bluez-tools",
       "bpftune-gaming",
       "brightnessctl",
@@ -36,6 +37,7 @@
       "fastfetch",
       "file-roller",
       "fuse-libs",
+      "gdu",
       "gcc-c++",
       "git",
       "git-delta",
@@ -68,7 +70,6 @@
       "lm_sensors",
       "lsb_release",
       "lshw",
-      "lynis",
       "lzip",
       "meson",
       "mission-center",
@@ -92,22 +93,15 @@
       "python3-pip",
       "re2-devel",
       "ripgrep",
-      "ScopeBuddy",
       "sddm",
       "sddm-wayland-generic",
-      "setools-console",
-      "setroubleshoot",
       "slurp",
       "socat",
       "snapper",
       "stress-ng",
       "swappy",
       "tailscale",
-      "Thunar",
-      "thunar-archive-plugin",
-      "thunar-media-tags-plugin",
-      "thunar-vcs-plugin",
-      "thunar-volman",
+      "nautilus",
       "transmission-gtk",
       "tuned",
       "tuned-ppd",
@@ -123,6 +117,7 @@
       "vulkan-tools",
       "wayland-protocols-devel",
       "webapp-manager",
+      "xorg-x11-server-Xwayland",
       "xdg-user-dirs-gtk",
       "xwininfo",
       "yad",
@@ -228,7 +223,6 @@
     "packages": [
       "clinfo",
       "dbus-x11",
-      "dmemcg-booster",
       "evtest",
       "gobject-introspection",
       "intel-opencl",
@@ -253,9 +247,7 @@
     ],
     "swaps": [
       "wireplumber -> terra-wireplumber (from terra-extras)",
-      "bluez -> bazzite-multilib build",
-      "xorg-x11-server-Xwayland -> bazzite-multilib build",
-      "all Mesa (x86_64 + i686) -> one EVR from terra-mesa, or fedora-multimedia when terra-mesa has none"
+      "all Mesa (x86_64) -> one EVR from terra-mesa, or fedora-multimedia when terra-mesa has none"
     ],
     "versionlocks": [
       "NetworkManager",
@@ -264,10 +256,6 @@
       "NetworkManager-ssh-selinux",
       "NetworkManager-tui",
       "NetworkManager-wifi",
-      "bluez",
-      "bluez-cups",
-      "bluez-libs",
-      "bluez-obexd",
       "mesa-dri-drivers",
       "mesa-filesystem",
       "mesa-libEGL",
@@ -275,8 +263,7 @@
       "mesa-libGL-devel",
       "mesa-libgbm",
       "mesa-libgbm-devel",
-      "mesa-vulkan-drivers",
-      "xorg-x11-server-Xwayland"
+      "mesa-vulkan-drivers"
     ]
   },
   "fonts": {
@@ -366,7 +353,6 @@
       "cups",
       "cups-libs",
       "dbus-glib",
-      "firefox",
       "hplip",
       "hplip-gui",
       "libXinerama",
@@ -410,18 +396,6 @@
         ]
       },
       {
-        "id": "gitlab.com_paulcarroty_vscodium_repo",
-        "name": "VSCodium",
-        "baseurl": "https://paulcarroty.gitlab.io/vscodium-deb-rpm-repo/rpms/",
-        "gpgkey": "https://gitlab.com/paulcarroty/vscodium-deb-rpm-repo/raw/master/pub.gpg",
-        "gpg_fingerprints": [
-          "1302DE60231889FE1EBACADC54678CF75A278D9C"
-        ],
-        "packages": [
-          "codium"
-        ]
-      },
-      {
         "id": "google-chrome",
         "name": "Google Chrome",
         "baseurl": "https://dl.google.com/linux/chrome/rpm/stable/$basearch",
@@ -431,30 +405,6 @@
         ],
         "packages": [
           "google-chrome-stable"
-        ]
-      },
-      {
-        "id": "microsoft-edge",
-        "name": "Microsoft Edge",
-        "baseurl": "https://packages.microsoft.com/yumrepos/edge",
-        "gpgkey": "https://packages.microsoft.com/keys/microsoft.asc",
-        "gpg_fingerprints": [
-          "BC528686B50D79E339D3721CEB3E94ADBE1229CF"
-        ],
-        "packages": [
-          "microsoft-edge-stable"
-        ]
-      },
-      {
-        "id": "vivaldi",
-        "name": "Vivaldi",
-        "baseurl": "https://repo.vivaldi.com/stable/rpm/x86_64",
-        "gpgkey": "https://repo.vivaldi.com/stable/linux_signing_key.pub",
-        "gpg_fingerprints": [
-          "8D1FA52AEF58A09D889DD4221256C34716BD9233"
-        ],
-        "packages": [
-          "vivaldi-stable"
         ]
       }
     ]
@@ -510,11 +460,14 @@
       "audispd-plugins",
       "audit",
       "audit-rules",
+      "lynis",
       "policycoreutils-devel",
       "policycoreutils-restorecond",
       "psacct",
       "python3-systemd",
       "rng-tools",
+      "setools-console",
+      "setroubleshoot",
       "sysstat"
     ]
   },

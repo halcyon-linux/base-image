@@ -390,6 +390,7 @@ verify_removals() {
 
 verify_common_packages() {
     require_rpms_from_json "common-packages" "packages"
+    require_rpms_from_repo fedora bluez xorg-x11-server-Xwayland
 
     # Fedora ships the curses variant inside the `pinentry` package (it only
     # Provides pinentry-curses), so assert the executables the wrapper needs.
@@ -439,6 +440,7 @@ verify_common_packages() {
 
 verify_gaming() {
     require_rpms_from_json "gaming" "packages"
+    forbid_rpms dmemcg-booster
 
     forbid_rpms_from_json "gaming" "removals"
 
@@ -590,11 +592,10 @@ verify_applications() {
     require_repos_disabled \
         'copr:copr.fedorainfracloud.org:aahsnr-work:applications' \
         'code' \
-        'gitlab.com_paulcarroty_vscodium_repo' \
         'brave-browser' \
-        'google-chrome' \
-        'microsoft-edge' \
-        'vivaldi'
+        'google-chrome'
+
+    forbid_rpms codium firefox microsoft-edge-stable vivaldi-stable
 
     if [[ -x /usr/bin/beesd ]]; then
         pass "beesd binary present and executable: /usr/bin/beesd"
@@ -605,13 +606,9 @@ verify_applications() {
     local app_bin
     for app_bin in \
         /usr/bin/code \
-        /usr/bin/codium \
         /usr/bin/brave-browser \
-        /usr/bin/firefox \
         /usr/bin/google-chrome \
-        /usr/bin/microsoft-edge \
-        /usr/bin/qutebrowser \
-        /usr/bin/vivaldi; do
+        /usr/bin/qutebrowser; do
         if [[ -x "$app_bin" ]]; then
             pass "application binary present and executable: $app_bin"
         else
@@ -941,7 +938,7 @@ verify_services() {
         brew-setup.service input-remapper.service uupd.timer hardware-setup.service \
         dev-hugepages1G.mount ds-inhibit.service \
         greenboot-healthcheck.service greenboot-set-rollback-trigger.service \
-        dmemcg-booster-system.service cardwired.service \
+        cardwired.service \
         sddm.service cups.service bpftune.service tuned.service fstrim.timer \
         nix-daemon.socket nix-daemon.service auditd.service audit-rules.service \
         piavpn.service; do
@@ -1726,11 +1723,8 @@ verify_final() {
         'copr:copr.fedorainfracloud.org:aahsnr-work:applications' \
         'copr:copr.fedorainfracloud.org:aahsnr-work:texlive-packages' \
         'code' \
-        'gitlab.com_paulcarroty_vscodium_repo' \
         'brave-browser' \
         'google-chrome' \
-        'microsoft-edge' \
-        'vivaldi' \
         'gh-cli' \
         fedora-multimedia
 
@@ -1908,8 +1902,8 @@ verify_final() {
         /usr/bin/bazaar /usr/bin/uupd /usr/bin/fastfetch /usr/bin/btop \
         /usr/bin/input-remapper-control /usr/bin/snapper /usr/bin/btrfs-assistant \
         /usr/bin/chezmoi /usr/bin/flatpak /usr/bin/sddm \
-        /usr/bin/code /usr/bin/codium /usr/bin/brave-browser /usr/bin/firefox \
-        /usr/bin/google-chrome /usr/bin/microsoft-edge /usr/bin/vivaldi \
+        /usr/bin/code /usr/bin/brave-browser \
+        /usr/bin/google-chrome \
         /usr/bin/nvim /usr/bin/kitty \
         /usr/bin/Hyprland /usr/bin/hyprpm \
         /usr/bin/pinentry-wrapper \
@@ -1932,7 +1926,6 @@ verify_final() {
         /usr/lib/systemd/system/hardware-setup.service \
         /usr/lib/systemd/system/greenboot-healthcheck.service \
         /usr/lib/systemd/system/greenboot-set-rollback-trigger.service \
-        /usr/lib/systemd/system/dmemcg-booster-system.service \
         /usr/lib/systemd/system/uupd.timer \
         /usr/lib/systemd/system/sddm.service \
         /usr/lib/systemd/system/var-nix.service \
@@ -1944,7 +1937,6 @@ verify_final() {
         /etc/nix/nix.conf \
         /usr/lib/systemd/user/user-setup.service \
         /usr/lib/systemd/user/dynamic-fixes.service \
-        /usr/lib/systemd/user/dmemcg-booster-user.service \
         /usr/lib/systemd/user/chezmoi-init.service \
         /usr/lib/systemd/user/chezmoi-update.timer; do
         if [[ -e "$unit" ]]; then
@@ -1986,10 +1978,10 @@ verify_final() {
     fi
 
     if [[ -L /etc/bazaar/bazaar.yaml && "$(readlink /etc/bazaar/bazaar.yaml)" == "/usr/share/ublue-os/bazaar/main.yaml" && \
-          -L /etc/bazaar/config.yaml && "$(readlink /etc/bazaar/config.yaml)" == "/usr/share/ublue-os/bazaar/content.yaml" ]]; then
-        pass "bazaar configuration symlinks present in /etc/bazaar"
+          ! -e /etc/bazaar/config.yaml && ! -L /etc/bazaar/config.yaml ]]; then
+        pass "bazaar main configuration symlink present and redundant config absent"
     else
-        fail "bazaar configuration symlinks missing or misdirected in /etc/bazaar"
+        fail "bazaar main configuration symlink missing or redundant config present"
     fi
 
     if grep -q '<allow_any>yes</allow_any>' \
