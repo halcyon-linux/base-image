@@ -22,7 +22,6 @@ fi
 
 copr_repositories=(
     ublue-os/bazzite
-    ublue-os/bazzite-multilib
     ublue-os/staging
     ublue-os/packages
 )

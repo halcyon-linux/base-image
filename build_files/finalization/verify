@@ -235,7 +235,6 @@ verify_repos() {
         tailscale-stable \
         gh-cli \
         'copr:copr.fedorainfracloud.org:ublue-os:bazzite' \
-        'copr:copr.fedorainfracloud.org:ublue-os:bazzite-multilib' \
         'copr:copr.fedorainfracloud.org:ublue-os:staging' \
         'copr:copr.fedorainfracloud.org:ublue-os:packages'
 
@@ -1127,12 +1126,10 @@ verify_nvidia() {
 verify_system_policy() {
     require_repos_disabled \
         'copr:copr.fedorainfracloud.org:ublue-os:bazzite' \
-        'copr:copr.fedorainfracloud.org:ublue-os:bazzite-multilib' \
         'copr:copr.fedorainfracloud.org:ublue-os:staging' \
         'copr:copr.fedorainfracloud.org:ublue-os:packages' \
         'copr:copr.fedorainfracloud.org:aahsnr-work:cli-tools' \
         'copr:copr.fedorainfracloud.org:aahsnr-work:python-packages' \
-        'copr:copr.fedorainfracloud.org:ublue-os:bazzite-multilib:ml' \
         terra terra-extras terra-mesa tailscale-stable fedora-multimedia
 
     if [[ -L /usr/bin/pulseaudio && "$(readlink /usr/bin/pulseaudio)" == "/usr/bin/true" ]]; then
@@ -1742,7 +1739,6 @@ verify_final() {
         'microsoft-edge' \
         'vivaldi' \
         'gh-cli' \
-        'copr:copr.fedorainfracloud.org:ublue-os:bazzite-multilib:ml' \
         fedora-multimedia
 
     # Negative guards: fonts and waydroid must never reach the published image.

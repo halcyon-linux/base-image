@@ -32,7 +32,6 @@ dnf5 -y config-manager setopt terra.enabled=0 terra-extras.enabled=0
 
 coprs=(
     ublue-os/bazzite
-    ublue-os/bazzite-multilib
     ublue-os/staging
     ublue-os/packages
 )
@@ -45,12 +44,10 @@ for copr in "${coprs[@]}"; do
 done
 unset -v copr repo_id
 
-# setup-repositories enables negativo17 (repo id fedora-multimedia) and the
-# bazzite-multilib COPR adds an i386 sibling (id ending in :ml). Disable both
+# setup-repositories enables negativo17 (repo id fedora-multimedia). Disable
 # through dnf5 so the override in /etc/dnf/repos.override.d wins over the .repo file.
 dnf5 -y config-manager setopt \
-    fedora-multimedia.enabled=0 \
-    'copr:copr.fedorainfracloud.org:ublue-os:bazzite-multilib:ml.enabled=0'
+    fedora-multimedia.enabled=0
 
 # Patch setroubleshoot's SELinux configuration path.
 for util_file in /usr/lib/python3.*/site-packages/setroubleshoot/util.py; do

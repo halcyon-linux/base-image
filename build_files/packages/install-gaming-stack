@@ -91,11 +91,6 @@ done
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' "${mesa_repo_opts[@]}" \
     -y install --allowerasing --from-repo="$mesa_repo" "${mesa_nevras[@]}"
 
-# Swap bluez and Xwayland to patched bazzite-multilib builds
-for package in bluez xorg-x11-server-Xwayland; do
-    dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y swap --from-repo="copr:copr.fedorainfracloud.org:ublue-os:bazzite-multilib" "$package" "$package"
-done
-
 # Read packages from packages.json
 mapfile -t gaming_packages < <(jq -r '."gaming".packages[]' "$PACKAGES_JSON")
 mapfile -t removal_packages < <(jq -r '."gaming".removals[]' "$PACKAGES_JSON")
