@@ -24,5 +24,8 @@ for pkg in \
     fi
 done
 
-# Wipe residual fish shell configuration left by RPM removal
-rm -rf /etc/fish
+# Remove fish configuration and files inherited from the base image
+rm -rf /etc/fish /usr/share/fish
+if [[ -f /etc/shells ]]; then
+    sed -i '\|^/usr/bin/fish$|d' /etc/shells
+fi

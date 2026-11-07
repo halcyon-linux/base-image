@@ -373,13 +373,19 @@ verify_removals() {
         pinentry-qt
 
     local item
-    for item in /usr/bin/fish /usr/share/fish /usr/bin/greetd /etc/greetd; do
+    for item in /usr/bin/fish /usr/share/fish /etc/fish /usr/bin/greetd /etc/greetd; do
         if [[ -e "$item" ]]; then
             fail "removed component artifact present: $item"
         else
             pass "removed component artifact absent: $item"
         fi
     done
+
+    if grep -qxF /usr/bin/fish /etc/shells; then
+        fail "removed fish shell remains registered in /etc/shells"
+    else
+        pass "fish shell absent from /etc/shells"
+    fi
 }
 
 verify_common_packages() {

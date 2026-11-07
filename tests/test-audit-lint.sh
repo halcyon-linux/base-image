@@ -71,10 +71,17 @@ else
     not_ok "DRM verification must not require the 32-bit /usr/lib/libdrm.so"
 fi
 
-if grep -Fq '/usr/share/fish' "$repo_root/build_files/packages/global-remove"; then
-    not_ok "global-remove must not repeat fish package and Brew staging cleanup"
+if grep -Fq 'rm -rf /etc/fish /usr/share/fish' "$repo_root/build_files/packages/global-remove"; then
+    ok "global-remove removes inherited fish configuration and files"
 else
-    ok "global-remove leaves fish file removal to package and staging cleanup"
+    not_ok "global-remove must remove inherited /usr/share/fish artifacts"
+fi
+
+if grep -Fq '/usr/bin/fish$|d' "$repo_root/build_files/packages/global-remove" \
+    && grep -Fq 'grep -qxF /usr/bin/fish /etc/shells' "$repo_root/build_files/finalization/verify"; then
+    ok "global-remove deletes and verifies the fish shell registration"
+else
+    not_ok "global-remove must delete the fish entry from /etc/shells"
 fi
 
 if grep -Fq 'find /home/linuxbrew' "$repo_root/build_files/packages/install-brew-files"; then
