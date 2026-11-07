@@ -6,14 +6,6 @@ set -Eeuo pipefail
 mkdir -p /var/tmp
 chmod 1777 /var/tmp
 
-# Symlink Direct Rendering Manager libraries.
-if [[ -e /usr/lib/libdrm.so.2 ]]; then
-    ln -sfn libdrm.so.2 /usr/lib/libdrm.so
-fi
-if [[ -e /usr/lib64/libdrm.so.2 ]]; then
-    ln -sfn libdrm.so.2 /usr/lib64/libdrm.so
-fi
-
 # Hide CLI utilities from graphical application menus.
 for app in nvtop btop yad-icon-browser; do
     if [[ -f "/usr/share/applications/${app}.desktop" ]]; then

@@ -59,6 +59,7 @@
       "lcms2-devel",
       "libXcursor-devel",
       "libadwaita",
+      "libdrm-devel",
       "libeis-devel",
       "libinput-utils",
       "libuuid-devel",
