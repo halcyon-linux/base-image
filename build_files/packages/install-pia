@@ -116,4 +116,13 @@ install -Dm 0644 "$PIA_EXTRACT/installfiles/piavpn.desktop" /usr/share/applicati
 sed -i "s#/opt/piavpn#${install_dir}#g" /usr/share/applications/piavpn.desktop
 ln -sf "$install_dir/bin/piactl" /usr/bin/piactl
 
+# Clean up any legacy /opt/piavpn from base image
+rm -rf /opt/piavpn
+rm -f /usr/local/bin/piactl
+
+# Ensure systemd service file uses correct path (base image may have old version)
+if [[ -f /usr/lib/systemd/system/piavpn.service ]]; then
+    sed -i "s#/opt/piavpn#${install_dir}#g" /usr/lib/systemd/system/piavpn.service
+fi
+
 echo "PIA installation complete."
