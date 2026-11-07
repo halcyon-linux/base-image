@@ -90,6 +90,22 @@ else
     ok "install-brew-files does not chmod the absent first-boot Brew tree"
 fi
 
+if grep -Fq 'glaze noctalia-git xdg-desktop-portal-hyprland' "$repo_root/build_files/finalization/verify"; then
+    ok "verification requires noctalia-git from base-pkgs"
+else
+    not_ok "verification must require noctalia-git from base-pkgs"
+fi
+if jq -e '."base-pkgs".packages | index("noctalia-git")' "$repo_root/packages.json" >/dev/null; then
+    ok "noctalia-git is installed from base-pkgs"
+else
+    not_ok "base-pkgs must install noctalia-git"
+fi
+if jq -e '."base-pkgs".packages | index("noctalia")' "$repo_root/packages.json" >/dev/null; then
+    not_ok "noctalia must not remain in base-pkgs"
+else
+    ok "noctalia removed from base-pkgs"
+fi
+
 if grep -Eq '/usr/bin/(protonplus|winetricks)' "$repo_root/build_files/finalization/verify"; then
     not_ok "final verification must not require removed gaming commands"
 else

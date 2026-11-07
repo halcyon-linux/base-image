@@ -482,7 +482,7 @@ verify_base_pkgs() {
         hyprwire hyprwire-devel \
         hyprtoolkit hyprland-guiutils hyprland-protocols \
         hyprland-qt-support hyprpwcenter hyprshutdown \
-        glaze xdg-desktop-portal-hyprland
+        glaze noctalia-git xdg-desktop-portal-hyprland
 
     require_repos_disabled 'copr:copr.fedorainfracloud.org:aahsnr-work:base-pkgs'
 }

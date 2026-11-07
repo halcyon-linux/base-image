@@ -323,7 +323,7 @@
       "hyprwayland-scanner-devel",
       "hyprwire",
       "hyprwire-devel",
-      "noctalia",
+      "noctalia-git",
       "nwg-displays",
       "nwg-look",
       "pyprland",
