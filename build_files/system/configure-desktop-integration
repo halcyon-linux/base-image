@@ -8,10 +8,11 @@ chmod 1777 /var/tmp
 
 # Symlink Direct Rendering Manager libraries (libdrm package only provides libdrm.so.2,
 # libdrm-devel may not create unversioned libdrm.so symlink in all Fedora versions)
-if [[ -e /usr/lib/libdrm.so.2 && ! -e /usr/lib/libdrm.so ]]; then
+# Always create/update the symlink if target exists
+if [[ -e /usr/lib/libdrm.so.2 ]]; then
     ln -sfn libdrm.so.2 /usr/lib/libdrm.so
 fi
-if [[ -e /usr/lib64/libdrm.so.2 && ! -e /usr/lib64/libdrm.so ]]; then
+if [[ -e /usr/lib64/libdrm.so.2 ]]; then
     ln -sfn libdrm.so.2 /usr/lib64/libdrm.so
 fi
 
