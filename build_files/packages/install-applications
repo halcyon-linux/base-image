@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 
-# Enable aahsnr-work/applications COPR at priority=1 and install desktop applications and bees deduplication daemon.
-# Install Visual Studio Code and supported web browsers.
-# following strict repository lifecycle: enable with priority=1 and weak deps disabled, install, disable repo.
+# Install desktop apps and bees from aahsnr-work/applications (priority 1); install VS Code and supported browsers with weak deps disabled, then disable the repo.
 
 set -Eeuo pipefail
 
@@ -34,10 +32,7 @@ cleanup_repos() {
 }
 trap cleanup_repos EXIT
 
-# Ensure /opt is a real directory rather than a symlink to /var/opt.
-# Fedora Atomic base images ship /opt -> var/opt; replacing it with a directory avoids
-# cpio unpack errors ('File exists' / 'No such file or directory') when installing RPMs
-# that deliver files into /opt, and ensures application payloads are retained by bootc.
+# Replace Fedora Atomic's /opt -> /var/opt symlink so RPM payloads unpack cleanly and remain in the immutable image.
 if [[ -L /opt ]]; then
     rm -f /opt
     mkdir -p /opt

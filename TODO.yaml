@@ -55,7 +55,7 @@ tasks:
     title: Condense comments across the base-image project
     category: maintenance
     priority: medium
-    status: pending
+    status: completed
     description: >-
       Condense comments in all files across the base-image project,
       excluding README.md.

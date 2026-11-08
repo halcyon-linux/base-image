@@ -2,12 +2,7 @@
 
 set -Eeuo pipefail
 
-# Build-time verification for the Halcyon alcyone image (containerfile variant).
-# Each group asserts the invariants of one build stage. The Containerfile
-# invokes it immediately after the stage it verifies, so failures point at
-# the step that broke them instead of surfacing in the final image (or worse,
-# on user machines).
-#
+# Verify each build stage immediately after it runs, so failures identify the responsible step.
 # Usage: /ctx/finalization/verify <stage>
 
 group="${1:-}"

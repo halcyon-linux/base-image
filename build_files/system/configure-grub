@@ -1,12 +1,7 @@
 #!/usr/bin/env bash
 
-# Make the GRUB menu visible.
-#
-# The bazzite base hides the GRUB menu with a ~1s timeout, which leaves no way
-# to pick an older deployment or edit kernel arguments from the menu. The
-# update is key-preserving: the base's GRUB_CMDLINE_* entries must survive, so
-# /etc/default/grub is never rewritten wholesale. Installed systems regenerate
-# grub.cfg from this file, so no grub.cfg is touched here.
+# Show GRUB so users can select an older deployment or edit kernel arguments.
+# Preserve existing GRUB_CMDLINE_* entries; installed systems regenerate grub.cfg from this file.
 
 set -Eeuo pipefail
 

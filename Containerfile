@@ -1,9 +1,5 @@
-# Bazzite is a Fedora Atomic system built and deployed as a complete bootable OCI image,
-# rather than updated package-by-package on the live host. This recipe builds one Hyprland
-# gaming image with the NVIDIA open kernel modules; bootc and rpm-ostree provide staged updates
-# and rollback.
-# Keep the Containerfile build: the image uses multi-stage akmods inputs, bind mounts,
-# and package swaps to build the single published NVIDIA image (alcyone).
+# Build the Hyprland/NVIDIA Fedora Atomic image as one bootable OCI image; bootc and rpm-ostree provide staged updates and rollback.
+# Keep this Containerfile build: multi-stage akmods inputs, bind mounts, and package swaps produce the published alcyone image.
 # Upstream Fedora release number
 ARG FEDORA_VERSION="${FEDORA_VERSION:-45}"
 

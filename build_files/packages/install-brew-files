@@ -19,11 +19,10 @@ trap cleanup_staging EXIT
 # Strip upstream fish configurations since fish is strictly removed from this image
 rm -rf "$source_dir/usr/share/fish"
 
-# Fix permissions on homebrew directories to satisfy security audits (Lynis)
-# Ensure directories are not world-writable and have proper ownership
+# Set Homebrew directories to 755 and files to 644 for Lynis; ownership is unchanged.
 find "$source_dir" -type d -exec chmod 755 {} \; 2>/dev/null || true
 find "$source_dir" -type f -exec chmod 644 {} \; 2>/dev/null || true
-# Ensure executables are executable
+# Restore executable permissions after normalizing file modes.
 find "$source_dir" -type f -name "brew" -exec chmod 755 {} \; 2>/dev/null || true
 find "$source_dir" -type f -name "brew.exe" -exec chmod 755 {} \; 2>/dev/null || true
 find "$source_dir" -type f -path "*/bin/*" -exec chmod 755 {} \; 2>/dev/null || true
@@ -32,10 +31,7 @@ find "$source_dir" -type f -printf '/%P\0' > "$file_list"
 cp -a "$source_dir"/. /
 xargs -0 -r -a "$file_list" setfattr -h -n user.component -v homebrew 2>/dev/null || true
 
-# Root shells must not run the Homebrew tree: /home/linuxbrew is owned by the
-# first user, so `brew shellenv` and the sourced completions would let any
-# process running as that user execute code at the next `sudo -i` / `su -`.
-# Upstream (ublue-os/brew) ships these profile.d hooks unguarded.
+# Guard upstream profile hooks: /home/linuxbrew is user-owned, so root shells must not execute its code.
 brew_root_guard='[ "$(id -u)" -ne 0 ] || return 0 # halcyon: never run user-owned brew as root'
 for profile in /etc/profile.d/brew.sh /etc/profile.d/brew-bash-completion.sh; do
     if [[ ! -f "$profile" ]]; then
