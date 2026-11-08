@@ -133,6 +133,30 @@ ujust nix-relabel-unit myservice.service
 
 `auditd` runs with Halcyon rules in `/etc/audit/rules.d/`. Verify with `sudo auditctl -l` (must not be a lone `-a never,task`) and `sudo auditctl -s` (expect `enabled 1`). `ujust audit-status` / `ujust audit-report` summarize state. Add local rules to your own file under `/etc/audit/rules.d/`, not a shipped one. `ujust audit-lock` makes rules immutable until reboot.
 
+Failed-access rules cover both x86 ABIs. Audit failures log rather than panic or halt the desktop. The backlog wait and timed root lockout remain unchanged; test workload latency and recovery before deploying policy changes.
+
+With the Fedora 45 base already cached in Podman, run `bash tests/test-security-hardening.sh` for isolated authentication, firewall-default, idempotency and audit-syscall checks. It uses no network and does not load kernel audit rules or start a firewall on the host.
+
+### Firewall and authentication checks
+
+Firewalld is explicitly enabled. The default `FedoraWorkstation` zone allows DHCPv6 client traffic and SSH on TCP 47, not the stock high-port ranges. Existing explicit NetworkManager zone assignments are preserved; an image update does not override locally modified `/etc` configuration. Intra-zone forwarding remains enabled for compatibility.
+
+After boot, verify the effective configuration, not only the image defaults:
+
+```bash
+systemctl is-active firewalld auditd audit-rules
+sudo firewall-cmd --check-config
+sudo firewall-cmd --get-default-zone
+sudo firewall-cmd --get-active-zones
+sudo firewall-cmd --list-all-zones
+nmcli connection show --active
+sudo authselect check
+sudo auditctl -s
+sudo auditctl -l
+```
+
+Inspect each connection's explicit zone with `nmcli -g connection.zone connection show "<profile-name>"`; an empty value uses the default. Check both IPv4 and IPv6 from a second machine. Test SSH, VPN and Podman networking, login, sudo, screen unlock, suspend/resume, and failed-login recovery in a disposable VM before rollout. Audit `lost` must not increase under representative load. Never load test audit rules on the build host.
+
 ### Dotfiles with chezmoi
 
 Opt-in per user: `ujust dotfiles enable` clones [`aahsnr-configs/dotfiles`](https://github.com/aahsnr-configs/dotfiles) and force-applies it to `$HOME` daily. `ujust dotfiles disable` removes the flag; managed files stay. Edit via `chezmoi edit --apply` — the daily timer silently reverts `$HOME` edits not added back. Never add plaintext secrets; use `chezmoi add --encrypt`.

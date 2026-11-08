@@ -345,6 +345,8 @@
       "python3-proton-keyring-linux",
       "python3-proton-vpn-api-core",
       "ticktick",
+      "windscribe",
+      "zcode",
       "zed",
       "zen-browser",
       "zotero"
@@ -460,6 +462,7 @@
       "audispd-plugins",
       "audit",
       "audit-rules",
+      "firewalld",
       "lynis",
       "policycoreutils-devel",
       "policycoreutils-restorecond",

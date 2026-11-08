@@ -1246,7 +1246,7 @@ verify_audit_config() {
 
     # auditctl(8) deprecates -w/-p watches ("poor system performance"); the
     # rules use the path=/dir= syscall form. A duplicate rule makes auditctl
-    # fail with "Rule exists", and the i386 syscall table has no kexec_file_load
+    # fail with "Rule exists", and Fedora 45's i386 audit table has no kexec calls
     # ("Unknown syscall"); with -c either turns into a failed audit-rules.service.
     if grep -rqE '^[[:space:]]*-[wW][[:space:]]' "$rules_dir" 2>/dev/null; then
         fail "deprecated -w watch rule in $rules_dir; use path=/dir= syscall rules"
@@ -1260,10 +1260,10 @@ verify_audit_config() {
     else
         pass "no duplicate audit rules"
     fi
-    if grep -rE 'arch=b32.*kexec_file_load' "$rules_dir" >/dev/null 2>&1; then
-        fail "kexec_file_load in an arch=b32 rule: not in the i386 syscall table"
+    if grep -rE 'arch=b32.*kexec(_file)?_load' "$rules_dir" >/dev/null 2>&1; then
+        fail "unsupported kexec syscall in an arch=b32 rule"
     else
-        pass "no kexec_file_load in b32 rules"
+        pass "no unsupported kexec syscall in b32 rules"
     fi
 
     count=$(cat "$rules_dir"/*.rules 2>/dev/null | grep -cxF -- '-D' || true)
@@ -1471,11 +1471,31 @@ verify_security_hardening() {
 
     # faillock.conf is inert unless pam_faillock is in the PAM stack, which the
     # authselect `local` profile only does with the with-faillock feature.
-    if grep -q pam_faillock /etc/pam.d/system-auth 2>/dev/null && \
-       grep -q pam_faillock /etc/pam.d/password-auth 2>/dev/null; then
-        pass "pam_faillock active in system-auth and password-auth"
+    if authselect check && [[ "$(authselect current --raw)" == local\ * ]]; then
+        pass "authselect local profile is valid"
     else
-        fail "pam_faillock missing from the PAM stack; /etc/security/faillock.conf would be ignored"
+        fail "authselect profile is invalid or not local"
+    fi
+    local pam_stack faillock_phase
+    for pam_stack in system-auth password-auth; do
+        for faillock_phase in preauth authfail; do
+            if grep -Eq "^[[:space:]]*auth[[:space:]].*pam_faillock\\.so[[:space:]].*${faillock_phase}([[:space:]]|$)" "/etc/pam.d/$pam_stack"; then
+                pass "pam_faillock $faillock_phase active in $pam_stack"
+            else
+                fail "pam_faillock $faillock_phase missing in $pam_stack"
+            fi
+        done
+    done
+
+    if firewall-offline-cmd --check-config && \
+       [[ "$(firewall-offline-cmd --get-default-zone)" == FedoraWorkstation ]] && \
+       [[ "$(systemctl is-enabled firewalld.service)" == enabled ]] && \
+       [[ "$(firewall-offline-cmd --zone=FedoraWorkstation --list-services)" == dhcpv6-client ]] && \
+       [[ "$(firewall-offline-cmd --zone=FedoraWorkstation --list-ports)" == 47/tcp ]] && \
+       [[ "$(firewall-offline-cmd --zone=FedoraWorkstation --get-target)" == default ]]; then
+        pass "firewalld enabled with validated restrictive default zone"
+    else
+        fail "firewalld configuration, default zone, allowed ports or enabled state is incorrect"
     fi
     local lock_directive
     for lock_directive in 'deny = 10' 'unlock_time = 900' 'even_deny_root'; do

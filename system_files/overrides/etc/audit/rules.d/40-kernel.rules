@@ -13,10 +13,7 @@
 -a always,exit -F arch=b32 -S delete_module -F key=module-unload
 -a always,exit -F arch=b64 -S delete_module -F key=module-unload
 
-# Replacing the running kernel without a reboot. kexec_file_load does not
-# exist in the i386 syscall table (ausyscall i386 kexec_file_load), so the b32
-# rule names kexec_load only; auditctl rejects an unknown syscall name.
--a always,exit -F arch=b32 -S kexec_load -F key=kexec
+# Fedora 45 audit's i386 table has neither kexec syscall; monitor the supported 64-bit calls.
 -a always,exit -F arch=b64 -S kexec_load,kexec_file_load -F key=kexec
 
 # eBPF programs loaded by a real user (unprivileged_bpf_disabled is 1, so this

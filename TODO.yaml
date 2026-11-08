@@ -91,7 +91,7 @@ tasks:
     title: Review package installation instructions for duplication
     category: maintenance
     priority: medium
-    status: pending
+    status: completed
     description: >-
       Determine whether packages.json and
       build_files/packages/install-common-packages contain

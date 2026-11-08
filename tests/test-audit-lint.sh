@@ -254,10 +254,10 @@ else
     ok "no rule disables syscall auditing"
 fi
 
-if grep -rE 'arch=b32.*kexec_file_load' "$rules_dir" >/dev/null 2>&1; then
-    not_ok "kexec_file_load in arch=b32 rule"
+if grep -rE 'arch=b32.*kexec(_file)?_load' "$rules_dir" >/dev/null 2>&1; then
+    not_ok "unsupported kexec syscall in arch=b32 rule"
 else
-    ok "no kexec_file_load in b32 rules"
+    ok "no unsupported kexec syscall in b32 rules"
 fi
 
 dup_rules=$(cat "$rules_dir"/*.rules 2>/dev/null | grep -E '^-' | sort | uniq -d || true)
@@ -308,6 +308,39 @@ if [[ -f "$audit_conf" ]]; then
     fi
 else
     not_ok "auditd.conf missing: $audit_conf"
+fi
+
+if python3 - "$repo_root" <<'PY'
+import json
+import sys
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+root = Path(sys.argv[1])
+script = (root / 'build_files/system/configure-security-hardening').read_text()
+assert 'authselect check' in script, 'authselect integrity must be checked'
+assert 'authselect current --raw' in script, 'local authentication profile must be checked'
+assert 'for pam_stack in system-auth password-auth' in script, 'both PAM stacks must be checked'
+assert 'firewall-offline-cmd --set-default-zone=FedoraWorkstation' in script, 'explicit firewall default required'
+assert 'firewall-offline-cmd --check-config' in script, 'firewall configuration must be validated'
+assert 'systemctl enable firewalld.service' in script, 'firewalld must be enabled'
+assert 'firewalld' in json.loads((root / 'packages.json').read_text())['security']['packages']
+zone = ET.parse(root / 'system_files/overrides/etc/firewalld/zones/FedoraWorkstation.xml').getroot()
+assert zone.get('target', 'default') == 'default', 'preserve default ICMP and reject behavior'
+assert [s.get('name') for s in zone.findall('service')] == ['dhcpv6-client']
+assert [(p.get('port'), p.get('protocol')) for p in zone.findall('port')] == [('47', 'tcp')]
+assert not any(zone.findall(tag) for tag in ('rule', 'source-port', 'protocol', 'masquerade', 'forward-port', 'icmp-block', 'icmp-block-inversion'))
+ssh = (root / 'system_files/overrides/etc/ssh/sshd_config.d/10-halcyon-hardening.conf').read_text()
+assert 'Port 47' in ssh.splitlines(), 'firewall must match SSH port'
+rules = (root / 'system_files/overrides/etc/audit/rules.d/60-access-denied.rules').read_text().splitlines()
+b64 = [r for r in rules if r.startswith('-a ') and 'arch=b64' in r]
+b32 = [r for r in rules if r.startswith('-a ') and 'arch=b32' in r]
+assert b64 and {r.replace('arch=b64', 'arch=b32') for r in b64} == set(b32), 'failed-access rules must cover both ABIs'
+PY
+then
+    ok "Fedora desktop authentication, firewall and audit invariants"
+else
+    not_ok "Fedora desktop authentication, firewall or audit invariant failed"
 fi
 
 # 6. Supply-chain guards (security audit: pinned downloads, token isolation, GPG)

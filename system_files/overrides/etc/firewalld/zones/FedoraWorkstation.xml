@@ -5,8 +5,8 @@
      closes them. Unlike secureblue, ssh (port 47) and dhcpv6-client stay allowed:
      `ujust ssh` enables sshd, and without dhcpv6-client DHCPv6 replies from
      the router are dropped. Only effective while this zone is the active one
-     (the ublue base image defaults to the stock `public` zone, which never
-     opened the high port range). -->
+     (configure-security-hardening makes this the default; explicit
+     NetworkManager connection zones remain administrator-controlled). -->
 <zone>
   <short>Fedora Workstation</short>
   <description>Unsolicited incoming network packets are rejected, except for select network services. Incoming packets that are related to outgoing network connections are accepted. Outgoing network connections are allowed.</description>

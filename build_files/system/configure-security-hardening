@@ -11,11 +11,29 @@ chmod 0700 /etc/cron.d /etc/cron.daily /etc/cron.hourly /etc/cron.weekly /etc/cr
 # /etc/security/faillock.conf is only read by pam_faillock, and the base
 # authselect profile ('local') does not load it by default. Enable the
 # feature so the lockout policy actually applies to login, sudo and su.
-authselect enable-feature with-faillock
-if ! grep -q pam_faillock /etc/pam.d/system-auth; then
-    echo "ERROR: pam_faillock is not active in /etc/pam.d/system-auth" >&2
+authselect check
+read -r auth_profile _ < <(authselect current --raw)
+if [[ "$auth_profile" != local ]]; then
+    echo "ERROR: expected authselect local profile before disabling SSSD" >&2
     exit 1
 fi
+authselect enable-feature with-faillock
+authselect check
+for pam_stack in system-auth password-auth; do
+    for faillock_phase in preauth authfail; do
+        if ! grep -Eq "^[[:space:]]*auth[[:space:]].*pam_faillock\\.so[[:space:]].*${faillock_phase}([[:space:]]|$)" "/etc/pam.d/$pam_stack"; then
+            echo "ERROR: pam_faillock $faillock_phase missing in $pam_stack" >&2
+            exit 1
+        fi
+    done
+done
+
+# Use the restrictive workstation zone without rewriting explicit NetworkManager assignments.
+if [[ "$(firewall-offline-cmd --get-default-zone)" != FedoraWorkstation ]]; then
+    firewall-offline-cmd --set-default-zone=FedoraWorkstation
+fi
+firewall-offline-cmd --check-config
+systemctl enable firewalld.service
 
 # secureblue-derived service posture (see 35-halcyon-security.preset): services
 # a single-user desktop does not need stay off; the halcyon-security-posture
