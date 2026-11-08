@@ -122,16 +122,16 @@ require_repos_disabled() {
     done
 }
 
-# Require every listed package to have been installed from the given repo.
+# Require every listed package to have been installed from one of the given repos.
 require_rpms_from_repo() {
-    local repo_id="$1" pkg from
+    local repo_ids="$1" pkg from
     shift
     for pkg in "$@"; do
         from="$(dnf5 info --installed "$pkg" 2>/dev/null | awk -F': ' '/^From repository/ { print $2 }' || true)"
-        if [[ "$from" == "$repo_id" ]]; then
-            pass "package $pkg installed from $repo_id"
+        if [[ ",$repo_ids," == *",$from,"* ]]; then
+            pass "package $pkg installed from one of: ${repo_ids//,/ or }"
         else
-            fail "package $pkg resolved from '${from:-<unknown>}', expected $repo_id"
+            fail "package $pkg resolved from '${from:-<unknown>}', expected one of: ${repo_ids//,/ or }"
         fi
     done
 }
@@ -390,7 +390,7 @@ verify_removals() {
 
 verify_common_packages() {
     require_rpms_from_json "common-packages" "packages"
-    require_rpms_from_repo fedora bluez xorg-x11-server-Xwayland
+    require_rpms_from_repo 'fedora,updates' bluez xorg-x11-server-Xwayland
 
     # Fedora ships the curses variant inside the `pinentry` package (it only
     # Provides pinentry-curses), so assert the executables the wrapper needs.
