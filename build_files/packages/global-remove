@@ -18,7 +18,7 @@ for pkg in \
     steamdeck-dsp steamdeck-backgrounds steamdeck-gnome-presets steamdeck-kde-presets \
     inputplumber steamos-manager-powerstation steamos-manager \
     gamescope-session-ogui-steam powerbuttond vpower sdgyrodsu galileo-mura \
-    pinentry-qt; do
+    pinentry-qt firefox; do
     if rpm -q "$pkg" >/dev/null 2>&1; then
         dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y remove "$pkg"
     fi

@@ -133,6 +133,13 @@ else
     not_ok "global-remove must remove inherited /usr/share/fish artifacts"
 fi
 
+if grep -Fq 'pinentry-qt firefox; do' "$repo_root/build_files/packages/global-remove" \
+    && grep -Fq 'pinentry-qt firefox' "$repo_root/build_files/finalization/verify"; then
+    ok "global-remove removes inherited Firefox and verifies its absence"
+else
+    not_ok "global-remove must remove inherited Firefox and verify its absence"
+fi
+
 if grep -Fq '/usr/bin/fish$|d' "$repo_root/build_files/packages/global-remove" \
     && grep -Fq 'grep -qxF /usr/bin/fish /etc/shells' "$repo_root/build_files/finalization/verify"; then
     ok "global-remove deletes and verifies the fish shell registration"

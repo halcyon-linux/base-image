@@ -370,7 +370,7 @@ verify_removals() {
         steamdeck-dsp steamdeck-backgrounds steamdeck-gnome-presets steamdeck-kde-presets \
         inputplumber steamos-manager-powerstation steamos-manager \
         gamescope-session-ogui-steam powerbuttond vpower sdgyrodsu galileo-mura \
-        pinentry-qt
+        pinentry-qt firefox
 
     local item
     for item in /usr/bin/fish /usr/share/fish /etc/fish /usr/bin/greetd /etc/greetd; do
