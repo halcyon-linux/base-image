@@ -210,7 +210,7 @@ gh run cancel <run-id>
 
 ## Build-time verification gates
 
-`build_files/finalization/verify <stage>` runs after each build stage; `bootc container lint` runs last. 31 stage groups plus `packages`. Asserts required RPMs present, forbidden RPMs absent (Waydroid, fish, greetd, auxiliary zsh plugins, handheld packages, `nerd-fonts`, `pinentry-qt`, `nvidia-gpu-firmware`), kernel matches `KERNEL_VERSION`, build COPRs disabled after use, Flatpak Flathub-only, baked TeX formats exist, `image-ref` starts with `ostree-image-signed:docker://ghcr.io/`.
+`build_files/finalization/verify <stage>` runs after each build stage; `bootc container lint` runs last. 31 stage groups plus `packages`. Asserts required RPMs present, forbidden RPMs absent (Waydroid, fish, greetd, auxiliary zsh plugins, handheld packages, `nerd-fonts`, `pinentry-qt`, `nvidia-gpu-firmware`, `amd-gpu-firmware`, `amd-ucode-firmware`), kernel matches `KERNEL_VERSION`, build COPRs disabled after use, Flatpak Flathub-only, baked TeX formats exist, `image-ref` starts with `ostree-image-signed:docker://ghcr.io/`.
 
 ## Security and supply-chain
 
