@@ -1637,6 +1637,11 @@ verify_security_hardening() {
     else
         fail "rp_filter must stay loose (2): strict mode breaks Tailscale/container routing"
     fi
+    if grep -qxF 'kernel.sysrq = 0' "$sysctl_conf" 2>/dev/null; then
+        pass "SysRq disabled; ujust may raise it at runtime"
+    else
+        fail "kernel.sysrq must be 0"
+    fi
     if grep -qE '^[[:space:]]*(fs\.binfmt_misc\.status|net\.ipv4\.tcp_timestamps)[[:space:]]*=' "$sysctl_conf" 2>/dev/null; then
         fail "sysctl hardening must not set fs.binfmt_misc.status or net.ipv4.tcp_timestamps"
     else
@@ -1756,16 +1761,19 @@ verify_final() {
         gamescope-session-ogui-steam powerbuttond vpower sdgyrodsu galileo-mura \
         pinentry-qt
 
-    # Cockpit and the VM host stack were removed on purpose (no web admin
-    # console, no VM host stack, no GPU-passthrough tooling). virtiofsd is the
-    # exception: VM and podman machine file sharing needs it, so it must stay
-    # installed while the rest of the stack is forbidden.
+    # Cockpit, the VM host stack, VM guest agents, and cross-arch emulation were
+    # removed on purpose (no web admin console, no VM host stack, no guest
+    # tooling, no GPU-passthrough tooling). virtiofsd is the exception: VM and
+    # podman machine file sharing needs it, so it must stay installed while the
+    # rest of the stack is forbidden.
     forbid_rpms \
         cockpit-bridge cockpit-ws cockpit-files cockpit-networkmanager cockpit-podman \
         cockpit-selinux cockpit-storaged cockpit-system \
         libvirt-daemon libvirt-daemon-kvm libvirt-daemon-config-network \
         libvirt-daemon-config-nwfilter virt-manager virt-install \
-        edk2-ovmf ls-iommu qemu-kvm
+        edk2-ovmf ls-iommu qemu-kvm \
+        open-vm-tools open-vm-tools-desktop virtualbox-guest-additions \
+        qemu-guest-agent qemu-user-static-aarch64
 
     require_rpms virtiofsd
 
