@@ -387,7 +387,7 @@ verify_removals() {
         inputplumber steamos-manager-powerstation steamos-manager \
         gamescope-session-ogui-steam powerbuttond vpower sdgyrodsu galileo-mura \
         pinentry-qt firefox \
-        tailscale ds-inhibit gameclass game-music-emu \
+        tailscale ds-inhibit gameclass \
         hunspell-en hunspell-en-AU hunspell-en-CA hunspell-en-GB
 
     local item
@@ -1775,6 +1775,7 @@ verify_final() {
 
     # Negative guards: fonts and waydroid must never reach the published image.
     # wazuh-agent installs entirely under /var/ossec, which finalize wipes.
+    # game-music-emu is allowed: libavformat (pulled by pymol) hard-requires it.
     forbid_rpms \
         wazuh-agent \
         nerd-fonts fira-code-fonts lato-fonts google-noto-sans-cjk-fonts twitter-twemoji-fonts \
@@ -1786,7 +1787,7 @@ verify_final() {
         inputplumber steamos-manager-powerstation steamos-manager \
         gamescope-session-ogui-steam powerbuttond vpower sdgyrodsu galileo-mura \
         pinentry-qt \
-        tailscale ds-inhibit gameclass game-music-emu \
+        tailscale ds-inhibit gameclass \
         hunspell-en hunspell-en-AU hunspell-en-CA hunspell-en-GB
 
     forbid_inherited_fonts
