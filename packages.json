@@ -124,6 +124,7 @@
       "zathura",
       "zathura-pdf-poppler",
       "zathura-plugins-all",
+      "zig",
       "zsh"
     ],
     "extra_installs": [
@@ -349,7 +350,6 @@
       "zen-browser",
       "zig015",
       "zig017",
-      "zig",
       "zotero"
     ],
     "fedora_packages": [
