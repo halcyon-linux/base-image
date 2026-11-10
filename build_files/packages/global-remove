@@ -22,10 +22,13 @@ for pkg in \
 done
 
 # Fedora's default-fonts-* metapackages and Noto fonts are replaced by the fonts
-# COPR; google-noto-color-emoji-fonts is the only Noto package kept.
+# COPR. Keep default-fonts-core-sans and its Noto dependency: fontconfig requires
+# font(:lang=en), and Fedora 45 provides it only from that metapackage. Removing
+# it also removes fontconfig and the whole desktop stack.
 mapfile -t inherited_fonts < <(
     rpm -qa --qf '%{NAME}\n' 'default-fonts-*' 'google-noto-*' \
-        | grep -vx 'google-noto-color-emoji-fonts' | sort -u
+        | grep -vxE 'google-noto-color-emoji-fonts|google-noto-sans-vf-fonts|default-fonts-core-sans' \
+        | sort -u
 )
 if ((${#inherited_fonts[@]})); then
     dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y remove "${inherited_fonts[@]}"
