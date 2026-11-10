@@ -374,7 +374,17 @@ verify_utils() {
 }
 
 verify_development_tools() {
-    require_rpms development-tools rpm-development-tools
+    local installed_groups
+    installed_groups="$(dnf5 group info --installed 2>/dev/null || true)"
+
+    local group
+    for group in development-tools rpm-development-tools; do
+        if grep -Fq "$group" <<<"$installed_groups"; then
+            pass "group installed: $group"
+        else
+            fail "group missing: $group"
+        fi
+    done
 }
 
 verify_removals() {
