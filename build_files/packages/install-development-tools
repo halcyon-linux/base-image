@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+readonly packages=(
+    development-tools
+    rpm-development-tools
+)
+
+dnf5 --setopt=install_weak_deps=False \
+    --setopt='*.skip_if_unavailable=False' \
+    -y install "${packages[@]}"
