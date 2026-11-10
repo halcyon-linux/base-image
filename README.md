@@ -97,7 +97,6 @@ Run `ujust` for the full recipe list. Common:
 | `dotfiles` | chezmoi menu: `status`, `sync`, `diff`, `edit` |
 | `configure-grub`, `regenerate-grub`, `grub-timeout` | GRUB maintenance |
 | `configure-snapshots`, `configure-beesd` | Btrfs snapshots and deduplication |
-| `tailscale` | Manage Tailscale |
 | `update-nvidia-runtime` | Sync NVIDIA Flatpak runtime |
 | `aide-init`, `aide-check`, `aide-rebaseline` | AIDE file-integrity baseline |
 | `audit-status`, `audit-lock`, `audit-unlock` | Audit state; lock/unlock audit rules |

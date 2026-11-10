@@ -12,12 +12,24 @@ for pkg in \
     inputplumber steamos-manager-powerstation steamos-manager \
     gamescope-session-ogui-steam powerbuttond vpower sdgyrodsu galileo-mura \
     pinentry-qt firefox \
+    tailscale ds-inhibit gameclass game-music-emu \
+    hunspell-en hunspell-en-AU hunspell-en-CA hunspell-en-GB \
     open-vm-tools-desktop open-vm-tools virtualbox-guest-additions \
     qemu-guest-agent qemu-user-static-aarch64; do
     if rpm -q "$pkg" >/dev/null 2>&1; then
         dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y remove "$pkg"
     fi
 done
+
+# Fedora's default-fonts-* metapackages and Noto fonts are replaced by the fonts
+# COPR; google-noto-color-emoji-fonts is the only Noto package kept.
+mapfile -t inherited_fonts < <(
+    rpm -qa --qf '%{NAME}\n' 'default-fonts-*' 'google-noto-*' \
+        | grep -vx 'google-noto-color-emoji-fonts' | sort -u
+)
+if ((${#inherited_fonts[@]})); then
+    dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y remove "${inherited_fonts[@]}"
+fi
 
 # Remove fish configuration and files inherited from the base image
 rm -rf /etc/fish /usr/share/fish

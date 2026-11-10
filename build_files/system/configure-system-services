@@ -8,7 +8,6 @@ system_services=(
     uupd.timer
     hardware-setup.service
     dev-hugepages1G.mount
-    ds-inhibit.service
     greenboot-healthcheck.service
     greenboot-set-rollback-trigger.service
     cardwired.service
@@ -46,7 +45,6 @@ global_services=(
 disabled_services=(
     scx_loader.service
     rpm-ostreed-automatic.timer
-    tailscaled.service
     greetd.service
 )
 

@@ -60,6 +60,19 @@ forbid_rpms() {
     done
 }
 
+# Forbid inherited Fedora font packages; the fonts COPR's
+# google-noto-color-emoji-fonts is the only Noto package kept.
+forbid_inherited_fonts() {
+    local fonts
+    fonts=$(rpm -qa --qf '%{NAME}\n' 'default-fonts-*' 'google-noto-*' 2>/dev/null \
+        | grep -vx 'google-noto-color-emoji-fonts' | sort -u || true)
+    if [[ -n "$fonts" ]]; then
+        fail "inherited font package(s) installed: ${fonts//$'\n'/ }"
+    else
+        pass "inherited default-fonts and Noto font packages absent"
+    fi
+}
+
 # Load a package list from packages.json into PKG_ARRAY. A missing or empty
 # list is a failure: otherwise a mistyped key would turn every check into a no-op.
 load_packages() {
@@ -227,7 +240,6 @@ verify_repos() {
         fedora updates \
         fedora-multimedia \
         terra terra-extras terra-mesa \
-        tailscale-stable \
         gh-cli \
         'copr:copr.fedorainfracloud.org:ublue-os:bazzite' \
         'copr:copr.fedorainfracloud.org:ublue-os:staging' \
@@ -366,7 +378,9 @@ verify_removals() {
         amd-gpu-firmware amd-ucode-firmware \
         inputplumber steamos-manager-powerstation steamos-manager \
         gamescope-session-ogui-steam powerbuttond vpower sdgyrodsu galileo-mura \
-        pinentry-qt firefox
+        pinentry-qt firefox \
+        tailscale ds-inhibit gameclass game-music-emu \
+        hunspell-en hunspell-en-AU hunspell-en-CA hunspell-en-GB
 
     local item
     for item in /usr/bin/fish /usr/share/fish /etc/fish /usr/bin/greetd /etc/greetd; do
@@ -458,6 +472,8 @@ verify_gaming() {
 
 verify_fonts() {
     require_rpms_from_json "fonts" "packages"
+
+    forbid_inherited_fonts
 
     require_repos_disabled 'copr:copr.fedorainfracloud.org:aahsnr-work:fonts'
 }
@@ -932,7 +948,7 @@ verify_services() {
     local svc
     for svc in \
         brew-setup.service input-remapper.service uupd.timer hardware-setup.service \
-        dev-hugepages1G.mount ds-inhibit.service \
+        dev-hugepages1G.mount \
         greenboot-healthcheck.service greenboot-set-rollback-trigger.service \
         cardwired.service \
         sddm.service cups.service bpftune.service tuned.service fstrim.timer \
@@ -1116,7 +1132,7 @@ verify_system_policy() {
         'copr:copr.fedorainfracloud.org:ublue-os:packages' \
         'copr:copr.fedorainfracloud.org:aahsnr-work:cli-tools' \
         'copr:copr.fedorainfracloud.org:aahsnr-work:python-packages' \
-        terra terra-extras terra-mesa tailscale-stable fedora-multimedia
+        terra terra-extras terra-mesa fedora-multimedia
 
     if [[ -L /usr/bin/pulseaudio && "$(readlink /usr/bin/pulseaudio)" == "/usr/bin/true" ]]; then
         pass "pulseaudio stubbed to /usr/bin/true"
@@ -1761,7 +1777,11 @@ verify_final() {
         amd-gpu-firmware amd-ucode-firmware \
         inputplumber steamos-manager-powerstation steamos-manager \
         gamescope-session-ogui-steam powerbuttond vpower sdgyrodsu galileo-mura \
-        pinentry-qt
+        pinentry-qt \
+        tailscale ds-inhibit gameclass game-music-emu \
+        hunspell-en hunspell-en-AU hunspell-en-CA hunspell-en-GB
+
+    forbid_inherited_fonts
 
     # Cockpit, the VM host stack, VM guest agents, and cross-arch emulation were
     # removed on purpose (no web admin console, no VM host stack, no guest
