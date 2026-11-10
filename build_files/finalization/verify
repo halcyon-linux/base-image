@@ -7,7 +7,7 @@ set -Eeuo pipefail
 
 group="${1:-}"
 case "$group" in
-brew | kernel | repos | cli-tools | utils | removals | common-packages | gaming | fonts | base-pkgs | hyprpm | applications | texlive-packages | nix | picker | media | desktop-integration | justfiles | services | grub | integration-files | image-info | initramfs | finalize | nvidia-config | nvidia | system-policy | nvidia-finalize | security | security-hardening | packages | final | pia) ;;
+brew | kernel | repos | cli-tools | utils | development-tools | removals | common-packages | gaming | fonts | base-pkgs | hyprpm | applications | texlive-packages | nix | picker | media | desktop-integration | justfiles | services | grub | integration-files | image-info | initramfs | finalize | nvidia-config | nvidia | system-policy | nvidia-finalize | security | security-hardening | packages | final | pia) ;;
 *)
     printf 'Usage: %s <stage>\n' "$0" >&2
     exit 2
@@ -371,6 +371,10 @@ verify_utils() {
             fail "utility binary missing or not executable: /usr/bin/$bin"
         fi
     done
+}
+
+verify_development_tools() {
+    require_rpms development-tools rpm-development-tools
 }
 
 verify_removals() {
@@ -2252,6 +2256,7 @@ kernel) verify_kernel ;;
 repos) verify_repos ;;
 cli-tools) verify_cli_tools ;;
 utils) verify_utils ;;
+development-tools) verify_development_tools ;;
 removals) verify_removals ;;
 common-packages) verify_common_packages ;;
 gaming) verify_gaming ;;

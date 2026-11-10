@@ -126,6 +126,15 @@ RUN --mount=type=cache,dst=/var/cache \
     /ctx/finalization/verify utils && \
     /ctx/shared/cleanup
 
+# Install Fedora development toolchains and RPM packaging tools.
+RUN --mount=type=cache,dst=/var/cache \
+    --mount=type=cache,dst=/var/log \
+    --mount=type=bind,from=ctx,source=/,target=/ctx \
+    --mount=type=tmpfs,dst=/tmp \
+    /ctx/packages/install-development-tools && \
+    /ctx/finalization/verify development-tools && \
+    /ctx/shared/cleanup
+
 # Remove packages superseded by image tooling.
 RUN --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \

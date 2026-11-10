@@ -329,7 +329,6 @@
       "distroshelf",
       "emacs-pgtk",
       "ferdium",
-      "ghostty",
       "jupyterlab-desktop",
       "kitty",
       "obsidian",
@@ -348,6 +347,9 @@
       "zcode",
       "zed",
       "zen-browser",
+      "zig015",
+      "zig017",
+      "zig",
       "zotero"
     ],
     "fedora_packages": [
