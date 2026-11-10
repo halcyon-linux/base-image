@@ -62,12 +62,13 @@ forbid_rpms() {
 
 # Forbid inherited Fedora font packages. The fonts COPR's
 # google-noto-color-emoji-fonts is kept, and default-fonts-core-sans (with its
-# google-noto-sans-vf-fonts dependency) stays because fontconfig requires
-# font(:lang=en), which Fedora 45 provides only from that metapackage.
+# google-noto-sans-vf-fonts/google-noto-fonts-common dependency chain) stays
+# because fontconfig requires font(:lang=en), which Fedora 45 provides only
+# from that metapackage.
 forbid_inherited_fonts() {
     local fonts
     fonts=$(rpm -qa --qf '%{NAME}\n' 'default-fonts-*' 'google-noto-*' 2>/dev/null \
-        | grep -vxE 'google-noto-color-emoji-fonts|google-noto-sans-vf-fonts|default-fonts-core-sans' \
+        | grep -vxE 'google-noto-color-emoji-fonts|google-noto-fonts-common|google-noto-sans-vf-fonts|default-fonts-core-sans' \
         | sort -u || true)
     if [[ -n "$fonts" ]]; then
         fail "inherited font package(s) installed: ${fonts//$'\n'/ }"
