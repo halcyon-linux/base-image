@@ -89,7 +89,6 @@
       "python3-icoextract",
       "python3-jsonschema",
       "python3-pip",
-      "qt5ct",
       "re2-devel",
       "ripgrep",
       "sddm",
@@ -360,6 +359,12 @@
       "hplip-gui",
       "libXinerama",
       "neovim",
+      "tree-sitter-cli",
+      "libtree-sitter-python",
+      "libtree-sitter-bash",
+      "libtree-sitter-typescript",
+      "libtree-sitter-markdown",
+      "libtree-sitter-css",
       "pymol",
       "python3-pygments",
       "python3-pyqt6",
@@ -368,6 +373,7 @@
       "qt6-qtwebengine",
       "qt6-qtwebengine-devtools",
       "qutebrowser",
+      "qt5ct",
       "xournalpp"
     ],
     "external_repos": [
