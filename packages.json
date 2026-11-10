@@ -336,6 +336,7 @@
       "openchamber",
       "openchamber-cli",
       "openwork",
+      "pi-gui",
       "podman-desktop",
       "proton-vpn-daemon",
       "proton-vpn-gtk-app",
@@ -343,12 +344,9 @@
       "python3-proton-keyring-linux",
       "python3-proton-vpn-api-core",
       "ticktick",
-      "windscribe",
       "zcode",
       "zed",
       "zen-browser",
-      "zig015",
-      "zig017",
       "zotero"
     ],
     "fedora_packages": [
