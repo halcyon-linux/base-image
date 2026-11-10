@@ -42,6 +42,8 @@
       "git-lfs",
       "gh",
       "golang",
+      "greenboot",
+      "greenboot-default-health-checks",
       "grim",
       "gtk4-layer-shell",
       "hunspell-en-US",
