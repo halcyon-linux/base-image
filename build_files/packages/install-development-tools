@@ -2,11 +2,14 @@
 
 set -Eeuo pipefail
 
-readonly groups=(
-    development-tools
-    rpm-development-tools
-)
+PACKAGES_JSON="/ctx/packages.json"
+if [[ ! -f "$PACKAGES_JSON" ]]; then
+    echo "ERROR: packages.json not found at $PACKAGES_JSON" >&2
+    exit 1
+fi
+
+mapfile -t rpm_dev_packages < <(jq -r '."rpm-development".packages[]' "$PACKAGES_JSON")
 
 dnf5 --setopt=install_weak_deps=False \
     --setopt='*.skip_if_unavailable=False' \
-    -y group install "${groups[@]}"
+    -y install "${rpm_dev_packages[@]}"

@@ -7,7 +7,7 @@ set -Eeuo pipefail
 
 group="${1:-}"
 case "$group" in
-brew | kernel | repos | cli-tools | utils | development-tools | removals | common-packages | gaming | fonts | base-pkgs | hyprpm | applications | texlive-packages | nix | picker | media | desktop-integration | justfiles | services | grub | integration-files | image-info | initramfs | finalize | nvidia-config | nvidia | system-policy | nvidia-finalize | security | security-hardening | packages | final | pia) ;;
+brew | kernel | repos | cli-tools | utils | rpm-development | removals | common-packages | gaming | fonts | base-pkgs | hyprpm | applications | texlive-packages | nix | picker | media | desktop-integration | justfiles | services | grub | integration-files | image-info | initramfs | finalize | nvidia-config | nvidia | system-policy | nvidia-finalize | security | security-hardening | packages | final | pia) ;;
 *)
     printf 'Usage: %s <stage>\n' "$0" >&2
     exit 2
@@ -374,17 +374,7 @@ verify_utils() {
 }
 
 verify_development_tools() {
-    local installed_groups
-    installed_groups="$(dnf5 group info --installed 2>/dev/null || true)"
-
-    local group
-    for group in development-tools rpm-development-tools; do
-        if grep -Fq "$group" <<<"$installed_groups"; then
-            pass "group installed: $group"
-        else
-            fail "group missing: $group"
-        fi
-    done
+    require_rpms_from_json "rpm-development" "packages"
 }
 
 verify_removals() {
@@ -2266,7 +2256,7 @@ kernel) verify_kernel ;;
 repos) verify_repos ;;
 cli-tools) verify_cli_tools ;;
 utils) verify_utils ;;
-development-tools) verify_development_tools ;;
+rpm-development) verify_development_tools ;;
 removals) verify_removals ;;
 common-packages) verify_common_packages ;;
 gaming) verify_gaming ;;
