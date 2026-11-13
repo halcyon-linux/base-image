@@ -87,13 +87,13 @@ else
     not_ok "requested package metadata is inconsistent"
 fi
 
-if grep -Fq 'reinstall --from-repo=fedora,updates bluez xorg-x11-server-Xwayland' \
+if grep -Fq 'reinstall --from-repo=fedora,updates bluez' \
     "$repo_root/build_files/packages/install-common-packages" \
-    && grep -Fq "require_rpms_from_repo 'fedora,updates' bluez xorg-x11-server-Xwayland" \
+    && grep -Fq "require_rpms_from_repo 'fedora,updates' bluez" \
         "$repo_root/build_files/finalization/verify"; then
-    ok "BlueZ and Xwayland are installed and verified from Fedora repos"
+    ok "BlueZ is installed and verified from Fedora repos"
 else
-    not_ok "BlueZ and Xwayland must be installed and verified from Fedora repos"
+    not_ok "BlueZ must be installed and verified from Fedora repos"
 fi
 
 if ! grep -Eiq 'vscodium|codium|microsoft-edge|vivaldi|firefox' \

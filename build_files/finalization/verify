@@ -422,7 +422,7 @@ verify_removals() {
 
 verify_common_packages() {
     require_rpms_from_json "common-packages" "packages"
-    require_rpms_from_repo 'fedora,updates' bluez xorg-x11-server-Xwayland
+    require_rpms_from_repo 'fedora,updates' bluez
 
     # Fedora ships the curses variant inside the `pinentry` package (it only
     # Provides pinentry-curses), so assert the executables the wrapper needs.

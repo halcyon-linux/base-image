@@ -23,9 +23,9 @@ fi
 # Install main package list
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' -y install "${common_packages[@]}"
 
-# Keep Bluetooth and Xwayland on Fedora builds, not Terra or other enabled repos.
+# Keep Bluetooth on Fedora builds, not Terra or other enabled repos.
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' \
-    -y reinstall --from-repo=fedora,updates bluez xorg-x11-server-Xwayland
+    -y reinstall --from-repo=fedora,updates bluez
 
 # Additional packages from specific repos
 mapfile -t additional_packages < <(jq -r '."common-packages".additional[]' "$PACKAGES_JSON" 2>/dev/null || true)
