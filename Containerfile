@@ -135,15 +135,6 @@ RUN --mount=type=cache,dst=/var/cache \
     /ctx/finalization/verify removals && \
     /ctx/shared/cleanup
 
-# Install RPM development and packaging tools.
-RUN --mount=type=cache,dst=/var/cache \
-    --mount=type=cache,dst=/var/log \
-    --mount=type=bind,from=ctx,source=/,target=/ctx \
-    --mount=type=tmpfs,dst=/tmp \
-    /ctx/packages/install-development-tools && \
-    /ctx/finalization/verify rpm-development && \
-    /ctx/shared/cleanup
-
 # Install shared gaming, hardware, and system utilities.
 RUN --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
