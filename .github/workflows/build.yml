@@ -196,19 +196,6 @@ jobs:
         run: |
           df -h / /mnt /home || true
           df -i / || true
-          # Sample free space while building: the commit at the end peaks
-          # and then buildah deletes its partial layer, so a report taken
-          # after a failure never shows the peak.
-          (
-            while sleep 15; do
-              echo "disk-monitor $(date +%T)" \
-                "root_avail=$(df --output=avail -h / | tail -n 1 | tr -d ' ')" \
-                "storage_used=$(df --output=used -h ~/.local/share/containers | tail -n 1 | tr -d ' ')" \
-                "storage_avail=$(df --output=avail -h ~/.local/share/containers | tail -n 1 | tr -d ' ')"
-            done
-          ) &
-          monitor_pid=$!
-          trap 'kill "$monitor_pid" 2>/dev/null || true' EXIT
           buildah build \
             --target ${{ steps.base.outputs.container_target }} \
             --build-arg-file build_args.txt \
