@@ -329,6 +329,8 @@
       "distroshelf",
       "emacs-pgtk",
       "chatgpt",
+      "claude-desktop",
+      "claude-science",
       "ferdium",
       "jupyterlab-desktop",
       "kitty",
