@@ -336,9 +336,6 @@
       "kitty",
       "obsidian",
       "onlyoffice-desktopeditors",
-      "openchamber",
-      "openchamber-cli",
-      "openwork",
       "pi-gui",
       "podman-desktop",
       "proton-vpn-daemon",
@@ -354,6 +351,7 @@
     ],
     "fedora_packages": [
       "blender",
+      "chromium",
       "cups",
       "cups-libs",
       "default-fonts-core",
