@@ -10,7 +10,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
 
 jobs:
-  delete-older-than-90:
+  delete-older-than-30:
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -20,7 +20,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           packages: alcyone
-          older-than: 90 days
+          older-than: 30 days
           delete-orphaned-images: true
           keep-n-tagged: 7
           keep-n-untagged: 7
