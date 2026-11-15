@@ -7,7 +7,7 @@ set -Eeuo pipefail
 
 group="${1:-}"
 case "$group" in
-brew | kernel | repos | cli-tools | utils | removals | common-packages | gaming | fonts | base-pkgs | hyprpm | applications | texlive-packages | nix | picker | media | desktop-integration | justfiles | services | grub | integration-files | image-info | initramfs | finalize | nvidia-config | nvidia | system-policy | nvidia-finalize | security | security-hardening | packages | final | pia) ;;
+brew | kernel | repos | cli-tools | utils | removals | common-packages | gaming | fonts | base-pkgs | hyprpm | applications | texlive-packages | nix | picker | media | desktop-integration | justfiles | services | grub | integration-files | image-info | initramfs | finalize | nvidia-config | nvidia | system-policy | nvidia-finalize | security | security-hardening | packages | final) ;;
 *)
     printf 'Usage: %s <stage>\n' "$0" >&2
     exit 2
@@ -750,67 +750,6 @@ verify_picker() {
     fi
 }
 
-verify_pia() {
-    # install-pia lays PIA out under /usr/lib/piavpn. /opt and /usr/local are
-    # symlinks into /var on this image and finalize wipes /var.
-    local bin
-    for bin in pia-client pia-daemon piactl; do
-        if [[ -x "/usr/lib/piavpn/bin/$bin" ]]; then
-            pass "PIA binary present and executable: /usr/lib/piavpn/bin/$bin"
-        else
-            fail "PIA binary missing or not executable: /usr/lib/piavpn/bin/$bin"
-        fi
-    done
-
-    if [[ "$(readlink /usr/bin/piactl 2>/dev/null)" == /usr/lib/piavpn/bin/piactl ]]; then
-        pass "piactl symlink points into /usr/lib/piavpn"
-    else
-        fail "/usr/bin/piactl must link to /usr/lib/piavpn/bin/piactl"
-    fi
-
-    # State must live in /var/lib/piavpn, not the read-only /usr tree.
-    local state
-    for state in var etc; do
-        if [[ "$(readlink "/usr/lib/piavpn/$state" 2>/dev/null)" == "/var/lib/piavpn/$state" ]]; then
-            pass "PIA state dir links to /var/lib/piavpn/$state"
-        else
-            fail "/usr/lib/piavpn/$state must link to /var/lib/piavpn/$state"
-        fi
-    done
-
-    if [[ -f /usr/lib/systemd/system/piavpn.service ]]; then
-        pass "PIA daemon unit present: /usr/lib/systemd/system/piavpn.service"
-    else
-        fail "PIA daemon unit missing: /usr/lib/systemd/system/piavpn.service"
-    fi
-
-    if [[ -f /usr/share/applications/piavpn.desktop ]]; then
-        pass "PIA desktop entry present: /usr/share/applications/piavpn.desktop"
-    else
-        fail "PIA desktop entry missing: /usr/share/applications/piavpn.desktop"
-    fi
-
-    # Nothing may still point at /opt/piavpn, and nothing may sit under /opt
-    # or /usr/local (both wiped by finalize).
-    local pia_file
-    for pia_file in \
-        /usr/lib/systemd/system/piavpn.service \
-        /usr/share/applications/piavpn.desktop \
-        /usr/lib/piavpn/bin/qt.conf \
-        /usr/lib/piavpn/bin/openvpn-updown.sh; do
-        if grep -qF /opt/piavpn "$pia_file" 2>/dev/null; then
-            fail "$pia_file still references /opt/piavpn"
-        else
-            pass "$pia_file has no /opt/piavpn reference"
-        fi
-    done
-
-    if [[ -e /opt/piavpn || -e /usr/local/bin/piactl ]]; then
-        fail "PIA must not be installed under /opt or /usr/local (wiped by finalize)"
-    else
-        pass "no PIA files under /opt or /usr/local"
-    fi
-}
 
 verify_media() {
     require_rpms ublue-os-media-automount-udev
@@ -960,8 +899,7 @@ verify_services() {
         greenboot-healthcheck.service greenboot-set-rollback-trigger.service \
         cardwired.service \
         sddm.service cups.service bpftune.service tuned.service fstrim.timer \
-        nix-daemon.socket nix-daemon.service auditd.service audit-rules.service \
-        piavpn.service; do
+        nix-daemon.socket nix-daemon.service auditd.service audit-rules.service; do
         if [[ "$(systemctl is-enabled "$svc" 2>/dev/null)" == enabled ]]; then
             pass "system service enabled: $svc"
         else
@@ -2262,7 +2200,6 @@ applications) verify_applications ;;
 texlive-packages) verify_texlive_packages ;;
 nix) verify_nix ;;
 picker) verify_picker ;;
-pia) verify_pia ;;
 media) verify_media ;;
 desktop-integration) verify_desktop_integration ;;
 justfiles) verify_justfiles ;;

@@ -30,7 +30,6 @@ system_services=(
     psacct.service
     sysstat.service
     halcyon-mor.service
-    piavpn.service
 )
 
 global_services=(
