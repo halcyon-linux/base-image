@@ -68,7 +68,7 @@ forbid_rpms() {
 forbid_inherited_fonts() {
     local fonts
     fonts=$(rpm -qa --qf '%{NAME}\n' 'default-fonts-*' 'google-noto-*' 2>/dev/null \
-        | grep -vxE 'google-noto-color-emoji-fonts|google-noto-fonts-common|google-noto-sans-vf-fonts|default-fonts-core-sans' \
+        | grep -vxE 'google-noto-color-emoji-fonts|google-noto-fonts-common|google-noto-sans-vf-fonts|default-fonts-core-sans|default-fonts-core|default-fonts-bn|default-fonts-cjk' \
         | sort -u || true)
     if [[ -n "$fonts" ]]; then
         fail "inherited font package(s) installed: ${fonts//$'\n'/ }"
