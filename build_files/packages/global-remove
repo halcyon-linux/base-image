@@ -11,7 +11,7 @@ for pkg in \
     amd-gpu-firmware amd-ucode-firmware \
     inputplumber steamos-manager-powerstation steamos-manager \
     gamescope-session-ogui-steam powerbuttond vpower sdgyrodsu galileo-mura \
-    pinentry-qt firefox \
+    pinentry-qt \
     tailscale ds-inhibit gameclass \
     hunspell-en hunspell-en-AU hunspell-en-CA hunspell-en-GB \
     open-vm-tools-desktop open-vm-tools virtualbox-guest-additions \

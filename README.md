@@ -104,6 +104,8 @@ Run `ujust` for the full recipe list. Common:
 
 ### Installing software
 
+Noctalia (`noctalia-git`) comes from `lionheartp/Hyprland` at priority 100 (lower precedence than the other COPRs). Packages declared for other sources are excluded from that repository. The repository is disabled after installation.
+
 Prefer Homebrew, Flatpak, Nix, Distrobox or containers over layering RPMs. Only the Flathub remote is declared; no Flatpak apps ship.
 
 ### Nix

@@ -50,7 +50,7 @@ else
     not_ok "packages.json syntax error"
 fi
 
-for section in applications base-pkgs cli-tools common-packages fonts gaming kernel nix security texlive-packages utils; do
+for section in applications base-pkgs cli-tools common-packages fonts gaming ghostty kernel nix noctalia security texlive-packages utils; do
     if jq -e --arg s "$section" 'has($s)' "$repo_root/packages.json" >/dev/null 2>&1; then
         ok "packages.json section exists: $section"
     else
@@ -96,20 +96,37 @@ else
     not_ok "BlueZ must be installed and verified from Fedora repos"
 fi
 
-if ! grep -Eiq 'vscodium|codium|microsoft-edge|vivaldi|firefox' \
+if ! grep -Eiq 'vscodium|codium' \
     "$repo_root/packages.json" \
     "$repo_root/build_files/packages/install-applications" \
     "$repo_root/build_files/system/configure-system-policy" \
     "$repo_root/system_files/desktop/usr/share/ublue-os/bazaar/main.yaml" \
     "$repo_root/system_files/desktop/usr/share/ublue-os/bazaar/hooks.py" \
     "$repo_root/system_files/desktop/usr/share/yafti/yafti.yml"; then
-    ok "removed browsers absent from app metadata and integration"
+    ok "VSCodium remains absent from app metadata and integration"
 else
-    not_ok "a removed browser remains configured"
+    not_ok "VSCodium remains configured"
 fi
-if ! grep -Fq 'forbid_rpms codium firefox microsoft-edge-stable vivaldi-stable' \
+if ! grep -Fq 'forbid_rpms codium' \
     "$repo_root/build_files/finalization/verify"; then
-    not_ok "final verification must forbid removed browsers"
+    not_ok "final verification must forbid VSCodium"
+fi
+if ! grep -Fq '"firefox"' "$repo_root/packages.json" || \
+   grep -Fq 'pinentry-qt firefox' "$repo_root/build_files/packages/global-remove"; then
+    not_ok "Firefox must be installed and not removed by global cleanup"
+fi
+if ! grep -Fq '"microsoft-edge-stable"' "$repo_root/packages.json" || \
+   ! grep -Fq '"vivaldi-stable"' "$repo_root/packages.json"; then
+    not_ok "Microsoft Edge and Vivaldi must be configured"
+fi
+if ! jq -e '.ghostty.copr == "scottames/ghostty" and .ghostty.package == "ghostty"' \
+    "$repo_root/packages.json" >/dev/null || \
+   ! grep -Fq 'ghostty_repo_id' "$repo_root/build_files/packages/install-applications" || \
+   ! grep -Fq 'require_rpms_from_repo "$ghostty_repo_id" "$ghostty_package"' \
+       "$repo_root/build_files/finalization/verify"; then
+    not_ok "Ghostty must be installed and verified from its own COPR"
+else
+    ok "Ghostty is installed and verified from its own COPR"
 fi
 if [[ -e "$repo_root/system_files/desktop/usr/share/ublue-os/bazaar/content.yaml" || \
       -L "$repo_root/system_files/desktop/usr/share/ublue-os/bazaar/content.yaml" ]] || \
@@ -133,11 +150,11 @@ else
     not_ok "global-remove must remove inherited /usr/share/fish artifacts"
 fi
 
-if grep -Fq 'pinentry-qt firefox \' "$repo_root/build_files/packages/global-remove" \
-    && grep -Fq 'pinentry-qt firefox' "$repo_root/build_files/finalization/verify"; then
-    ok "global-remove removes inherited Firefox and verifies its absence"
+if ! grep -Fq 'pinentry-qt firefox' "$repo_root/build_files/packages/global-remove" \
+    && ! grep -Fq 'pinentry-qt firefox' "$repo_root/build_files/finalization/verify"; then
+    ok "Firefox remains installed and is not removed by global cleanup"
 else
-    not_ok "global-remove must remove inherited Firefox and verify its absence"
+    not_ok "global-remove must preserve Firefox"
 fi
 
 if grep -Fq '/usr/bin/fish$|d' "$repo_root/build_files/packages/global-remove" \
@@ -153,20 +170,14 @@ else
     ok "install-brew-files does not chmod the absent first-boot Brew tree"
 fi
 
-if grep -Fq 'glaze noctalia-git xdg-desktop-portal-hyprland' "$repo_root/build_files/finalization/verify"; then
-    ok "verification requires noctalia-git from base-pkgs"
+if jq -e '."base-pkgs".packages | index("noctalia-git") | not' "$repo_root/packages.json" >/dev/null \
+    && jq -e '.noctalia.copr == "lionheartp/Hyprland" and .noctalia.repo_id == "copr:copr.fedorainfracloud.org:lionheartp:Hyprland" and .noctalia.package == "noctalia-git" and .noctalia.priority == 100 and .["base-pkgs"].priority == 1' "$repo_root/packages.json" >/dev/null \
+    && grep -Fq "'copr:copr.fedorainfracloud.org:lionheartp:Hyprland' \\" "$repo_root/build_files/finalization/verify" \
+    && grep -Fq 'noctalia-git' "$repo_root/build_files/finalization/verify" \
+    && grep -Fq '"${noctalia_repo_id}.priority=${noctalia_priority}"' "$repo_root/build_files/packages/install-base-pkgs"; then
+    ok "noctalia-git installs from lionheartp/Hyprland at lowest COPR priority"
 else
-    not_ok "verification must require noctalia-git from base-pkgs"
-fi
-if jq -e '."base-pkgs".packages | index("noctalia-git")' "$repo_root/packages.json" >/dev/null; then
-    ok "noctalia-git is installed from base-pkgs"
-else
-    not_ok "base-pkgs must install noctalia-git"
-fi
-if jq -e '."base-pkgs".packages | index("noctalia")' "$repo_root/packages.json" >/dev/null; then
-    not_ok "noctalia must not remain in base-pkgs"
-else
-    ok "noctalia removed from base-pkgs"
+    not_ok "noctalia-git must install from lionheartp/Hyprland at priority 100"
 fi
 
 if grep -Eq '/usr/bin/(protonplus|winetricks)' "$repo_root/build_files/finalization/verify"; then

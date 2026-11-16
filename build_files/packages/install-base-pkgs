@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# Enable aahsnr-work/base-pkgs COPR at priority=1 and install Hyprland desktop environment packages.
-# The repository is disabled immediately after successful installation.
+# Install the Hyprland stack and Noctalia from separate COPRs in one transaction.
+# lionheartp/Hyprland has the lowest COPR precedence to protect overlapping packages.
 
 set -Eeuo pipefail
 
@@ -12,69 +12,101 @@ if [[ ! -f "$PACKAGES_JSON" ]]; then
     exit 1
 fi
 
-copr='aahsnr-work/base-pkgs'
-repo_id="copr:copr.fedorainfracloud.org:${copr////:}"
-copr_enabled=0
+base_copr=$(jq -er '."base-pkgs".copr' "$PACKAGES_JSON")
+repo_id=$(jq -er '."base-pkgs".repo_id' "$PACKAGES_JSON")
+base_priority=$(jq -er '."base-pkgs".priority' "$PACKAGES_JSON")
+noctalia_copr=$(jq -er '.noctalia.copr' "$PACKAGES_JSON")
+noctalia_repo_id=$(jq -er '.noctalia.repo_id' "$PACKAGES_JSON")
+noctalia_priority=$(jq -er '.noctalia.priority' "$PACKAGES_JSON")
+noctalia_package=$(jq -er '.noctalia.package' "$PACKAGES_JSON")
 
-disable_copr() {
+declare -a ENABLED_COPRS=()
+
+disable_coprs() {
     local status=$?
     trap - EXIT
-    if ((copr_enabled)); then
-        echo "Disabling COPR ${copr}..."
-        dnf5 -y copr disable "$copr" || true
-    fi
+    local enabled_copr
+    for enabled_copr in "${ENABLED_COPRS[@]}"; do
+        echo "Disabling COPR ${enabled_copr}..."
+        dnf5 -y copr disable "$enabled_copr" || true
+    done
     exit "$status"
 }
-trap disable_copr EXIT
+trap disable_coprs EXIT
 
-dnf5 -y copr enable "$copr"
-copr_enabled=1
+for copr in "$base_copr" "$noctalia_copr"; do
+    ENABLED_COPRS+=("$copr")
+    dnf5 -y copr enable "$copr"
+done
 
-repo_status=$(dnf5 repo list --all | awk -v id="$repo_id" '$1 == id { print $NF }')
-if [[ "$repo_status" != "enabled" ]]; then
-    echo "ERROR: ${repo_id} not found or not enabled (status: '${repo_status}')" >&2
-    exit 1
-fi
+for check_repo in "$repo_id" "$noctalia_repo_id"; do
+    repo_status=$(dnf5 repo list --all | awk -v id="$check_repo" '$1 == id { print $NF }')
+    if [[ "$repo_status" != "enabled" ]]; then
+        echo "ERROR: ${check_repo} not found or not enabled (status: '${repo_status}')" >&2
+        exit 1
+    fi
+done
+
+# Persist lower precedence than COPRs using DNF's default priority of 99.
+# Disabled preferred COPRs cannot compete in this transaction: exclude their
+# declared packages here as well, so lionheartp cannot supply those overlaps.
+protected_packages=$(jq -r '[to_entries[] | select(.key != "noctalia") | .value | .. | objects | to_entries[] | if .key == "package" then .value elif (.key == "packages" or .key == "copr_packages" or .key == "fedora_packages" or .key == "extra_installs") then .value[] else empty end] | unique | join(",")' "$PACKAGES_JSON")
+dnf5 -y config-manager setopt \
+    "${repo_id}.priority=${base_priority}" \
+    "${noctalia_repo_id}.priority=${noctalia_priority}" \
+    "${noctalia_repo_id}.excludepkgs=${protected_packages}"
 
 # Read packages from packages.json
 mapfile -t PACKAGES < <(jq -r '."base-pkgs".packages[]' "$PACKAGES_JSON")
 
 INSTALL_OPTS=(
-    --setopt="${repo_id}.priority=1"
+    --setopt="${repo_id}.priority=${base_priority}"
+    --setopt="${noctalia_repo_id}.priority=${noctalia_priority}"
     --setopt='*terra*'.priority=10
     --enable-repo=terra-mesa
     --setopt=install_weak_deps=False
     --setopt='*.skip_if_unavailable=False'
 )
 
-dnf5 -y install "${INSTALL_OPTS[@]}" "${PACKAGES[@]}"
+dnf5 -y install "${INSTALL_OPTS[@]}" "${PACKAGES[@]}" "$noctalia_package"
 
-dnf5 -y copr disable "$copr"
-copr_enabled=0
+for copr in "$base_copr" "$noctalia_copr"; do
+    dnf5 -y copr disable "$copr"
+done
+ENABLED_COPRS=()
 
-repo_status=$(dnf5 repo list --all | awk -v id="$repo_id" '$1 == id { print $NF }')
-if [[ "$repo_status" != "disabled" ]]; then
-    echo "ERROR: ${repo_id} is still enabled according to dnf5 repo list (status: '${repo_status}')" >&2
-    exit 1
-fi
+for check_repo in "$repo_id" "$noctalia_repo_id"; do
+    repo_status=$(dnf5 repo list --all | awk -v id="$check_repo" '$1 == id { print $NF }')
+    if [[ "$repo_status" != "disabled" ]]; then
+        echo "ERROR: ${check_repo} is still enabled according to dnf5 repo list (status: '${repo_status}')" >&2
+        exit 1
+    fi
+done
 
-repo_file=$(compgen -G "/etc/yum.repos.d/*${copr////:}*.repo" || compgen -G "/etc/yum.repos.d/*${copr////-}*.repo" || true)
-if [[ -n "$repo_file" && -f "$repo_file" ]]; then
-    if ! grep -qE '^enabled\s*=\s*0' "$repo_file"; then
+for copr in "$base_copr" "$noctalia_copr"; do
+    repo_file=$(compgen -G "/etc/yum.repos.d/*${copr////:}*.repo" || compgen -G "/etc/yum.repos.d/*${copr////-}*.repo" || true)
+    if [[ -n "$repo_file" && -f "$repo_file" ]] && ! grep -qE '^enabled\s*=\s*0' "$repo_file"; then
         echo "ERROR: ${repo_file} does not have enabled=0" >&2
         exit 1
     fi
-fi
+done
 
-rpm -q "${PACKAGES[@]}"
+rpm -q "${PACKAGES[@]}" "$noctalia_package"
 
 for pkg in "${PACKAGES[@]}"; do
     from_repo=$(dnf5 info --installed "$pkg" 2>/dev/null | awk -F': ' '/^From repository/ { print $2 }' || true)
     echo "Package $pkg installed from: ${from_repo:-<unknown>}"
     if [[ -n "$from_repo" && "$from_repo" != "<unknown>" && "$from_repo" != "$repo_id" ]]; then
-        echo "WARNING: $pkg was resolved from $from_repo instead of $repo_id" >&2
+        echo "ERROR: $pkg was resolved from $from_repo instead of $repo_id" >&2
+        exit 1
     fi
 done
+
+noctalia_from_repo=$(dnf5 info --installed "$noctalia_package" 2>/dev/null | awk -F': ' '/^From repository/ { print $2 }' || true)
+if [[ "$noctalia_from_repo" != "$noctalia_repo_id" ]]; then
+    echo "ERROR: ${noctalia_package} resolved from ${noctalia_from_repo:-<unknown>}, expected ${noctalia_repo_id}" >&2
+    exit 1
+fi
 
 # Filesystem check: report any files under /opt or /var
 for pkg in "${PACKAGES[@]}"; do

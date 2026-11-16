@@ -386,7 +386,7 @@ verify_removals() {
         amd-gpu-firmware amd-ucode-firmware \
         inputplumber steamos-manager-powerstation steamos-manager \
         gamescope-session-ogui-steam powerbuttond vpower sdgyrodsu galileo-mura \
-        pinentry-qt firefox \
+        pinentry-qt \
         tailscale ds-inhibit gameclass \
         hunspell-en hunspell-en-AU hunspell-en-CA hunspell-en-GB
 
@@ -486,27 +486,39 @@ verify_fonts() {
     require_repos_disabled 'copr:copr.fedorainfracloud.org:aahsnr-work:fonts'
 }
 
+verify_noctalia_repo_policy() {
+    local repos id
+    id=$(jq -er '.noctalia.repo_id' "$PACKAGES_JSON")
+    repos=$(dnf5 repo info --all --json)
+    if jq -e --arg id "$id" '
+        [.[] | select(.id == $id)] as $target
+        | ($target | length) == 1
+          and ($target[0].priority == 100)
+          and all(.[]; if (.id | startswith("copr:")) and .id != $id
+              then .priority < $target[0].priority else true end)
+    ' <<<"$repos" >/dev/null; then
+        pass "Noctalia COPR has lower precedence than every other COPR"
+    else
+        fail "Noctalia COPR priority must be 100 and lower precedence than every other COPR"
+    fi
+}
+
 verify_base_pkgs() {
+    verify_noctalia_repo_policy
     require_rpms_from_json "base-pkgs" "packages"
 
-    # hyprland and the whole hyprwm stack must come from the base-pkgs COPR:
-    # Fedora carries its own (older) hyprland, and a silent resolution from
-    # the official repos would break the COPR-built stack's ABI matching
+    load_packages "base-pkgs" "packages"
     require_rpms_from_repo \
         'copr:copr.fedorainfracloud.org:aahsnr-work:base-pkgs' \
-        hyprland hyprland-devel \
-        aquamarine aquamarine-devel \
-        hyprcursor hyprcursor-devel \
-        hyprgraphics hyprgraphics-devel \
-        hyprlang hyprlang-devel \
-        hyprutils hyprutils-devel \
-        hyprwayland-scanner hyprwayland-scanner-devel \
-        hyprwire hyprwire-devel \
-        hyprtoolkit hyprland-guiutils hyprland-protocols \
-        hyprland-qt-support hyprpwcenter hyprshutdown \
-        glaze noctalia-git xdg-desktop-portal-hyprland
+        "${PKG_ARRAY[@]}"
 
-    require_repos_disabled 'copr:copr.fedorainfracloud.org:aahsnr-work:base-pkgs'
+    require_rpms_from_repo \
+        'copr:copr.fedorainfracloud.org:lionheartp:Hyprland' \
+        noctalia-git
+
+    require_repos_disabled \
+        'copr:copr.fedorainfracloud.org:aahsnr-work:base-pkgs' \
+        'copr:copr.fedorainfracloud.org:lionheartp:Hyprland'
 }
 
 verify_hyprpm() {
@@ -594,6 +606,10 @@ verify_applications_source() {
 verify_applications() {
     require_rpms_from_json "applications" "copr_packages"
     require_rpms_from_json "applications" "fedora_packages"
+    local ghostty_repo_id ghostty_package
+    ghostty_repo_id=$(jq -er '.ghostty.repo_id' "$PACKAGES_JSON")
+    ghostty_package=$(jq -er '.ghostty.package' "$PACKAGES_JSON")
+    require_rpms_from_repo "$ghostty_repo_id" "$ghostty_package"
 
     # External repo packages
     local ext_repo_count
@@ -613,9 +629,12 @@ verify_applications() {
         'copr:copr.fedorainfracloud.org:aahsnr-work:applications' \
         'code' \
         'brave-browser' \
-        'google-chrome'
+        'google-chrome' \
+        'microsoft-edge' \
+        'vivaldi' \
+        "$ghostty_repo_id"
 
-    forbid_rpms codium firefox microsoft-edge-stable vivaldi-stable
+    forbid_rpms codium
 
     if [[ -x /usr/bin/beesd ]]; then
         pass "beesd binary present and executable: /usr/bin/beesd"
@@ -628,6 +647,10 @@ verify_applications() {
         /usr/bin/code \
         /usr/bin/brave-browser \
         /usr/bin/google-chrome \
+        /usr/bin/firefox \
+        /usr/bin/microsoft-edge \
+        /usr/bin/vivaldi \
+        /usr/bin/ghostty \
         /usr/bin/qutebrowser; do
         if [[ -x "$app_bin" ]]; then
             pass "application binary present and executable: $app_bin"
@@ -1686,7 +1709,7 @@ verify_security_hardening() {
 }
 
 verify_final() {
-    local info kver
+    local info kver ghostty_repo_id ghostty_package
 
     # The GRUB menu must still be visible in the published image.
     verify_grub
@@ -1696,20 +1719,37 @@ verify_final() {
     # finished image.
     verify_cli_tools_source
     verify_applications_source
+    verify_base_pkgs
     verify_audit_privileged_rules
+    ghostty_repo_id=$(jq -er '.ghostty.repo_id' "$PACKAGES_JSON")
+    ghostty_package=$(jq -er '.ghostty.package' "$PACKAGES_JSON")
+    require_rpms_from_repo "$ghostty_repo_id" "$ghostty_package"
+    require_rpms_from_repo \
+        'copr:copr.fedorainfracloud.org:lionheartp:Hyprland' \
+        noctalia-git
 
     require_repos_disabled \
         'copr:copr.fedorainfracloud.org:aahsnr-work:cli-tools' \
         'copr:copr.fedorainfracloud.org:aahsnr-work:python-packages' \
         'copr:copr.fedorainfracloud.org:aahsnr-work:fonts' \
         'copr:copr.fedorainfracloud.org:aahsnr-work:base-pkgs' \
+        'copr:copr.fedorainfracloud.org:lionheartp:Hyprland' \
         'copr:copr.fedorainfracloud.org:aahsnr-work:applications' \
         'copr:copr.fedorainfracloud.org:aahsnr-work:texlive-packages' \
         'code' \
         'brave-browser' \
         'google-chrome' \
+        'microsoft-edge' \
+        'vivaldi' \
+        "$ghostty_repo_id" \
         'gh-cli' \
         fedora-multimedia
+
+    if [[ -x /usr/bin/ghostty ]]; then
+        pass "Ghostty binary present and executable: /usr/bin/ghostty"
+    else
+        fail "Ghostty binary missing or not executable: /usr/bin/ghostty"
+    fi
 
     # Negative guards: fonts and waydroid must never reach the published image.
     # wazuh-agent installs entirely under /var/ossec, which finalize wipes.
@@ -1896,6 +1936,7 @@ verify_final() {
         /usr/bin/chezmoi /usr/bin/flatpak /usr/bin/sddm \
         /usr/bin/code /usr/bin/brave-browser \
         /usr/bin/google-chrome \
+        /usr/bin/firefox /usr/bin/microsoft-edge /usr/bin/vivaldi \
         /usr/bin/nvim /usr/bin/kitty \
         /usr/bin/Hyprland /usr/bin/hyprpm \
         /usr/bin/pinentry-wrapper \

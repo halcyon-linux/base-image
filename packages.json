@@ -278,7 +278,7 @@
     ]
   },
   "base-pkgs": {
-    "description": "Hyprland desktop environment from aahsnr-work/base-pkgs COPR (Noctalia shell from Terra)",
+    "description": "Hyprland desktop environment from aahsnr-work/base-pkgs COPR",
     "copr": "aahsnr-work/base-pkgs",
     "repo_id": "copr:copr.fedorainfracloud.org:aahsnr-work:base-pkgs",
     "priority": 1,
@@ -307,7 +307,6 @@
       "hyprwayland-scanner-devel",
       "hyprwire",
       "hyprwire-devel",
-      "noctalia-git",
       "nwg-displays",
       "nwg-look",
       "pyprland",
@@ -315,6 +314,13 @@
       "xcur2png",
       "xdg-desktop-portal-hyprland"
     ]
+  },
+  "noctalia": {
+    "description": "Noctalia shell from the lionheartp/Hyprland COPR",
+    "copr": "lionheartp/Hyprland",
+    "repo_id": "copr:copr.fedorainfracloud.org:lionheartp:Hyprland",
+    "priority": 100,
+    "package": "noctalia-git"
   },
   "applications": {
     "description": "Desktop applications from aahsnr-work/applications COPR and external vendor repos",
@@ -327,16 +333,20 @@
       "bees",
       "bitwarden",
       "distroshelf",
-      "emacs-pgtk",
       "chatgpt",
       "claude-desktop",
       "claude-science",
+      "distroshelf",
       "ferdium",
       "jupyterlab-desktop",
       "kitty",
       "obsidian",
       "onlyoffice-desktopeditors",
       "pi-gui",
+      "openchamber",
+      "openchamber-cli",
+      "pi-gui",
+      "pichamber",
       "podman-desktop",
       "proton-vpn-daemon",
       "proton-vpn-gtk-app",
@@ -358,6 +368,8 @@
       "default-fonts-bn",
       "default-fonts-cjk",
       "dbus-glib",
+      "emacs-pgtk",
+      "firefox",
       "hplip",
       "hplip-gui",
       "inkscape",
@@ -419,8 +431,38 @@
         "packages": [
           "google-chrome-stable"
         ]
+      },
+      {
+        "id": "microsoft-edge",
+        "name": "Microsoft Edge",
+        "baseurl": "https://packages.microsoft.com/yumrepos/edge",
+        "gpgkey": "https://packages.microsoft.com/keys/microsoft.asc",
+        "gpg_fingerprints": [
+          "BC528686B50D79E339D3721CEB3E94ADBE1229CF"
+        ],
+        "packages": [
+          "microsoft-edge-stable"
+        ]
+      },
+      {
+        "id": "vivaldi",
+        "name": "Vivaldi",
+        "baseurl": "https://repo.vivaldi.com/stable/rpm/x86_64",
+        "gpgkey": "https://repo.vivaldi.com/stable/linux_signing_key.pub",
+        "gpg_fingerprints": [
+          "8D1FA52AEF58A09D889DD4221256C34716BD9233"
+        ],
+        "packages": [
+          "vivaldi-stable"
+        ]
       }
     ]
+  },
+  "ghostty": {
+    "description": "Ghostty terminal from the scottames/ghostty COPR",
+    "copr": "scottames/ghostty",
+    "repo_id": "copr:copr.fedorainfracloud.org:scottames:ghostty",
+    "package": "ghostty"
   },
   "texlive-packages": {
     "description": "TeX Live distribution from aahsnr-work/texlive-packages COPR",

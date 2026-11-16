@@ -141,11 +141,36 @@ EOF
     ENABLED_REPOS=()
 done
 
+# Install Ghostty from its own COPR so its origin remains independently verifiable.
+ghostty_copr=$(jq -er '.ghostty.copr' "$PACKAGES_JSON")
+ghostty_repo_id=$(jq -er '.ghostty.repo_id' "$PACKAGES_JSON")
+ghostty_package=$(jq -er '.ghostty.package' "$PACKAGES_JSON")
+dnf5 -y copr enable "$ghostty_copr"
+ENABLED_COPRS+=("$ghostty_copr")
+dnf5 -y config-manager setopt "${ghostty_repo_id}.priority=1"
+
+repo_status=$(dnf5 repo list --all | awk -v id="$ghostty_repo_id" '$1 == id { print $NF }')
+if [[ "$repo_status" != "enabled" ]]; then
+    echo "ERROR: ${ghostty_repo_id} not found or not enabled (status: '${repo_status}')" >&2
+    exit 1
+fi
+
+dnf5 -y install --setopt="${ghostty_repo_id}.priority=1" "${COMMON_INSTALL_OPTS[@]}" "$ghostty_package"
+rpm -q "$ghostty_package"
+dnf5 -y copr disable "$ghostty_copr"
+ENABLED_COPRS=()
+
+repo_status=$(dnf5 repo list --all | awk -v id="$ghostty_repo_id" '$1 == id { print $NF }')
+if [[ "$repo_status" != "disabled" ]]; then
+    echo "ERROR: ${ghostty_repo_id} is still reported as '${repo_status}' (must be disabled)" >&2
+    exit 1
+fi
+
 # -----------------------------------------------------------------------------
 # STEP 5: Package verification and repository status scan
 # -----------------------------------------------------------------------------
 # Collect all packages for verification
-ALL_PACKAGES=("${COPR_PACKAGES[@]}" "${FEDORA_PACKAGES[@]}")
+ALL_PACKAGES=("${COPR_PACKAGES[@]}" "${FEDORA_PACKAGES[@]}" "$ghostty_package")
 for ((i=0; i<EXTERNAL_REPOS_COUNT; i++)); do
     mapfile -t repo_packages < <(jq -r ".applications.external_repos[$i].packages[]" "$PACKAGES_JSON")
     ALL_PACKAGES+=("${repo_packages[@]}")
@@ -155,7 +180,7 @@ echo "Verifying installation of all requested application packages..."
 rpm -q "${ALL_PACKAGES[@]}"
 
 # Assert all third-party repos report disabled in dnf5 repo list
-REPO_IDS_TO_CHECK=("$repo_id")
+REPO_IDS_TO_CHECK=("$repo_id" "$ghostty_repo_id")
 for ((i=0; i<EXTERNAL_REPOS_COUNT; i++)); do
     REPO_IDS_TO_CHECK+=("$(jq -r ".applications.external_repos[$i].id" "$PACKAGES_JSON")")
 done
