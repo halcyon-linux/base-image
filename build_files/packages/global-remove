@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# Remove superseded utilities, unused base-image content, handheld packages, GeoClue, and auxiliary zsh packages.
+# Remove superseded utilities, unused base-image content, handheld packages, Waydroid, and auxiliary zsh packages.
 # Keep virtiofsd for podman-machine and VM file sharing; final verification forbids the remaining virtualization stack.
 for pkg in \
-    htop ublue-os-update-services google-noto-sans-cjk-fonts geoclue2 fish greetd greetd-selinux \
+    htop ublue-os-update-services google-noto-sans-cjk-fonts fish greetd greetd-selinux \
+    waydroid waydroid-nvidia \
     zsh-autosuggestions zsh-syntax-highlighting \
     jupiter-fan-control jupiter-hw-support-btrfs jupiter-sd-mounting-btrfs \
     steamdeck-dsp steamdeck-backgrounds steamdeck-gnome-presets steamdeck-kde-presets \

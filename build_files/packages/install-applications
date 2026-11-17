@@ -40,6 +40,8 @@ if [[ -L /opt ]]; then
 fi
 
 COMMON_INSTALL_OPTS=(
+    # PIA's bundled libraries must not satisfy system OpenSSL dependencies.
+    --exclude=private-internet-access
     --setopt='*terra*'.priority=10
     --setopt=install_weak_deps=False
     --setopt='*.skip_if_unavailable=False'
@@ -50,6 +52,9 @@ COMMON_INSTALL_OPTS=(
 # -----------------------------------------------------------------------------
 dnf5 -y copr enable "$copr"
 ENABLED_COPRS+=("$copr")
+
+# Fedora 45's default OpenSSL uses ABI 4; ChatGPT and CUDA still need ABI 3.
+dnf5 -y install "${COMMON_INSTALL_OPTS[@]}" --from-repo=fedora,updates openssl3-libs
 
 repo_status=$(dnf5 repo list --all | awk -v id="$repo_id" '$1 == id { print $NF }')
 if [[ "$repo_status" != "enabled" ]]; then

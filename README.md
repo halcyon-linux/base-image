@@ -225,6 +225,9 @@ Open items: `cosign.pub` vs CI `SIGNING_SECRET` unconfirmed (A-002); runtime uju
 
 ## Design decisions
 
+- GeoClue uses Fedora's default configuration, including its default geolocation provider. It remains installed for the desktop portal. No custom BeaconDB override ships.
+- Waydroid packages are removed, and final verification forbids its packages, service, executable and configuration.
+- Private Internet Access is excluded from the applications COPR: its bundled OpenSSL libraries advertise system capabilities and can be selected to satisfy application dependencies. Fedora's `openssl3-libs` is installed before those applications; build checks require that provider and reject PIA packages and artifacts.
 - Podman-only tooling (CI also uses buildah, skopeo, cosign). `docker://` is an OCI transport name only; no Docker Engine.
 - One custom image on this branch; `akmods*`, `brew`, `ctx` are inputs.
 - SDDM (not greetd); zsh only (no auxiliary zsh plugins).

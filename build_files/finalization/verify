@@ -379,7 +379,8 @@ verify_removals() {
     require_rpms fontconfig default-fonts-core-sans
 
     forbid_rpms \
-        htop ublue-os-update-services google-noto-sans-cjk-fonts geoclue2 fish greetd greetd-selinux \
+        htop ublue-os-update-services google-noto-sans-cjk-fonts fish greetd greetd-selinux \
+        waydroid waydroid-nvidia \
         zsh-autosuggestions zsh-syntax-highlighting \
         jupiter-fan-control jupiter-hw-support-btrfs jupiter-sd-mounting-btrfs \
         steamdeck-dsp steamdeck-backgrounds steamdeck-gnome-presets steamdeck-kde-presets \
@@ -603,7 +604,36 @@ verify_applications_source() {
     done
 }
 
+verify_application_crypto() {
+    require_rpms openssl3-libs
+    require_rpms_from_repo 'fedora,updates' openssl3-libs
+    forbid_rpms private-internet-access
+
+    local library
+    for library in /usr/lib64/libcrypto.so.3 /usr/lib64/libssl.so.3; do
+        if [[ -f "$library" ]] && [[ "$(rpm -qf --qf '%{NAME}' "$library" 2>/dev/null)" == openssl3-libs ]]; then
+            pass "OpenSSL 3 library provided by Fedora compatibility package: $library"
+        else
+            fail "OpenSSL 3 library missing or not owned by openssl3-libs: $library"
+        fi
+    done
+
+    local artifact
+    for artifact in /opt/piavpn /usr/bin/piactl \
+        /usr/share/applications/piavpn.desktop /usr/share/pixmaps/piavpn.png \
+        /etc/NetworkManager/conf.d/50-wgpia.conf \
+        /usr/lib/systemd/system/piavpn.service /etc/systemd/system/piavpn.service \
+        /etc/systemd/system/multi-user.target.wants/piavpn.service; do
+        if [[ -e "$artifact" || -L "$artifact" ]]; then
+            fail "PIA artifact present: $artifact"
+        else
+            pass "PIA artifact absent: $artifact"
+        fi
+    done
+}
+
 verify_applications() {
+    verify_application_crypto
     require_rpms_from_json "applications" "copr_packages"
     require_rpms_from_json "applications" "fedora_packages"
     local ghostty_repo_id ghostty_package
@@ -1712,6 +1742,23 @@ verify_security_hardening() {
 
 verify_final() {
     local info kver ghostty_repo_id ghostty_package
+
+    verify_application_crypto
+
+    # GeoClue is required by Fedora's desktop portal; retain the distro defaults.
+    require_rpms geoclue2 xdg-desktop-portal xdg-desktop-portal-hyprland
+
+    local artifact
+    for artifact in \
+        /usr/bin/waydroid /usr/share/waydroid /usr/lib/waydroid /etc/waydroid \
+        /usr/lib/systemd/system/waydroid-container.service \
+        /etc/systemd/system/waydroid-container.service; do
+        if [[ -e "$artifact" || -L "$artifact" ]]; then
+            fail "Waydroid artifact present: $artifact"
+        else
+            pass "Waydroid artifact absent: $artifact"
+        fi
+    done
 
     # The GRUB menu must still be visible in the published image.
     verify_grub
