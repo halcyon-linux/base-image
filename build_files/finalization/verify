@@ -379,7 +379,7 @@ verify_removals() {
     require_rpms fontconfig default-fonts-core-sans
 
     forbid_rpms \
-        htop ublue-os-update-services google-noto-sans-cjk-fonts fish greetd greetd-selinux \
+        htop ublue-os-update-services google-noto-sans-cjk-fonts geoclue2 fish greetd greetd-selinux \
         zsh-autosuggestions zsh-syntax-highlighting \
         jupiter-fan-control jupiter-hw-support-btrfs jupiter-sd-mounting-btrfs \
         steamdeck-dsp steamdeck-backgrounds steamdeck-gnome-presets steamdeck-kde-presets \
@@ -890,19 +890,21 @@ verify_justfiles() {
         fi
     done
 
-    # topgrade only reads ~/.config, so the image ships a bootc-aware config
-    # that `ujust topgrade` passes explicitly. A dangling [include] makes
-    # topgrade print an error, and without bootc it would run dnf.
-    local tg=/usr/share/ublue-os/topgrade.toml
+    # Topgrade discovers its config in the user's XDG_CONFIG_HOME. The image
+    # keeps one system-wide config under /etc/xdg and passes it explicitly from
+    # `ujust topgrade`. A dangling [include] makes it print an error, and
+    # without bootc it would run dnf.
+    local tg=/etc/xdg/topgrade.toml
     if [[ -f "$tg" ]] && grep -qxF 'bootc = true' "$tg" && ! grep -q '^\[include\]' "$tg"; then
         pass "topgrade.toml is bootc-aware and has no [include]"
     else
         fail "$tg must set bootc = true and must not have an [include] section"
     fi
-    if grep -q '^topgrade:' /usr/share/ublue-os/just/10-update.just 2>/dev/null; then
-        pass "ujust topgrade recipe present"
+    if grep -q '^topgrade:' /usr/share/ublue-os/just/10-update.just 2>/dev/null && \
+        grep -qF -- '--config /etc/xdg/topgrade.toml' /usr/share/ublue-os/just/10-update.just; then
+        pass "ujust topgrade recipe uses the system-wide config"
     else
-        fail "ujust topgrade recipe missing from 10-update.just"
+        fail "ujust topgrade recipe missing or not using /etc/xdg/topgrade.toml"
     fi
     # Nix leaves store paths default_t, so a Home Manager unit needs a relabel
     # before systemd can read it; this recipe is the documented way to do it.
@@ -1751,7 +1753,7 @@ verify_final() {
         fail "Ghostty binary missing or not executable: /usr/bin/ghostty"
     fi
 
-    # Negative guards: fonts and waydroid must never reach the published image.
+    # Negative guards: unsupported packages must never reach the image.
     # wazuh-agent installs entirely under /var/ossec, which finalize wipes.
     # game-music-emu is allowed: libavformat (pulled by pymol) hard-requires it.
     forbid_rpms \

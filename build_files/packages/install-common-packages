@@ -65,8 +65,6 @@ install -D -m 0644 /downloads/libextest.so /usr/lib/extest/libextest.so
 setfattr -n user.component -v extest /usr/lib/extest/libextest.so 2>/dev/null || true
 install -d /etc/xdg/autostart
 
-# Disabled with Waydroid:
-# sed -i~ -E 's/=\$\(command -v (nft|ip6?tables-legacy).*/=/g' /usr/lib/waydroid/data/scripts/waydroid-net.sh
 if [[ -f /usr/bin/btrfs-assistant-launcher ]]; then
     sed -i 's/ --xdg-runtime=\\"${XDG_RUNTIME_DIR}\\"//g' \
         /usr/bin/btrfs-assistant-launcher

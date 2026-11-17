@@ -9,12 +9,12 @@ update:
     set -Eeuo pipefail
     /usr/bin/uupd-update | jq -r -R 'fromjson? | [(.title, .msg, .description) | select(.)] | join(" ")'
 
-# Run topgrade with the image's bootc-aware config (not ~/.config/topgrade.toml)
+# Run topgrade with the system-wide bootc-aware configuration.
 [group("system")]
 topgrade:
     #!/usr/bin/bash
     set -Eeuo pipefail
-    exec /usr/bin/topgrade --config /usr/share/ublue-os/topgrade.toml
+    exec /usr/bin/topgrade --config /etc/xdg/topgrade.toml
 
 alias changelog := changelogs
 

@@ -18,9 +18,6 @@ fi
 systemctl enable nvidia-powerd.service || echo "Warning: failed to enable nvidia-powerd.service" >&2
 systemctl disable nvidia-persistenced.service 2>/dev/null || true
 systemctl enable nvidia-flatpak-runtime-sync.service || echo "Warning: failed to enable nvidia-flatpak-runtime-sync.service" >&2
-# Keep Waydroid's container off until the user starts it.
-systemctl disable waydroid-container.service 2>/dev/null || true
-
 # Copy modesetting config into the immutable modprobe directory to enable early KMS.
 if [[ -f /etc/modprobe.d/nvidia-modeset.conf ]]; then
     install -D -m 0644 /etc/modprobe.d/nvidia-modeset.conf \
