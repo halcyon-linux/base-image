@@ -12,14 +12,19 @@ on:
       - "**.md"
       - "**.txt"
   workflow_dispatch:
+    inputs:
+      allow_large_update:
+        description: "Approve publishing a candidate above the 1 GiB update budget"
+        type: boolean
+        required: false
+        default: false
 
 permissions: {}
 
 concurrency:
-  # Per trigger: a push may cancel an older push, but a manual dispatch must
-  # not be killed by a push that lands while it is still running.
-  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}-${{ github.event_name }}
-  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+  # Serialize all release triggers for a ref around the previous digest and tags.
+  group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
+  cancel-in-progress: false
 
 env:
   REPO_OWNER: ${{ github.repository_owner }}
@@ -32,7 +37,7 @@ jobs:
   build:
     name: Build and push
     runs-on: ubuntu-26.04
-    # Room for a rechunk retry without --previous-build and the zstd push.
+    # Room for the image build, rechunk and zstd candidate push.
     timeout-minutes: 120
 
     permissions:
@@ -84,6 +89,9 @@ jobs:
 
       - name: Run repo audit and lint tests
         run: bash tests/test-audit-lint.sh
+
+      - name: Test OCI update-size budget
+        run: python3 -B -m unittest discover -s tests -p 'test_compare_oci_manifests.py'
 
       # Needed before the build to verify upstream image signatures, and after
       # it to sign the pushed image.
@@ -293,11 +301,18 @@ jobs:
           # Reuse the published image's layer plan so unchanged packages stay
           # in unchanged layers and clients only download what changed.
           previous_args=()
-          previous="docker://${OUTPUT_IMAGE}:stable"
-          if skopeo inspect --raw "${previous}" >/dev/null 2>&1; then
+          previous="docker://${OUTPUT_IMAGE}:latest"
+          previous_digest=""
+          if previous_digest=$(skopeo inspect --format '{{.Digest}}' "${previous}" 2>"${RUNNER_TEMP}/previous-inspect.err"); then
+            previous="docker://${OUTPUT_IMAGE}@${previous_digest}"
             previous_args=(--previous-build "${previous}")
-          else
+            skopeo inspect --raw "${previous}" > "${RUNNER_TEMP}/previous-manifest.json"
+          elif grep -Eqi 'manifest unknown|name unknown|manifest not found' "${RUNNER_TEMP}/previous-inspect.err"; then
             echo "No previous build at ${previous}; using a fresh layer plan."
+          else
+            cat "${RUNNER_TEMP}/previous-inspect.err" >&2
+            echo "Could not inspect the previous build; refusing to publish with a fresh layer plan." >&2
+            exit 1
           fi
 
           rechunk() {
@@ -315,22 +330,16 @@ jobs:
                 --rootfs /rpm-ostree --output oci:/run/out/chunked
           }
 
-          # The previous build is only an optimization: if reading it fails,
-          # rechunk again with a fresh layer plan instead of failing the run.
-          if ! rechunk "${previous_args[@]}"; then
-            if [ "${#previous_args[@]}" -eq 0 ]; then
-              exit 1
-            fi
-            echo "::warning::Rechunk with --previous-build failed; retrying with a fresh layer plan."
-            rm -rf "${RECHUNK_DIR:?}"/*
-            rechunk
-          fi
+          # A failed previous-build rechunk must not silently reshuffle every
+          # layer and publish a multi-gigabyte update.
+          rechunk "${previous_args[@]}"
 
           podman rmi -f localhost/raw-img
 
           # Push straight from the OCI directory: no pull into containers-storage
           # and no second copy of the image on disk.
           echo "ref=oci:${RECHUNK_DIR}/chunked" >> "$GITHUB_OUTPUT"
+          echo "previous_digest=${previous_digest}" >> "$GITHUB_OUTPUT"
 
       # cosign reads credentials from the Docker config path, so point podman's
       # login there; skopeo copy also uses it as a fallback.
@@ -341,46 +350,120 @@ jobs:
             --authfile "$HOME/.docker/config.json" \
             ghcr.io -u "${{ github.actor }}" --password-stdin
 
-      # Only the default (release) branch publishes and signs: workflow_dispatch
-      # can target any ref that carries this file — e.g. a tag — and such a run
-      # must not overwrite stable/latest with that ref's code.
-      - name: Push to GHCR
-        id: push
+      # Stage a run-unique candidate first; latest stays unchanged until the
+      # compressed layer delta passes its budget and the candidate is signed.
+      - name: Push candidate image to GHCR
+        id: candidate
         if: github.ref == 'refs/heads/containerfile'
         uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
         env:
           OUTPUT_IMAGE: ${{ steps.base.outputs.output_image }}
           RECHUNK_REF: ${{ steps.rechunk.outputs.ref }}
+          CANDIDATE_TAG: candidate-${{ github.run_id }}-${{ github.run_attempt }}
         with:
           max_attempts: 3
           retry_wait_seconds: 15
-          # zstd recompression of every layer needs more than 10 minutes.
           timeout_minutes: 30
           command: |
             set -euo pipefail
-
-            # zstd layers are smaller than gzip and faster for clients to unpack.
             skopeo copy --dest-compress-format zstd --dest-force-compress-format \
-              --digestfile /tmp/digestfile \
-              "${RECHUNK_REF}" "docker://${OUTPUT_IMAGE}:stable"
+              --digestfile /tmp/candidate-digest \
+              "${RECHUNK_REF}" "docker://${OUTPUT_IMAGE}:${CANDIDATE_TAG}"
 
-            digest="$(< /tmp/digestfile)"
-            if [[ -z "$digest" ]]; then
-              echo "push reported success but wrote no digest" >&2
+            digest="$(< /tmp/candidate-digest)"
+            if [[ ! "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+              echo "candidate push returned an invalid digest: ${digest}" >&2
               exit 1
             fi
-
-            for tag in latest "$(date +%Y%m%d)"; do
-              skopeo copy "docker://${OUTPUT_IMAGE}@${digest}" "docker://${OUTPUT_IMAGE}:${tag}"
-            done
-
             echo "digest=${digest}" >> "$GITHUB_OUTPUT"
 
-      - name: Sign container image
+      - name: Enforce update-size budget
+        id: budget
+        if: github.ref == 'refs/heads/containerfile' && steps.rechunk.outputs.previous_digest != ''
+        env:
+          OUTPUT_IMAGE: ${{ steps.base.outputs.output_image }}
+          PREVIOUS_DIGEST: ${{ steps.rechunk.outputs.previous_digest }}
+          CURRENT_DIGEST: ${{ steps.candidate.outputs.digest }}
+          ALLOW_LARGE_UPDATE: ${{ inputs.allow_large_update }}
+          MAX_UPDATE_BYTES: "1073741824"
+        run: |
+          set -euo pipefail
+          allow_args=()
+          if [[ "${ALLOW_LARGE_UPDATE:-false}" == "true" ]]; then
+            allow_args+=(--allow-large-update)
+          fi
+          skopeo inspect --raw "docker://${OUTPUT_IMAGE}@${CURRENT_DIGEST}" > "${RUNNER_TEMP}/current-manifest.json"
+          gate_status=0
+          if python3 just_scripts/compare-oci-manifests \
+            "${RUNNER_TEMP}/previous-manifest.json" \
+            "${RUNNER_TEMP}/current-manifest.json" \
+            --max-added-bytes "${MAX_UPDATE_BYTES}" \
+            "${allow_args[@]}" > "${RUNNER_TEMP}/layer-metrics.json"; then
+            :
+          else
+            gate_status=$?
+          fi
+          if [[ "${gate_status}" -gt 1 ]]; then
+            exit "${gate_status}"
+          fi
+
+          jq -r '"Previous payload: \(.previous_bytes) bytes in \(.previous_layers) layers",
+            "Candidate payload: \(.current_bytes) bytes in \(.current_layers) layers",
+            "Reused payload: \(.reused_bytes) bytes in \(.reused_layers) layers",
+            "Added payload: \(.added_bytes) bytes in \(.added_layers) layers",
+            "Largest added layers:",
+            (.largest_added_layers[] | "  \(.size) bytes  \(.digest)")' \
+            "${RUNNER_TEMP}/layer-metrics.json"
+          added_bytes="$(jq -r '.added_bytes' "${RUNNER_TEMP}/layer-metrics.json")"
+          {
+            echo "### Candidate update-size report"
+            echo "- Previous digest: `${PREVIOUS_DIGEST}`"
+            echo "- Candidate digest: `${CURRENT_DIGEST}`"
+            echo "- Added compressed layers: ${added_bytes} bytes"
+            if [[ "${ALLOW_LARGE_UPDATE:-false}" == "true" ]]; then
+              echo "- Large-update override: enabled"
+            else
+              echo "- Large-update override: disabled"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "added_bytes=${added_bytes}" >> "$GITHUB_OUTPUT"
+          if [[ "${gate_status}" -ne 0 ]]; then
+            exit "${gate_status}"
+          fi
+
+      - name: Sign candidate image
         if: github.ref == 'refs/heads/containerfile'
         env:
           COSIGN_PRIVATE_KEY: ${{ secrets.SIGNING_SECRET }}
+          OUTPUT_IMAGE: ${{ steps.base.outputs.output_image }}
+          CANDIDATE_DIGEST: ${{ steps.candidate.outputs.digest }}
         run: |
           cosign sign -y --key env://COSIGN_PRIVATE_KEY \
             --new-bundle-format=false --use-signing-config=false \
-            ${{ steps.base.outputs.output_image }}@${{ steps.push.outputs.digest }}
+            "${OUTPUT_IMAGE}@${CANDIDATE_DIGEST}"
+
+      # Promote latest last; verify every alias still resolves to the signed digest.
+      - name: Promote signed image
+        id: promote
+        if: github.ref == 'refs/heads/containerfile'
+        uses: nick-fields/retry@ad984534de44a9489a53aefd81eb77f87c70dc60 # v4.0.0
+        env:
+          OUTPUT_IMAGE: ${{ steps.base.outputs.output_image }}
+          CANDIDATE_DIGEST: ${{ steps.candidate.outputs.digest }}
+        with:
+          max_attempts: 3
+          retry_wait_seconds: 15
+          timeout_minutes: 30
+          command: |
+            set -euo pipefail
+            source="docker://${OUTPUT_IMAGE}@${CANDIDATE_DIGEST}"
+            for tag in stable "$(date +%Y%m%d)" latest; do
+              skopeo copy --preserve-digests "$source" "docker://${OUTPUT_IMAGE}:${tag}"
+              actual="$(skopeo inspect --format '{{.Digest}}' "docker://${OUTPUT_IMAGE}:${tag}")"
+              if [[ "$actual" != "${CANDIDATE_DIGEST}" ]]; then
+                echo "${tag} points to ${actual}, expected ${CANDIDATE_DIGEST}" >&2
+                exit 1
+              fi
+              echo "Promoted ${tag} to ${CANDIDATE_DIGEST}" >> "$GITHUB_STEP_SUMMARY"
+            done
+            echo "digest=${CANDIDATE_DIGEST}" >> "$GITHUB_OUTPUT"

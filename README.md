@@ -4,7 +4,7 @@ Signed, bootc-native Fedora Atomic image for an NVIDIA gaming workstation. Built
 
 | | |
 |---|---|
-| **Image** | `ghcr.io/halcyon-linux/alcyone` (`stable`, `latest`, `YYYYMMDD` — same digest) |
+| **Image** | `ghcr.io/halcyon-linux/alcyone` (`latest`, `stable`, `YYYYMMDD` — same digest) |
 | **Base** | `ghcr.io/ublue-os/base-main:44` (Fedora 44, x86_64) |
 | **Kernel** | OGC from `ublue-os/akmods`, version-locked |
 | **GPU** | NVIDIA open modules (`akmods-nvidia-open`), multilib |
@@ -54,7 +54,7 @@ openssl pkey -pubin -in cosign.pub -outform DER | sha256sum
 
 # 3. Resolve tag to digest
 IMAGE=ghcr.io/halcyon-linux/alcyone
-DIGEST=$(skopeo inspect --format '{{.Digest}}' docker://$IMAGE:stable)
+DIGEST=$(skopeo inspect --format '{{.Digest}}' docker://$IMAGE:latest)
 
 # 4. Verify signature
 cosign verify --key cosign.pub "$IMAGE@$DIGEST"
@@ -64,9 +64,9 @@ sudo bootc switch "$IMAGE@$DIGEST"
 sudo systemctl reboot
 ```
 
-You are now pinned to that digest. `bootc upgrade`, `ujust update`, and `uupd` do not move the image until you switch again. To track `:stable`, enforce signature checks first; otherwise re-run steps 3–4 before each switch.
+You are now pinned to that digest. `bootc upgrade`, `ujust update`, and `uupd` do not move the image until you switch again. To track `:latest`, enforce signature checks first; otherwise re-run steps 3–4 before each switch.
 
-rpm-ostree without bootc: `sudo rpm-ostree rebase ostree-unverified-registry:ghcr.io/halcyon-linux/alcyone:stable` — tag-based, digest not enforced. Prefer bootc.
+rpm-ostree without bootc: `sudo rpm-ostree rebase ostree-unverified-registry:ghcr.io/halcyon-linux/alcyone:latest` — tag-based, digest not enforced. Prefer bootc.
 
 ### Enforce signature checks
 
@@ -197,7 +197,9 @@ for f in build_files/*/* just_scripts/* tests/*.sh; do bash -n "$f"; done
 
 ## CI/CD
 
-`.github/workflows/build.yml` builds and publishes daily at `40 4 * * *` UTC and on pushes to `containerfile`. Publishing and signing run **only** when `github.ref == refs/heads/containerfile`. Actions pinned to full SHAs; `permissions: {}` at top level. Cleanup (`.github/workflows/clean.yml`) runs Sundays 00:15 UTC, deleting package versions older than 90 days.
+`.github/workflows/build.yml` builds and publishes daily at `40 4 * * *` UTC and on pushes to `containerfile`. Publishing and signing run **only** when `github.ref == refs/heads/containerfile`. Actions pinned to full SHAs; `permissions: {}` at top level. Cleanup (`.github/workflows/clean.yml`) runs Sundays 00:15 UTC and is configured for 30-day cleanup.
+
+Release CI pushes each zstd-compressed image under a run-specific candidate tag, compares its new layer bytes against the pinned `latest` digest, and signs it before promotion. Candidates over 1 GiB of added compressed layer data are blocked unless a maintainer enables `allow_large_update` on a manual run of `containerfile`. Candidate tags remain subject to the normal GHCR cleanup policy.
 
 Run from terminal:
 
