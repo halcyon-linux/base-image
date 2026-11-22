@@ -710,7 +710,7 @@ verify_texlive() {
     require_rpms_from_repo 'fedora,updates' "${PKG_ARRAY[@]}"
 
     local bin
-    for bin in pdflatex kpsewhich texconfig-sys; do
+    for bin in pdflatex kpsewhich; do
         if command -v "$bin" >/dev/null 2>&1; then
             pass "TeX Live command available: $bin"
         else

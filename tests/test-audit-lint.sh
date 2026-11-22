@@ -61,11 +61,10 @@ done
 if jq -e '
     .texlive.copr == null
     and (.texlive.packages | index("texlive-scheme-medium"))
-    and (.texlive.packages | index("texlive-texlive-scripts-extra"))
 ' "$repo_root/packages.json" >/dev/null; then
-    ok "TeX Live uses Fedora medium scheme and its system configuration tool"
+    ok "TeX Live uses Fedora medium scheme"
 else
-    not_ok "TeX Live must use Fedora medium scheme and its system configuration tool"
+    not_ok "TeX Live must use Fedora medium scheme"
 fi
 
 if jq -e '."common-packages".packages | index("virtiofsd")' "$repo_root/packages.json" >/dev/null; then

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Install Fedora's TeX Live medium scheme and set the system paper size to Letter.
+# Install Fedora's TeX Live medium scheme.
 
 set -Eeuo pipefail
 
@@ -12,4 +12,3 @@ fi
 
 mapfile -t PACKAGES < <(jq -er '.texlive.packages[]' "$PACKAGES_JSON")
 dnf5 -y install --from-repo=fedora,updates --setopt=install_weak_deps=False "${PACKAGES[@]}"
-texconfig-sys paper letter

@@ -466,8 +466,7 @@
     "description": "TeX Live medium scheme from Fedora",
     "copr": null,
     "packages": [
-      "texlive-scheme-medium",
-      "texlive-texlive-scripts-extra"
+      "texlive-scheme-medium"
     ]
   },
   "nix": {
