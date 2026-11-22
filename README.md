@@ -234,7 +234,7 @@ Open items: `cosign.pub` vs CI `SIGNING_SECRET` unconfirmed (A-002); runtime uju
 - One custom image on this branch; `akmods*`, `brew`, `ctx` are inputs.
 - SDDM (not greetd); zsh only (no auxiliary zsh plugins).
 - Flatpak: Flathub-only remote, no apps ship.
-- TeX Live baked at build time (COPR has no `%post`).
+- Fedora's TeX Live medium scheme, with system-wide Letter paper configured at build time.
 - Dotfiles over HTTPS, pushes over SSH; opt-in per user.
 
 ## Repository layout

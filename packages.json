@@ -464,34 +464,13 @@
     "repo_id": "copr:copr.fedorainfracloud.org:scottames:ghostty",
     "package": "ghostty"
   },
-  "texlive-packages": {
-    "description": "TeX Live distribution from aahsnr-work/texlive-packages COPR",
-    "copr": "aahsnr-work/texlive-packages",
-    "repo_id": "copr:copr.fedorainfracloud.org:aahsnr-work:texlive-packages",
-    "priority": 1,
+  "texlive": {
+    "description": "TeX Live medium scheme from Fedora",
+    "copr": null,
     "packages": [
-      "texlive-basic",
-      "texlive-bibtexextra",
-      "texlive-bin",
-      "texlive-binextra",
-      "texlive-fontsrecommended",
-      "texlive-fontutils",
-      "texlive-formatsextra",
-      "texlive-humanities",
-      "texlive-latex",
-      "texlive-latexextra",
-      "texlive-latexrecommended",
-      "texlive-luatex",
-      "texlive-mathscience",
-      "texlive-meta",
-      "texlive-metapost",
-      "texlive-pictures",
-      "texlive-plaingeneric",
-      "texlive-pstricks",
-      "texlive-publishers",
-      "texlive-xetex"
-    ],
-    "post_install": "bake-texlive-formats"
+      "texlive-scheme-medium",
+      "texlive-texlive-scripts-extra"
+    ]
   },
   "nix": {
     "description": "Nix package manager",

@@ -1,88 +1,15 @@
 #!/usr/bin/env bash
 
-# Enable aahsnr-work/texlive-packages COPR at priority=1 and install TeX Live distribution packages.
-# The repository is disabled immediately after successful installation.
+# Install Fedora's TeX Live medium scheme and set the system paper size to Letter.
 
 set -Eeuo pipefail
 
-# Read package list from packages.json
 PACKAGES_JSON="/ctx/packages.json"
 if [[ ! -f "$PACKAGES_JSON" ]]; then
     echo "ERROR: packages.json not found at $PACKAGES_JSON" >&2
     exit 1
 fi
 
-copr='aahsnr-work/texlive-packages'
-repo_id="copr:copr.fedorainfracloud.org:${copr////:}"
-copr_enabled=0
-
-disable_copr() {
-    local status=$?
-    trap - EXIT
-    if ((copr_enabled)); then
-        echo "Disabling COPR ${copr}..."
-        dnf5 -y copr disable "$copr" || true
-    fi
-    exit "$status"
-}
-trap disable_copr EXIT
-
-dnf5 -y copr enable "$copr"
-copr_enabled=1
-
-repo_status=$(dnf5 repo list --all | awk -v id="$repo_id" '$1 == id { print $NF }')
-if [[ "$repo_status" != "enabled" ]]; then
-    echo "ERROR: ${repo_id} not found or not enabled (status: '${repo_status}')" >&2
-    exit 1
-fi
-
-# Read packages from packages.json
-mapfile -t PACKAGES < <(jq -r '."texlive-packages".packages[]' "$PACKAGES_JSON")
-
-INSTALL_OPTS=(
-    --setopt="${repo_id}.priority=1"
-    --setopt='*terra*'.priority=10
-    --setopt=install_weak_deps=False
-    --setopt='*.skip_if_unavailable=False'
-)
-
-dnf5 -y install "${INSTALL_OPTS[@]}" "${PACKAGES[@]}"
-
-# The COPR tree ships no %post scriptlets, so the format files are baked here.
-"/ctx/packages/bake-texlive-formats"
-
-dnf5 -y copr disable "$copr"
-copr_enabled=0
-
-repo_status=$(dnf5 repo list --all | awk -v id="$repo_id" '$1 == id { print $NF }')
-if [[ "$repo_status" != "disabled" ]]; then
-    echo "ERROR: ${repo_id} is still enabled according to dnf5 repo list (status: '${repo_status}')" >&2
-    exit 1
-fi
-
-repo_file=$(compgen -G "/etc/yum.repos.d/*${copr////:}*.repo" || compgen -G "/etc/yum.repos.d/*${copr////-}*.repo" || true)
-if [[ -n "$repo_file" && -f "$repo_file" ]]; then
-    if ! grep -qE '^enabled\s*=\s*0' "$repo_file"; then
-        echo "ERROR: ${repo_file} does not have enabled=0" >&2
-        exit 1
-    fi
-fi
-
-rpm -q "${PACKAGES[@]}"
-
-for pkg in "${PACKAGES[@]}"; do
-    from_repo=$(dnf5 info --installed "$pkg" 2>/dev/null | awk -F': ' '/^From repository/ { print $2 }' || true)
-    echo "Package $pkg installed from: ${from_repo:-<unknown>}"
-    if [[ -n "$from_repo" && "$from_repo" != "<unknown>" && "$from_repo" != "$repo_id" ]]; then
-        echo "WARNING: $pkg was resolved from $from_repo instead of $repo_id" >&2
-    fi
-done
-
-# Filesystem check: report any files under /opt or /var
-for pkg in "${PACKAGES[@]}"; do
-    opt_or_var=$(rpm -ql "$pkg" 2>/dev/null | grep -E '^/(opt|var)' || true)
-    if [[ -n "$opt_or_var" ]]; then
-        echo "INFO: Package $pkg ships paths under /opt or /var:"
-        echo "$opt_or_var"
-    fi
-done
+mapfile -t PACKAGES < <(jq -er '.texlive.packages[]' "$PACKAGES_JSON")
+dnf5 -y install --from-repo=fedora,updates --setopt=install_weak_deps=False "${PACKAGES[@]}"
+texconfig-sys paper letter

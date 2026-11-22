@@ -50,13 +50,23 @@ else
     not_ok "packages.json syntax error"
 fi
 
-for section in applications base-pkgs cli-tools common-packages fonts gaming ghostty kernel nix noctalia security texlive-packages utils; do
+for section in applications base-pkgs cli-tools common-packages fonts gaming ghostty kernel nix noctalia security texlive utils; do
     if jq -e --arg s "$section" 'has($s)' "$repo_root/packages.json" >/dev/null 2>&1; then
         ok "packages.json section exists: $section"
     else
         not_ok "packages.json missing section: $section"
     fi
 done
+
+if jq -e '
+    .texlive.copr == null
+    and (.texlive.packages | index("texlive-scheme-medium"))
+    and (.texlive.packages | index("texlive-texlive-scripts-extra"))
+' "$repo_root/packages.json" >/dev/null; then
+    ok "TeX Live uses Fedora medium scheme and its system configuration tool"
+else
+    not_ok "TeX Live must use Fedora medium scheme and its system configuration tool"
+fi
 
 if jq -e '."common-packages".packages | index("virtiofsd")' "$repo_root/packages.json" >/dev/null; then
     ok "virtiofsd is installed from common-packages"

@@ -192,7 +192,7 @@ RUN --mount=type=cache,dst=/var/cache \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
     /ctx/packages/install-texlive-packages && \
-    /ctx/finalization/verify texlive-packages && \
+    /ctx/finalization/verify texlive && \
     /ctx/shared/cleanup
 
 # Install Nix package manager and multi-user daemon.

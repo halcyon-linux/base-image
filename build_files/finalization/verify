@@ -7,7 +7,7 @@ set -Eeuo pipefail
 
 group="${1:-}"
 case "$group" in
-brew | kernel | repos | cli-tools | utils | removals | common-packages | gaming | fonts | base-pkgs | hyprpm | applications | texlive-packages | nix | picker | media | desktop-integration | justfiles | services | grub | integration-files | image-info | initramfs | finalize | nvidia-config | nvidia | system-policy | nvidia-finalize | security | security-hardening | packages | final) ;;
+brew | kernel | repos | cli-tools | utils | removals | common-packages | gaming | fonts | base-pkgs | hyprpm | applications | texlive | nix | picker | media | desktop-integration | justfiles | services | grub | integration-files | image-info | initramfs | finalize | nvidia-config | nvidia | system-policy | nvidia-finalize | security | security-hardening | packages | final) ;;
 *)
     printf 'Usage: %s <stage>\n' "$0" >&2
     exit 2
@@ -704,47 +704,19 @@ verify_applications() {
     verify_applications_source
 }
 
-verify_texlive_packages() {
-    require_rpms_from_json "texlive-packages" "packages"
+verify_texlive() {
+    require_rpms_from_json "texlive" "packages"
+    load_packages "texlive" "packages"
+    require_rpms_from_repo 'fedora,updates' "${PKG_ARRAY[@]}"
 
-    require_repos_disabled 'copr:copr.fedorainfracloud.org:aahsnr-work:texlive-packages'
-
-    # The COPR packages carry no %post scriptlets, so the image bakes the
-    # formats itself: without them pdflatex/lualatex abort with "I can't find
-    # the format file".
-    local tl_root tl_formats
-    tl_root="$(find /usr/lib/texlive -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort -V | tail -n1)"
-    if [[ -n "$tl_root" && -d "${tl_root}/bin/x86_64-linux" && -d "${tl_root}/texmf-dist/web2c" ]]; then
-        pass "TeX Live tree present: ${tl_root}"
-    else
-        fail "no usable TeX Live tree under /usr/lib/texlive (found: ${tl_root:-none})"
-        return
-    fi
-
-    if [[ -f "${tl_root}/texmf-dist/ls-R" ]]; then
-        pass "kpathsea filename database present: ${tl_root}/texmf-dist/ls-R"
-    else
-        fail "kpathsea filename database missing: ${tl_root}/texmf-dist/ls-R"
-    fi
-
-    tl_formats="$(find "${tl_root}/texmf-var/web2c" -name '*.fmt' -size +0 2>/dev/null | wc -l)"
-    if [[ "${tl_formats}" -gt 0 ]]; then
-        pass "TeX Live formats baked: ${tl_formats}"
-    else
-        fail "no TeX Live formats baked under ${tl_root}/texmf-var/web2c"
-    fi
-
-    if find "${tl_root}/texmf-var/web2c" -name 'pdflatex.fmt' -size +0 -print -quit 2>/dev/null | grep -q .; then
-        pass "pdflatex format baked"
-    else
-        fail "pdflatex format missing"
-    fi
-
-    if find "${tl_root}/texmf-var/web2c" -name 'lualatex.fmt' -size +0 -print -quit 2>/dev/null | grep -q .; then
-        pass "lualatex format baked"
-    else
-        fail "lualatex format missing"
-    fi
+    local bin
+    for bin in pdflatex kpsewhich texconfig-sys; do
+        if command -v "$bin" >/dev/null 2>&1; then
+            pass "TeX Live command available: $bin"
+        else
+            fail "TeX Live command missing from PATH: $bin"
+        fi
+    done
 }
 
 verify_nix() {
@@ -1173,7 +1145,7 @@ verify_packages() {
     verify_fonts
     verify_base_pkgs
     verify_applications
-    verify_texlive_packages
+    verify_texlive
     verify_nix
     verify_security
 }
@@ -1784,7 +1756,6 @@ verify_final() {
         'copr:copr.fedorainfracloud.org:aahsnr-work:base-pkgs' \
         'copr:copr.fedorainfracloud.org:lionheartp:Hyprland' \
         'copr:copr.fedorainfracloud.org:aahsnr-work:applications' \
-        'copr:copr.fedorainfracloud.org:aahsnr-work:texlive-packages' \
         'code' \
         'brave-browser' \
         'google-chrome' \
@@ -2287,7 +2258,7 @@ fonts) verify_fonts ;;
 base-pkgs) verify_base_pkgs ;;
 hyprpm) verify_hyprpm ;;
 applications) verify_applications ;;
-texlive-packages) verify_texlive_packages ;;
+texlive) verify_texlive ;;
 nix) verify_nix ;;
 picker) verify_picker ;;
 media) verify_media ;;
