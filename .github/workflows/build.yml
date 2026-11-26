@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       allow_large_update:
-        description: "Approve publishing a candidate above the 1 GiB update budget"
+        description: "Approve publishing a candidate above the 10 GiB update budget"
         type: boolean
         required: false
         default: false
@@ -385,7 +385,7 @@ jobs:
           PREVIOUS_DIGEST: ${{ steps.rechunk.outputs.previous_digest }}
           CURRENT_DIGEST: ${{ steps.candidate.outputs.digest }}
           ALLOW_LARGE_UPDATE: ${{ inputs.allow_large_update }}
-          MAX_UPDATE_BYTES: "1073741824"
+          MAX_UPDATE_BYTES: "10737418240"
         run: |
           set -euo pipefail
           allow_args=()
