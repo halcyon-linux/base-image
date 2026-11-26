@@ -12,6 +12,10 @@ fi
 copr='aahsnr-work/cli-tools'
 repo_id="copr:copr.fedorainfracloud.org:${copr////:}"
 copr_enabled=0
+nono_copr=$(jq -er '."nono-cli".copr' "$PACKAGES_JSON")
+nono_repo_id=$(jq -er '."nono-cli".repo_id' "$PACKAGES_JSON")
+nono_package=$(jq -er '."nono-cli".packages[]' "$PACKAGES_JSON")
+nono_enabled=0
 
 disable_copr() {
     local status=$?
@@ -19,6 +23,12 @@ disable_copr() {
     if ((copr_enabled)); then
         if ! dnf5 -y copr disable "$copr"; then
             printf 'ERROR: failed to disable COPR %s\n' "$copr" >&2
+            status=1
+        fi
+    fi
+    if ((nono_enabled)); then
+        if ! dnf5 -y copr disable "$nono_copr"; then
+            printf 'ERROR: failed to disable COPR %s\n' "$nono_copr" >&2
             status=1
         fi
     fi
@@ -53,3 +63,21 @@ fi
 dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' \
     --setopt='*terra*'.priority=10 \
     -y install "${cli_tools_packages[@]}"
+
+dnf5 -y copr enable "$nono_copr"
+nono_enabled=1
+dnf5 -y config-manager setopt "${nono_repo_id}.priority=1"
+installed_repo=""
+if rpm -q "$nono_package" >/dev/null 2>&1; then
+    installed_repo=$(dnf5 repoquery --installed --qf '%{from_repo}' "$nono_package")
+fi
+if [[ "$installed_repo" != "$nono_repo_id" ]]; then
+    if [[ -n "$installed_repo" ]]; then
+        dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' \
+            -y remove "$nono_package"
+    fi
+    dnf5 --setopt=install_weak_deps=False --setopt='*.skip_if_unavailable=False' \
+        -y install "$nono_package"
+fi
+dnf5 -y copr disable "$nono_copr"
+nono_enabled=0

@@ -50,13 +50,24 @@ else
     not_ok "packages.json syntax error"
 fi
 
-for section in applications base-pkgs cli-tools common-packages fonts gaming ghostty kernel nix noctalia security texlive utils; do
+for section in applications base-pkgs cli-tools common-packages fonts gaming ghostty kernel nix noctalia nono-cli security texlive utils; do
     if jq -e --arg s "$section" 'has($s)' "$repo_root/packages.json" >/dev/null 2>&1; then
         ok "packages.json section exists: $section"
     else
         not_ok "packages.json missing section: $section"
     fi
 done
+
+if jq -e '
+    .["nono-cli"].copr == "nolabs/nono"
+    and .["nono-cli"].repo_id == "copr:copr.fedorainfracloud.org:nolabs:nono"
+    and .["nono-cli"].packages == ["nono-cli"]
+    and ([."cli-tools".packages[]] | index("nono-cli") == null)
+' "$repo_root/packages.json" >/dev/null; then
+    ok "nono-cli is assigned to the nolabs/nono COPR"
+else
+    not_ok "nono-cli must be assigned to the nolabs/nono COPR"
+fi
 
 if jq -e '
     .texlive.copr == null

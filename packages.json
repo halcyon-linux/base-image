@@ -177,6 +177,14 @@
     ],
     "external_repos": []
   },
+  "nono-cli": {
+    "description": "nono-cli from the nolabs/nono COPR",
+    "copr": "nolabs/nono",
+    "repo_id": "copr:copr.fedorainfracloud.org:nolabs:nono",
+    "packages": [
+      "nono-cli"
+    ]
+  },
   "utils": {
     "description": "Python-based utilities from aahsnr-work/python-packages COPR",
     "copr": "aahsnr-work/python-packages",

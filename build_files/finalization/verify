@@ -341,8 +341,10 @@ verify_cli_tools_source() {
 
 verify_cli_tools() {
     require_rpms_from_json "cli-tools" "packages"
+    require_rpms_from_json "nono-cli" "packages"
 
     require_repos_disabled 'copr:copr.fedorainfracloud.org:aahsnr-work:cli-tools'
+    require_repos_disabled 'copr:copr.fedorainfracloud.org:nolabs:nono'
 
     local bin
     for bin in bun uv eza bat zoxide fzf starship zellij; do
@@ -356,6 +358,14 @@ verify_cli_tools() {
     # Terra ships a newer fzy and the base image ships fzf: both must still be
     # the COPR builds, as must every other package in the list.
     verify_cli_tools_source
+    local nono_repo_id nono_source
+    nono_repo_id=$(jq -r '."nono-cli".repo_id' "$PACKAGES_JSON")
+    nono_source=$(dnf5 repoquery --installed --qf '%{from_repo}' nono-cli)
+    if [[ "$nono_source" == "$nono_repo_id" ]]; then
+        pass "nono-cli installed from the COPR: $nono_repo_id"
+    else
+        fail "nono-cli not from $nono_repo_id: ${nono_source:-not installed}"
+    fi
 }
 
 verify_utils() {
