@@ -271,6 +271,30 @@ RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
     /ctx/packages/install-system-integration-files && \
     /ctx/finalization/verify integration-files
 
+# Pi Entry183: dormant synthetic fixture only. No enablement or activation.
+RUN --mount=type=bind,from=ctx,source=/,target=/ctx \
+    set -eu; \
+    src=/ctx/pi-security/entry183; \
+    parent=/usr/share/pi-security; \
+    dst="$parent/entry183"; \
+    unit=/usr/lib/systemd/system/pi-entry183-synthetic.service; \
+    for d in /usr/share /usr/lib/systemd/system; do \
+        test -d "$d"; test ! -L "$d"; test "$(stat -c '%u:%g:%a' "$d")" = 0:0:755; \
+    done; \
+    if test -e "$parent" || test -L "$parent"; then \
+        test -d "$parent"; test ! -L "$parent"; test "$(stat -c '%u:%g:%a' "$parent")" = 0:0:755; \
+    else install -d -o 0 -g 0 -m 0755 "$parent"; fi; \
+    test ! -e "$dst"; test ! -L "$dst"; test ! -e "$unit"; test ! -L "$unit"; \
+    for f in probe.sh nono-profile.json admission-intent.json allowed.txt nono-denied.txt systemd-denied.txt pi-entry183-synthetic.service; do \
+        test -f "$src/$f"; test ! -L "$src/$f"; \
+    done; \
+    install -d -o 0 -g 0 -m 0755 "$dst"; \
+    for f in probe.sh nono-profile.json admission-intent.json allowed.txt nono-denied.txt systemd-denied.txt; do \
+        install -o 0 -g 0 -m 0644 "$src/$f" "$dst/$f"; \
+    done; \
+    install -o 0 -g 0 -m 0644 "$src/pi-entry183-synthetic.service" "$unit"; \
+    test ! -e "$dst/activation-not-provisioned"; test ! -L "$dst/activation-not-provisioned"
+
 #############################
 # NVIDIA DRIVER INTEGRATION
 #############################

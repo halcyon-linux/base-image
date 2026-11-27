@@ -1,0 +1,44 @@
+# Offline candidate only. No install target, no build hook, no activation sentinel shipped.
+[Unit]
+Description=Pi Entry183 disabled synthetic author containment candidate
+RefuseManualStart=yes
+ConditionPathExists=/usr/share/pi-security/entry183/activation-not-provisioned
+
+[Service]
+Type=oneshot
+User=pi-author
+Group=pi-author
+UMask=0077
+WorkingDirectory=/
+RuntimeDirectory=pi-entry183-synthetic
+RuntimeDirectoryMode=0700
+RuntimeDirectoryPreserve=no
+Environment=PATH=/usr/bin:/bin LC_ALL=C
+UnsetEnvironment=BASH_ENV ENV LD_PRELOAD LD_LIBRARY_PATH DBUS_SESSION_BUS_ADDRESS SSH_AUTH_SOCK DISPLAY WAYLAND_DISPLAY XDG_RUNTIME_DIR GH_TOKEN GITHUB_TOKEN OPENAI_API_KEY
+ExecStart=/usr/bin/env -i PATH=/usr/bin:/bin LC_ALL=C HOME=/run/pi-entry183-synthetic INVOCATION_ID=${INVOCATION_ID} /usr/bin/bash --noprofile --norc /usr/share/pi-security/entry183/probe.sh outer
+StandardInput=null
+StandardOutput=journal
+StandardError=journal
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateNetwork=yes
+PrivateIPC=yes
+PrivateDevices=yes
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+AmbientCapabilities=
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+ProtectProc=invisible
+RestrictSUIDSGID=yes
+InaccessiblePaths=/usr/share/pi-security/entry183/systemd-denied.txt
+ReadWritePaths=/run/pi-entry183-synthetic
+Delegate=no
+KillMode=control-group
+TimeoutStartSec=60s
+TimeoutStopSec=10s
+Restart=no
+TasksMax=64
+MemoryMax=512M
