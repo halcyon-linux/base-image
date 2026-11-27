@@ -357,6 +357,7 @@ RUN --mount=type=cache,dst=/var/cache \
     --mount=type=cache,dst=/var/log \
     --mount=type=bind,from=ctx,source=/,target=/ctx \
     --mount=type=tmpfs,dst=/tmp \
+    dnf5 -y upgrade zstd && \
     /ctx/kernel/build-initramfs && \
     /ctx/finalization/verify initramfs
 
